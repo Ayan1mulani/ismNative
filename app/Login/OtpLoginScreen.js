@@ -1,208 +1,212 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
+  SafeAreaView,
   View,
-  Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
+  Text,
+  StyleSheet,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CommonActions } from "@react-navigation/native";
-import { LoginSrv } from "../../services/LoginSrv";
 
-const OtpLoginScreen = ({ navigation }) => {
-  const [mobile, setMobile] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpId, setOtpId] = useState(null);
+import { useNavigation } from "@react-navigation/native";
+import { usePermissions } from "../../Utils/ConetextApi";
+import ErrorPopupModal from "../PopUps/MessagePop";
+import { ismServices } from "../../services/ismServices";
+import BRAND from "../config";
+
+const OtpPhoneScreen = () => {
+
+  const navigation = useNavigation();
+  const { nightMode } = usePermissions();
+
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
-  const [timer, setTimer] = useState(0);
 
-  useEffect(() => {
-    let interval;
-    if (timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [timer]);
+  const [showError, setShowError] = useState(false);
+  const [errorTitle, setErrorTitle] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const theme = nightMode
+    ? {
+        bg: "#121212",
+        text: "#fff",
+        sub: "#B3B3B3",
+        inputBg: "#2a2a2a",
+        border: "#1565C0"
+      }
+    : {
+        bg: "#f8f9fa",
+        text: "#074B7C",
+        sub: "#6c757d",
+        inputBg: "#fff",
+        border: "#1996D3"
+      };
 
   const handleSendOtp = async () => {
-    if (mobile.length !== 10) {
-      alert("Enter valid 10 digit mobile number");
+
+    if (phoneNumber.length !== 10) {
+      setErrorTitle("Validation Error");
+      setErrorMessage("Enter valid mobile number");
+      setShowError(true);
       return;
     }
 
-    try {
-      setLoading(true);
+    Keyboard.dismiss();
 
-      const res = await LoginSrv.generateOtp({
-        identity: mobile,
-        app_roles: ["member", "resident", "tenant"],
-      });
-
-      if (res.data.status === "success") {
-        setOtpId(res.data.data.id);
-        setTimer(600);
-      } else {
-        alert(res.data.message);
-      }
-    } catch (error) {
-      alert("Failed to send OTP");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otp) {
-      alert("Enter OTP");
-      return;
-    }
+    setLoading(true);
 
     try {
-      setLoading(true);
 
-      const res = await LoginSrv.validateOtp({
-        id: otpId,
-        otp: otp,
-      });
+     const response = await ismServices.generateOtp(phoneNumber);
 
-      if (res.data.status === "success") {
-        await AsyncStorage.setItem(
-          "userInfo",
-          JSON.stringify(res.data.data)
-        );
+      console.log("OTP RESPONSE:", response);
 
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: "MainApp" }],
-          })
-        );
+      if (response?.status === "success") {
+
+        navigation.navigate("OtpVerify", {
+          otpData: response.data,
+          phone: phoneNumber
+        });
+
       } else {
-        alert("Invalid OTP");
+
+        setErrorTitle("Failed");
+        setErrorMessage(response?.message || "Failed to send OTP");
+        setShowError(true);
+
       }
+
     } catch (error) {
-      alert("OTP verification failed");
+
+      console.log("OTP ERROR:", error);
+
+      setErrorTitle("Error");
+      setErrorMessage("Something went wrong");
+      setShowError(true);
+
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Login via OTP</Text>
 
-      <View style={styles.inputContainer}>
-        <TextInput
-          placeholder="Mobile Number"
-          keyboardType="number-pad"
-          maxLength={10}
-          value={mobile}
-          onChangeText={setMobile}
-          style={styles.input}
-        />
-      </View>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: theme.bg }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
 
-      {!otpId ? (
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleSendOtp}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Send OTP</Text>
-          )}
-        </TouchableOpacity>
-      ) : (
-        <>
-          <View style={styles.inputContainer}>
-            <TextInput
-              placeholder="Enter OTP"
-              keyboardType="number-pad"
-              maxLength={6}
-              value={otp}
-              onChangeText={setOtp}
-              style={styles.input}
-            />
-          </View>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
 
-          <Text style={styles.timer}>
-            {timer > 0
-              ? `Expires in ${Math.floor(timer / 60)}:${(
-                  "0" + (timer % 60)
-                ).slice(-2)}`
-              : "OTP Expired"}
+        <SafeAreaView style={styles.inner}>
+
+          <Text style={[styles.heading, { color: theme.text }]}>
+            OTP LOGIN
           </Text>
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleVerifyOtp}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                Verify OTP
-              </Text>
-            )}
-          </TouchableOpacity>
-        </>
-      )}
+          <Text style={[styles.subText, { color: theme.sub }]}>
+            Enter your mobile number to receive OTP
+          </Text>
 
-      <TouchableOpacity
-        onPress={() => navigation.goBack()}
-        style={{ marginTop: 20 }}
-      >
-        <Text style={{ color: "#1565A9" }}>
-          Back to Login
-        </Text>
-      </TouchableOpacity>
-    </SafeAreaView>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.inputBg,
+                color: theme.text,
+                borderColor: theme.border
+              }
+            ]}
+            placeholder="Enter Mobile Number"
+            placeholderTextColor={nightMode ? "#888" : "#999"}
+            keyboardType="number-pad"
+            maxLength={10}
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            editable={!loading}
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              { backgroundColor: loading ? "#b0b0b0" : BRAND.COLORS.primary }
+            ]}
+            onPress={handleSendOtp}
+            disabled={loading}
+          >
+
+            <Text style={styles.buttonText}>
+              {loading ? "Sending OTP..." : "Send OTP"}
+            </Text>
+
+          </TouchableOpacity>
+
+        </SafeAreaView>
+
+      </TouchableWithoutFeedback>
+
+      <ErrorPopupModal
+        visible={showError}
+        onClose={() => setShowError(false)}
+        title={errorTitle}
+        message={errorMessage}
+        type="error"
+        buttonText="OK"
+      />
+
+    </KeyboardAvoidingView>
   );
 };
 
-export default OtpLoginScreen;
+export default OtpPhoneScreen;
 
 const styles = StyleSheet.create({
+
   container: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "center",
+    flex: 1
   },
-  title: {
+
+  inner: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
+
+  heading: {
     fontSize: 24,
     fontWeight: "700",
-    marginBottom: 30,
+    marginBottom: 10
   },
-  inputContainer: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    marginBottom: 20,
-    paddingHorizontal: 12,
-    height: 55,
-    justifyContent: "center",
+
+  subText: {
+    fontSize: 14,
+    marginBottom: 30
   },
+
   input: {
-    fontSize: 16,
+    width: "90%",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 20
   },
+
   button: {
-    backgroundColor: "#1996D3",
+    width: "90%",
     padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
+    borderRadius: 10,
+    alignItems: "center"
   },
+
   buttonText: {
     color: "#fff",
-    fontWeight: "700",
-  },
-  timer: {
-    textAlign: "center",
-    marginBottom: 15,
-  },
+    fontWeight: "600",
+    fontSize: 16
+  }
+
 });

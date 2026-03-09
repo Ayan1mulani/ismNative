@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-
+import BRAND from '../config'
 
 const BASE_URL = "https://ism-vms.s3.amazonaws.com/company-logo/";
 const DEFAULT_GUEST_IMAGE =
@@ -22,7 +22,7 @@ const DEFAULT_GUEST_IMAGE =
 
 // Theme configuration
 const COLORS = {
-  primary: '#1996D3',
+  primary: BRAND.COLORS.primaryDark,
   success: '#34C759',
   warning: '#FF9500',
   error: '#FF3B30',

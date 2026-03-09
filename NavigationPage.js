@@ -60,6 +60,8 @@ import OtpLoginScreen from './app/Login/OtpLoginScreen';
 import MyComplexScreen from './app/MyComplex/MyComplexScreen';
 import myNoticeDetailScreen from './app/MyComplex/MyNoticeDetailScreen';
 import MembersScreen from './app/AllServicesScreen/MembersScreen';
+import OtpVerifyScreen from './app/Login/OtpVerifyScreen';
+
 
 
 const Tab = createBottomTabNavigator();
@@ -92,7 +94,7 @@ const ServiceRequestsStack = () => {
 // --- Modern Custom Tab Bar with Sliding Animation ---
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { nightMode } = usePermissions();
-const COLORS = BRAND.COLORS;
+  const COLORS = BRAND.COLORS;
 
   const PRIMARY_COLOR = nightMode ? "#2A2A2Aee" : COLORS.bottomNavBackground;
   const SECONDARY_COLOR = nightMode ? "#4A90E2" : "#FFFFFF";
@@ -332,7 +334,11 @@ const NavigationPage = () => {
           <Stack.Screen name="OtpLoginScreen" component={OtpLoginScreen} />
           <Stack.Screen name="Notices" component={MyComplexScreen} />
           <Stack.Screen name="NoticeDetail" component={myNoticeDetailScreen} />
-           <Stack.Screen name="FamilyMember" component={MembersScreen} />
+          <Stack.Screen name="FamilyMember" component={MembersScreen} />
+          <Stack.Screen name="OtpLogin" component={OtpLoginScreen} />
+           <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />
+
+
 
 
 

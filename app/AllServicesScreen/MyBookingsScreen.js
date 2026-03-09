@@ -13,6 +13,7 @@ import { usePermissions } from "../../Utils/ConetextApi";
 import { otherServices } from "../../services/otherServices";
 import AppHeader from "../components/AppHeader";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import BRAND from '../config'
 
 const MyBookingsScreen = ({ navigation }) => {
   const { nightMode } = usePermissions();
@@ -24,7 +25,7 @@ const MyBookingsScreen = ({ navigation }) => {
     text: nightMode ? "#F1F5F9" : "#111827",
     card: nightMode ? "#1E293B" : "#FFFFFF",
     border: nightMode ? "#334155" : "#E5E7EB",
-    primary: "#1996D3",
+    primary: BRAND.COLORS.primary,
   };
 
   useEffect(() => {

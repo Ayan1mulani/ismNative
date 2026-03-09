@@ -13,6 +13,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import AppHeader from "../components/AppHeader";
 import { usePermissions } from "../../Utils/ConetextApi";
 import { otherServices } from "../../services/otherServices";
+import BRAND from '../config'
 
 const MyNoticesScreen = ({ navigation }) => {
   const { nightMode } = usePermissions();
@@ -25,9 +26,9 @@ const MyNoticesScreen = ({ navigation }) => {
     card: nightMode ? "#1E293B" : "#FFFFFF",
     title: nightMode ? "#F1F5F9" : "#111827",
     preview: nightMode ? "#CBD5E1" : "#6B7280",
-    category: "#1565A9",
+    category: BRAND.COLORS.primaryDark,
     date: "#9CA3AF",
-    calendarHeader: "#1565A9",
+    calendarHeader: BRAND.COLORS.primary,
     calendarBody: nightMode ? "#334155" : "#FFFFFF",
     emptyText: nightMode ? "#F1F5F9" : "#111827",
     emptySubText: nightMode ? "#CBD5E1" : "#9CA3AF",

@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { Calendar } from "react-native-calendars";
+import BRAND from '../../config'
 
 const CalendarSelector = ({
   selectedDate,
@@ -19,7 +20,7 @@ const CalendarSelector = ({
   const [showCalendar, setShowCalendar] = useState(false);
 
   const THEME = {
-    primary: "#1D9BF0",
+    primary: BRAND.COLORS.primary,
     textPrimary: nightMode ? "#FFFFFF" : "#1F2937",
     textSecondary: nightMode ? "#9CA3AF" : "#6B7280",
     border: nightMode ? "#374151" : "#E5E7EB",
@@ -149,26 +150,35 @@ const CalendarSelector = ({
               </TouchableOpacity>
             </View>
 
-            <Calendar
-              current={selectedDate || getTodayDate()}
-              minDate={getTodayDate()}
-              onDayPress={handleDateSelect}
-              markedDates={{
-                [selectedDate]: {
-                  selected: true,
-                  selectedColor: THEME.primary,
-                },
-              }}
-              theme={{
-                calendarBackground: THEME.modalBg,
-                selectedDayBackgroundColor: THEME.primary,
-                selectedDayTextColor: "#fff",
-                todayTextColor: "#10B981",
-                dayTextColor: THEME.textPrimary,
-                arrowColor: THEME.primary,
-                monthTextColor: THEME.textPrimary,
-              }}
-            />
+          <Calendar
+  current={selectedDate || getTodayDate()}
+  minDate={getTodayDate()}
+  onDayPress={handleDateSelect}
+
+  renderArrow={(direction) => (
+    <Ionicons
+      name={direction === "left" ? "chevron-back" : "chevron-forward"}
+      size={22}
+      color={THEME.textPrimary}
+    />
+  )}
+
+  markedDates={{
+    [selectedDate]: {
+      selected: true,
+      selectedColor: THEME.primary,
+    },
+  }}
+
+  theme={{
+    calendarBackground: THEME.modalBg,
+    selectedDayBackgroundColor: THEME.primary,
+    selectedDayTextColor: "#fff",
+    todayTextColor: "#10B981",
+    dayTextColor: THEME.textPrimary,
+    monthTextColor: THEME.textPrimary,
+  }}
+/>
             <View style={styles.quickRow}>
   <TouchableOpacity
     style={[styles.quickBtn, { backgroundColor: THEME.primary }]}

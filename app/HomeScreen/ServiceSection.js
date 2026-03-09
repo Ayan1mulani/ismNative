@@ -141,7 +141,7 @@ const ServicesSection = () => {
           name="construct"
           size={20}
           color={nightMode ? "#D1D5DB" : "#374151"}
-          style={{ marginRight: 8 }}
+          style={{ marginRight: 8,     paddingLeft:8 }}
         />
         <Text style={[styles.sectionTitle, { color: theme.textColor }]}>
           Services
@@ -295,7 +295,7 @@ export default ServicesSection;
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 20,
+    marginHorizontal: 10,
     marginTop: 10,
   },
 

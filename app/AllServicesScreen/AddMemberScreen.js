@@ -20,6 +20,7 @@ import AppHeader from "../components/AppHeader";
 import { visitorServices } from "../../services/visitorServices";
 import BRAND from '../config'
 import SubmitButton from "../components/SubmitButton";
+import StatusModal from "../components/StatusModal";
 
 const RELATION_OPTIONS = [
   "Mother",
@@ -41,6 +42,12 @@ const AddMemberScreen = ({ route, navigation }) => {
   const [email, setEmail] = useState(member?.email || "");
   const [relation, setRelation] = useState(member?.relation || "");
   const [vehicleNumber, setVehicleNumber] = useState(member?.vehicle_no || "");
+  const [statusModal, setStatusModal] = useState({
+  visible: false,
+  type: "loading",
+  title: "",
+  subtitle: "",
+});
 
   const [focusedInput, setFocusedInput] = useState(null);
   const [showRelationModal, setShowRelationModal] = useState(false);
@@ -53,70 +60,97 @@ const AddMemberScreen = ({ route, navigation }) => {
 
   const handleSubmit = async () => {
 
-    if (!name.trim()) {
-      Alert.alert("Validation", "Please enter name");
-      return;
+  if (!name.trim()) {
+    Alert.alert("Validation", "Please enter name");
+    return;
+  }
+
+  if (!relation) {
+    Alert.alert("Validation", "Please select relation");
+    return;
+  }
+
+  try {
+
+    setIsSubmitting(true);
+
+    // show loading modal
+    setStatusModal({
+      visible: true,
+      type: "loading",
+      title: isEdit ? "Updating Member" : "Adding Member",
+      subtitle: "Please wait...",
+    });
+
+    let res;
+
+    if (isEdit) {
+
+      res = await visitorServices.updateFamilyMember({
+        id: member.id,
+        name: name,
+        phone_no: contact,
+        email: email,
+        relation: relation,
+        vehicle_no: vehicleNumber,
+        image_src: null
+      });
+
+    } else {
+
+      res = await visitorServices.addFamilyMember({
+        name: name,
+        phone_no: contact,
+        email: email,
+        relation: relation,
+        vehicle_no: vehicleNumber,
+        image_src: null
+      });
+
     }
 
-    if (!relation) {
-      Alert.alert("Validation", "Please select relation");
-      return;
-    }
+    if (res?.status === "success") {
 
-    try {
+      setStatusModal({
+        visible: true,
+        type: "success",
+        title: "Success",
+        subtitle: isEdit
+          ? "Member updated successfully"
+          : "Member added successfully",
+      });
 
-      setIsSubmitting(true);
-
-      let res;
-
-      if (isEdit) {
-
-        res = await visitorServices.updateFamilyMember({
-          id: member.id,
-          name: name,
-          phone_no: contact,
-          email: email,
-          relation: relation,
-          vehicle_no: vehicleNumber,
-          image_src: null
-        });
-
-      } else {
-
-        res = await visitorServices.addFamilyMember({
-          name: name,
-          phone_no: contact,
-          email: email,
-          relation: relation,
-          vehicle_no: vehicleNumber,
-          image_src: null
-        });
-
-      }
-
-      if (res?.status === "success") {
-
-        Alert.alert(
-          "Success",
-          isEdit ? "Member updated successfully" : "Member added successfully"
-        );
-
+      setTimeout(() => {
         navigation.goBack();
+      }, 1500);
 
-      } else {
-        Alert.alert("Error", res?.message || "Operation failed");
-      }
+    } else {
 
-    } catch (error) {
+      setStatusModal({
+        visible: true,
+        type: "error",
+        title: "Error",
+        subtitle: res?.message || "Operation failed",
+      });
 
-      console.log(error);
-      Alert.alert("Error", "Something went wrong");
-
-    } finally {
-      setIsSubmitting(false);
     }
 
-  };
+  } catch (error) {
+
+    console.log(error);
+
+    setStatusModal({
+      visible: true,
+      type: "error",
+      title: "Error",
+      subtitle: "Something went wrong",
+    });
+
+  } finally {
+    setIsSubmitting(false);
+  }
+
+};
 
   const renderRelationOption = ({ item, index }) => (
     <TouchableOpacity
@@ -132,6 +166,7 @@ const AddMemberScreen = ({ route, navigation }) => {
   );
 
   return (
+    
     <SafeAreaView style={styles.container}>
       <AppHeader title={isEdit ? "Edit Member" : "Add Member"} />
 
@@ -147,7 +182,7 @@ const AddMemberScreen = ({ route, navigation }) => {
           >
 
             {/* Profile */}
-            <View style={styles.imageSection}>
+            {/* <View style={styles.imageSection}>
               <View style={styles.profileCircle}>
                 < Ionicons name="person" size={42} color="#9CA3AF" />
               </View>
@@ -156,7 +191,7 @@ const AddMemberScreen = ({ route, navigation }) => {
                 < Ionicons name="camera" size={14} color="#fff" />
                 <Text style={styles.changeText}>Add Photo</Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
 
             {/* Form */}
             <View style={styles.formCard}>
@@ -321,6 +356,15 @@ const AddMemberScreen = ({ route, navigation }) => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+      <StatusModal
+  visible={statusModal.visible}
+  type={statusModal.type}
+  title={statusModal.title}
+  subtitle={statusModal.subtitle}
+  onClose={() =>
+    setStatusModal(prev => ({ ...prev, visible: false }))
+  }
+/>
 
     </SafeAreaView>
   );

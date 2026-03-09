@@ -18,6 +18,7 @@ import { useNavigation } from "@react-navigation/native";
 import AppHeader from "../../components/AppHeader";
 import StatusModal from "../../components/StatusModal";
 import { otherServices } from "../../../services/otherServices";
+import SubmitButton from "../../components/SubmitButton";
 
 const ContactUsScreen = () => {
   const navigation = useNavigation();
@@ -41,62 +42,62 @@ const ContactUsScreen = () => {
     navigation.navigate("SubCategorySelection");
   };
 
- const handleSubmit = async () => {
-  // ✅ Basic validation
-  if (!subject.trim() || !message.trim()) {
-    setModalType("error");
-    setModalTitle("Missing Fields");
-    setModalSubtitle("Please enter subject and message.");
-    setModalVisible(true);
-
-    setTimeout(() => setModalVisible(false), 1800);
-    return;
-  }
-
-  try {
-    // ✅ Show loading modal
-    setModalType("loading");
-    setModalTitle("Sending...");
-    setModalSubtitle("Please wait");
-    setModalVisible(true);
-
-    const res = await otherServices.sendFeedback(
-      subject.trim(),
-      message.trim()
-    );
-
-    console.log("SendFeedback Response:", res);
-
-    // ✅ Check backend response properly
-    if (res && (res.status === "success" || res.success === true)) {
-      setModalType("success");
-      setModalTitle("Message Sent!");
-      setModalSubtitle("We’ll get back to you soon.");
-
-      // Clear inputs
-      setSubject("");
-      setMessage("");
-
-      setTimeout(() => {
-        setModalVisible(false);
-      }, 2000);
-    } else {
+  const handleSubmit = async () => {
+    // ✅ Basic validation
+    if (!subject.trim() || !message.trim()) {
       setModalType("error");
-      setModalTitle("Failed");
-      setModalSubtitle(res?.message || "Unable to send feedback.");
+      setModalTitle("Missing Fields");
+      setModalSubtitle("Please enter subject and message.");
+      setModalVisible(true);
+
+      setTimeout(() => setModalVisible(false), 1800);
+      return;
+    }
+
+    try {
+      // ✅ Show loading modal
+      setModalType("loading");
+      setModalTitle("Sending...");
+      setModalSubtitle("Please wait");
+      setModalVisible(true);
+
+      const res = await otherServices.sendFeedback(
+        subject.trim(),
+        message.trim()
+      );
+
+      console.log("SendFeedback Response:", res);
+
+      // ✅ Check backend response properly
+      if (res && (res.status === "success" || res.success === true)) {
+        setModalType("success");
+        setModalTitle("Message Sent!");
+        setModalSubtitle("We’ll get back to you soon.");
+
+        // Clear inputs
+        setSubject("");
+        setMessage("");
+
+        setTimeout(() => {
+          setModalVisible(false);
+        }, 2000);
+      } else {
+        setModalType("error");
+        setModalTitle("Failed");
+        setModalSubtitle(res?.message || "Unable to send feedback.");
+
+        setTimeout(() => setModalVisible(false), 2000);
+      }
+    } catch (error) {
+      console.log("SendFeedback Error:", error);
+
+      setModalType("error");
+      setModalTitle("Error");
+      setModalSubtitle("Something went wrong.");
 
       setTimeout(() => setModalVisible(false), 2000);
     }
-  } catch (error) {
-    console.log("SendFeedback Error:", error);
-
-    setModalType("error");
-    setModalTitle("Error");
-    setModalSubtitle("Something went wrong.");
-
-    setTimeout(() => setModalVisible(false), 2000);
-  }
-};
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -213,15 +214,11 @@ const ContactUsScreen = () => {
                   onBlur={() => setFocusedInput(null)}
                 />
               </View>
-
-              <TouchableOpacity
-                style={styles.submitBtn}
+              <SubmitButton
+                title="Send Message"
                 onPress={handleSubmit}
-                activeOpacity={0.85}
-              >
-                < Ionicons name="send" size={18} color="#fff" />
-                <Text style={styles.submitText}>Send Message</Text>
-              </TouchableOpacity>
+                
+              />
             </View>
 
             {/* ======= END DESIGN ======= */}
@@ -283,11 +280,11 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     overflow: "hidden",
     backgroundColor: "#FFFFFF",
-           elevation: 2,
+    elevation: 2,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-     shadowColor: "#000",
+    shadowColor: "#000",
     shadowOpacity: 0.05,
   },
 
@@ -300,7 +297,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
 
-  
+
 
   iconBox: {
     width: 50,
@@ -343,7 +340,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-     shadowColor: "#000",
+    shadowColor: "#000",
     shadowOpacity: 0.05,
   },
 
@@ -381,11 +378,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-        elevation: 2,
+    elevation: 2,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-     shadowColor: "#000",
+    shadowColor: "#000",
     shadowOpacity: 0.05,
   },
 

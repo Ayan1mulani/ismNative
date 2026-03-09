@@ -21,7 +21,8 @@ const LoginSrv = {
     //     window.location.reload(true);
     // },
     generateOtp: (obj) => {
-        let ismUrl = API_URL2 + 'generateotp';
+        let ismUrl = API_URL2 + '/generateotp';
+        console.log( API_URL2 + 'generateotp')
         return ApiCommon.postReq(ismUrl, obj);
     },
     resendOtp: (obj) => {

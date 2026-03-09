@@ -12,7 +12,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import BRAND from '../config'
 
 const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
   const navigation = useNavigation();
@@ -27,7 +28,7 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
     card: nightMode ? '#1E1E1E' : '#FFFFFF',
     text: nightMode ? '#FFFFFF' : '#1F2937',
     textSecondary: nightMode ? '#9E9E9E' : '#6B7280',
-    primary: '#2E8BC0',
+    primary: BRAND.COLORS.primaryDark,
     danger: '#EF4444',
     surface: '#F8F9FA',
     success: '#10B981',

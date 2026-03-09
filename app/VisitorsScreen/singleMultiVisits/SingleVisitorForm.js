@@ -218,16 +218,17 @@ const SingleVisitorForm = () => {
             { backgroundColor: theme.inputBg, borderColor: theme.border },
           ]}
           onPress={() => {
-            if (!visitDate) {
-              alert("Please select visit date first");
-              return;
-            }
+  if (!visitDate) {
+    alert("Please select visit date first");
+    return;
+  }
 
-            navigation.navigate("AmenitiesListScreen", {
-              type: "PARKING",
-              title: "Parking",
-            });
-          }}
+  navigation.navigate("AmenitiesListScreen", {
+    type: "PARKING",
+    title: "Parking",
+    onParkingSelected: (parking) => setSelectedParking(parking), // ✅ callback
+  });
+}}
         >
           < Ionicons name="car" size={20} color={BRAND.COLORS.icon} />
 

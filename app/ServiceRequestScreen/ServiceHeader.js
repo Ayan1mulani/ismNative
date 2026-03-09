@@ -1,5 +1,5 @@
 // ServiceRequestTabs.js
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -13,7 +13,7 @@ import { usePermissions } from '../../Utils/ConetextApi';
 import ComplaintListScreen from './ServiceRequestPage';
 import { complaintService } from '../../services/complaintService';
 import SlidingTabs from '../components/SlidingTabs';
-import BRAND from '../config'
+import BRAND from '../config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -55,7 +55,6 @@ const ServiceRequestTabs = () => {
   const navigation = useNavigation();
   const theme = nightMode ? COLORS.dark : COLORS.light;
 
-  // 🔥 Fetch Data
   useFocusEffect(
     useCallback(() => {
       fetchServiceRequests();
@@ -66,20 +65,21 @@ const ServiceRequestTabs = () => {
     try {
       setIsLoading(true);
 
-      const openRes = await complaintService.getMyComplaints(
-        REQUEST_STATUS.OPEN
-      );
-      const closedRes = await complaintService.getMyComplaints(
-        REQUEST_STATUS.CLOSED
-      );
+      // Single API call — API returns all regardless of status param
+      const res = await complaintService.getMyComplaints();
+      const allData = res.data || [];
 
-      const openData = openRes.data || [];
-      const closedData = closedRes.data || [];
+      const openData = allData.filter((item) =>
+  ['Open', 'WIP', 'In Progress', 'Pending'].includes(item.status)
+);
+     const closedData = allData.filter((item) =>
+  ['Closed', 'Resolved', 'Completed'].includes(item.status)
+);
 
       setRequests({
         open: openData,
         closed: closedData,
-        all: [...openData, ...closedData],
+        all: allData,
       });
     } catch (error) {
       console.error('Failed to fetch service requests:', error);
@@ -119,7 +119,6 @@ const ServiceRequestTabs = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* ✅ Sliding Tabs */}
       <SlidingTabs
         tabs={TABS}
         activeIndex={activeTabIndex}
@@ -133,7 +132,6 @@ const ServiceRequestTabs = () => {
         scrollX={scrollX}
       />
 
-      {/* ✅ Swipe Pages */}
       <Animated.ScrollView
         ref={scrollViewRef}
         horizontal
@@ -160,7 +158,6 @@ const ServiceRequestTabs = () => {
         ))}
       </Animated.ScrollView>
 
-      {/* ✅ Floating Button */}
       <TouchableOpacity
         style={[
           styles.fab,
@@ -172,7 +169,7 @@ const ServiceRequestTabs = () => {
         onPress={handleAddRequest}
         activeOpacity={0.8}
       >
-        < Ionicons name="add" size={28} color="#FFFFFF" />
+        <Ionicons name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );

@@ -291,18 +291,29 @@ const AmenityBookingScreen = ({ route, navigation }) => {
     const bookingTo = `${selectedDate} ${selectedSlot.to}:00`;
 
     if (type === "PARKING") {
-      // Navigate directly — no setTimeout race condition
-      navigation.navigate("AddVisitor", {
-        selectedParking: {
-          location_id: amenity.id,
-          booking_from: bookingFrom,
-          booking_to: bookingTo,
-          slot: `${selectedSlot.from} - ${selectedSlot.to}`,
-        },
-      });
-      return;
-    }
+  const onParkingSelected = route.params?.onParkingSelected;
 
+  if (onParkingSelected) {
+    onParkingSelected({
+      location_id: amenity.id,
+      booking_from: bookingFrom,
+      booking_to: bookingTo,
+      slot: `${selectedSlot.from} - ${selectedSlot.to}`,
+    });
+    navigation.pop(2); // ✅ pops AmenityBooking + AmenitiesListScreen, returns to form
+  } else {
+    // fallback for other entry points
+    navigation.navigate("AddVisitor", {
+      selectedParking: {
+        location_id: amenity.id,
+        booking_from: bookingFrom,
+        booking_to: bookingTo,
+        slot: `${selectedSlot.from} - ${selectedSlot.to}`,
+      },
+    });
+  }
+  return;
+}
     // AMENITY FLOW
     try {
       setModalType("loading");

@@ -33,10 +33,7 @@ const AllServicesScreen = () => {
   };
 
   const services = [
-    { title: "Raise request", icon: "add-circle-outline", route: "SubCategorySelection" },
-    { title: "Closed request", icon: "checkmark-done-outline" },
-    { title: "Open request", icon: "alert-circle-outline" },
-    { title: "Payment", icon: "card-outline" },
+    // { title: "Payment", icon: "card-outline" },
     { title: "Notices", icon: "notifications-outline", route: "MyNoticesScreen" },
     { title: "Events", icon: "calendar-outline" },
     { title: "Book Ameneties", icon: "bookmarks-outline", route: "AmenitiesListScreen" },
@@ -45,7 +42,6 @@ const AllServicesScreen = () => {
     { title: "My Complex", icon: "notifications-outline", route: "Notices" },
     { title: "Settings", icon: "settings-outline", route:'Settings'},
     { title: "My vehicles", icon: "car-outline", route: "MyVehiclesScreen" },
-    { title: "Visitors", icon: "walk-outline", route: "Visitors" },
     { title: "Family members", icon: "person-add-outline", route: "FamilyMember" },
     { title: "Add vehicle", icon: "car-outline", route: "AddVehicleScreen" },
     { title: "Bills", icon: "receipt-outline", route: "bills" },

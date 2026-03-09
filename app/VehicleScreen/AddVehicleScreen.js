@@ -5,9 +5,7 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   ScrollView,
-  Alert,
   Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,10 +15,38 @@ import { Util } from "../../services/Util";
 import { ApiCommon } from "../../services/ApiCommon";
 import { API_URL2 } from "../config/env";
 import SubmitButton from "../components/SubmitButton";
+import StatusModal from "../components/StatusModal";
+
+/* ---------- INPUT COMPONENT (MOVED OUTSIDE) ---------- */
+
+const Input = ({ label, value, onChangeText, placeholder }) => {
+  return (
+    <View style={styles.inputBlock}>
+      <Text style={styles.label}>{label}</Text>
+
+      <TextInput
+        style={styles.input}
+        value={value}
+        placeholder={placeholder}
+        onChangeText={onChangeText}
+        placeholderTextColor="#9CA3AF"
+      />
+    </View>
+  );
+};
+
+/* ---------- MAIN SCREEN ---------- */
 
 const AddVehicleScreen = ({ navigation, route }) => {
   const vehicle = route?.params?.vehicle;
   const isEdit = !!vehicle;
+
+  const [statusModal, setStatusModal] = useState({
+    visible: false,
+    type: "loading",
+    title: "",
+    subtitle: "",
+  });
 
   const [loading, setLoading] = useState(false);
 
@@ -35,13 +61,27 @@ const AddVehicleScreen = ({ navigation, route }) => {
   const [showTypeModal, setShowTypeModal] = useState(false);
 
   const handleSubmit = async () => {
-    if (!vehicleNo || !owner || !type) {
-      Alert.alert("Validation", "Vehicle No, Owner & Type are required");
+    if (loading) return;
+
+    if (!vehicleNo.trim() || !owner.trim() || !type) {
+      setStatusModal({
+        visible: true,
+        type: "error",
+        title: "Validation",
+        subtitle: "Vehicle No, Owner & Type are required",
+      });
       return;
     }
 
     try {
       setLoading(true);
+
+      setStatusModal({
+        visible: true,
+        type: "loading",
+        title: isEdit ? "Updating Vehicle" : "Adding Vehicle",
+        subtitle: "Please wait...",
+      });
 
       const user = await Common.getLoggedInUser();
 
@@ -71,56 +111,61 @@ const AddVehicleScreen = ({ navigation, route }) => {
       let response;
 
       if (isEdit) {
-        const url = `${API_URL2}/my/vehicle/${vehicle.id}?api-token=${user.api_token}&user-id=${encodeURIComponent(
-          JSON.stringify(userObj)
-        )}`;
+        const url = `${API_URL2}/my/vehicle/${vehicle.id}?api-token=${
+          user.api_token
+        }&user-id=${encodeURIComponent(JSON.stringify(userObj))}`;
 
         response = await ApiCommon.postReq(url, payload, headers);
       } else {
-        const url = `${API_URL2}/my/vehicle?api-token=${user.api_token}&user-id=${encodeURIComponent(
-          JSON.stringify(userObj)
-        )}`;
+        const url = `${API_URL2}/my/vehicle?api-token=${
+          user.api_token
+        }&user-id=${encodeURIComponent(JSON.stringify(userObj))}`;
 
         response = await ApiCommon.putReq(url, payload, headers);
       }
 
       if (response.status === "success") {
-        Alert.alert(
-          "Success",
-          isEdit ? "Vehicle updated successfully" : "Vehicle added successfully"
-        );
-        navigation.goBack();
+        setStatusModal({
+          visible: true,
+          type: "success",
+          title: "Success",
+          subtitle: isEdit
+            ? "Vehicle updated successfully"
+            : "Vehicle added successfully",
+        });
+
+        setTimeout(() => {
+          setStatusModal((prev) => ({ ...prev, visible: false }));
+          navigation.goBack();
+        }, 1500);
       } else {
-        Alert.alert("Error", response.message || "Something went wrong");
+        setStatusModal({
+          visible: true,
+          type: "error",
+          title: "Error",
+          subtitle: response.message || "Something went wrong",
+        });
       }
     } catch (error) {
       console.log(error);
-      Alert.alert("Error", "Operation failed");
+
+      setStatusModal({
+        visible: true,
+        type: "error",
+        title: "Error",
+        subtitle: "Operation failed",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const Input = ({ label, value, onChangeText, placeholder }) => (
-    <View style={styles.inputBlock}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={styles.input}
-        value={value}
-        placeholder={placeholder}
-        onChangeText={onChangeText}
-        placeholderTextColor="#9CA3AF"
-      />
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
-
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          < Ionicons name="chevron-back" size={26} color="#111" />
+          <Ionicons name="chevron-back" size={26} color="#111" />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>
@@ -129,13 +174,11 @@ const AddVehicleScreen = ({ navigation, route }) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-
         <View style={styles.card}>
-
           <Input
             label="Vehicle Number"
             value={vehicleNo}
-            onChangeText={setVehicleNo}
+            onChangeText={(text) => setVehicleNo(text.toUpperCase())}
             placeholder="MH12BA0223"
           />
 
@@ -156,7 +199,7 @@ const AddVehicleScreen = ({ navigation, route }) => {
               {type || "Select Vehicle Type"}
             </Text>
 
-            < Ionicons name="chevron-down" size={18} color="#6B7280" />
+            <Ionicons name="chevron-down" size={18} color="#6B7280" />
           </TouchableOpacity>
 
           <Input
@@ -186,14 +229,13 @@ const AddVehicleScreen = ({ navigation, route }) => {
             onChangeText={setInsExpDate}
             placeholder="YYYY-MM-DD"
           />
-
         </View>
 
-       <SubmitButton
-  title={isEdit ? "Update Vehicle" : "Add Vehicle"}
-  onPress={handleSubmit}
-  loading={loading}
-/>
+        <SubmitButton
+          title={isEdit ? "Update Vehicle" : "Add Vehicle"}
+          onPress={handleSubmit}
+          loading={loading}
+        />
       </ScrollView>
 
       {/* Vehicle Type Modal */}
@@ -204,7 +246,6 @@ const AddVehicleScreen = ({ navigation, route }) => {
           onPress={() => setShowTypeModal(false)}
         >
           <View style={styles.sheet}>
-
             <Text style={styles.sheetTitle}>Select Vehicle Type</Text>
 
             {["Car", "Bike", "2 Wheeler", "Other"].map((item) => (
@@ -219,120 +260,114 @@ const AddVehicleScreen = ({ navigation, route }) => {
                 <Text style={styles.sheetText}>{item}</Text>
               </TouchableOpacity>
             ))}
-
           </View>
         </TouchableOpacity>
       </Modal>
 
+      <StatusModal
+        visible={statusModal.visible}
+        type={statusModal.type}
+        title={statusModal.title}
+        subtitle={statusModal.subtitle}
+        onClose={() =>
+          setStatusModal((prev) => ({ ...prev, visible: false }))
+        }
+      />
     </SafeAreaView>
   );
 };
 
 export default AddVehicleScreen;
 
+/* ---------- STYLES ---------- */
+
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
 
-container:{
-flex:1,
-backgroundColor:"#ffffff"
-},
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+  },
 
-header:{
-flexDirection:"row",
-alignItems:"center",
-padding:16
-},
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginLeft: 10,
+    color: "#111827",
+  },
 
-headerTitle:{
-fontSize:20,
-fontWeight:"700",
-marginLeft:10,
-color:"#111827"
-},
+  content: {
+    padding: 16,
+  },
 
-content:{
-padding:16
-},
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
 
-card:{
-backgroundColor:"#fff",
-borderRadius:14,
-padding:16,
-borderWidth:1,
-borderColor:"#E5E7EB"
-},
+  inputBlock: {
+    marginBottom: 14,
+  },
 
-inputBlock:{
-marginBottom:14
-},
+  label: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 6,
+    color: "#374151",
+  },
 
-label:{
-fontSize:13,
-fontWeight:"600",
-marginBottom:6,
-color:"#374151"
-},
+  input: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+  },
 
-input:{
-backgroundColor:"#F9FAFB",
-borderWidth:1,
-borderColor:"#E5E7EB",
-borderRadius:10,
-padding:12,
-fontSize:14
-},
+  dropdown: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
 
-dropdown:{
-flexDirection:"row",
-justifyContent:"space-between",
-alignItems:"center",
-backgroundColor:"#F9FAFB",
-borderWidth:1,
-borderColor:"#E5E7EB",
-borderRadius:10,
-padding:12,
-marginBottom:14
-},
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
 
-button:{
-marginTop:24,
-backgroundColor:"#1565A9",
-padding:16,
-borderRadius:12,
-alignItems:"center"
-},
+  sheet: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
 
-buttonText:{
-color:"#fff",
-fontWeight:"700",
-fontSize:15
-},
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
 
-modalOverlay:{
-flex:1,
-backgroundColor:"rgba(0,0,0,0.4)",
-justifyContent:"flex-end"
-},
+  sheetItem: {
+    paddingVertical: 14,
+  },
 
-sheet:{
-backgroundColor:"#fff",
-padding:20,
-borderTopLeftRadius:20,
-borderTopRightRadius:20
-},
-
-sheetTitle:{
-fontSize:16,
-fontWeight:"700",
-marginBottom:10
-},
-
-sheetItem:{
-paddingVertical:14
-},
-
-sheetText:{
-fontSize:15
-}
-
+  sheetText: {
+    fontSize: 15,
+  },
 });

@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import BRAND from '../../config'
+
 
 const COLORS = {
-  primary: '#1996D3',
+ primary: BRAND.COLORS.primaryDark,
   success: '#34C759',
   error: '#FF3B30',
   light: {
@@ -49,7 +51,7 @@ const MyParkingPage = ({ nightMode, parkingBookings = [], loading, onRefresh }) 
       <View style={[styles.card]}>
         <View style={styles.header}>
           <View style={styles.left}>
-            < Ionicons name="car-outline" size={22} color={COLORS.primary} />
+            < Ionicons name="car-outline" size={22} color={BRAND.COLORS.icon} />
             <Text style={[styles.vehicle, { color: theme.text }]}>
               {item?.data?.vehicle_no || 'Vehicle'}
             </Text>

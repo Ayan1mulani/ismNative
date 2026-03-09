@@ -11,6 +11,9 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { usePermissions } from '../../Utils/ConetextApi';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BRAND from '../config'
+
+
 
 const ICON_MAP = [
   { keys: ['electric', 'power'], name: 'electrical-services' },
@@ -105,7 +108,7 @@ const SubCategorySelectionScreen = ({ navigation, route }) => {
               <MaterialIcons
                 name={getIcon(item.name)}
                 size={22}
-                color="#1996D3"
+                color={BRAND.COLORS.primary}
               />
 
               <Text
@@ -177,6 +180,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '500',
+    
   },
 
   empty: {

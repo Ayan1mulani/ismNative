@@ -61,6 +61,18 @@ const ismServices = {
     return ApiCommon.getReq(url, headers)
   },
 
+generateOtp: async (mobile) => {
+
+  const payload = {
+    identity: mobile,
+    app_roles: ["member","resident","tenant"]
+  };
+
+  const url = `${API_URL2}/generateotp`;
+
+  return ApiCommon.postReq(url, payload);
+
+},
   loginUser: async (data) => {
     try {
       const url = `${API_URL2}/login`;

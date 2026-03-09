@@ -24,7 +24,7 @@ const COLORS = {
   primary: BRAND.COLORS.primary,
   light: {
     background: '#FFFFFF',
-    surface: '#F8F9FA',
+    surface: '#ffffff',
     textSecondary: '#6C757D',
   },
   dark: {

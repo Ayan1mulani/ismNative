@@ -13,8 +13,9 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { otherServices } from "../../services/otherServices";
 import AppHeader from "../components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
+import BRAND from '../config'
 
-const PRIMARY = "#1668A5";
+const PRIMARY = BRAND.COLORS.primary;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getVehicleIcon = (model = "") => {

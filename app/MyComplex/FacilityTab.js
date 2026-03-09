@@ -12,6 +12,7 @@ import {
   Linking,
 } from "react-native";
 import { ismServices } from "../../services/ismServices";
+import BRAND from '../config'
 
 /* ─── Helpers ─── */
 
@@ -285,7 +286,7 @@ export default MGTFacilityTeamTab;
 /* ─── Styles ─── */
 
 const COLORS = {
-  primary: "#1F78D1",
+  primary: BRAND.COLORS.primary,
   primaryLight: "#E8F2FD",
   text: "#0F172A",
   textSecondary: "#64748B",

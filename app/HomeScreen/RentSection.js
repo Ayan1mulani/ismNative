@@ -98,21 +98,21 @@ const ResidentProfile = () => {
 
             <View style={styles.profileDetails}>
               <View style={styles.badge}>
-                < Ionicons name="business" size={12} color="#fff" />
+                < Ionicons name="business" size={10} color="#fff" />
                 <Text style={styles.badgeText} numberOfLines={1}>
                   {userDetails?.tower || "N/A"}
                 </Text>
               </View>
 
               <View style={styles.badge}>
-                < Ionicons name="home" size={12} color="#fff" />
+                < Ionicons name="home" size={10} color="#fff" />
                 <Text style={styles.badgeText} numberOfLines={1}>
                   {userDetails?.flat_no || "N/A"}
                 </Text>
               </View>
 
               <View style={styles.badge}>
-                < Ionicons name="calendar" size={12} color="#fff" />
+                < Ionicons name="calendar" size={10} color="#fff" />
                 <Text style={styles.badgeText} numberOfLines={1}>
                   {userDetails?.fc_name || "N/A"}
                 </Text>
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
 
   badgeText: {
     color: "#fff",
-    fontSize: 11.5,
+    fontSize: 9.5,
     fontWeight: "600",
     marginLeft: 6,
     paddingRight:3

@@ -87,7 +87,7 @@ const MembersScreen = ({ navigation }) => {
   };
 
   const renderItem = ({ item, index }) => (
-    <View style={styles.card}>
+    <View style={[styles.card, { zIndex: menuIndex === index ? 100 : 1 }]}>
 
       {/* Avatar */}
       <View style={styles.avatar}>
@@ -150,11 +150,32 @@ const MembersScreen = ({ navigation }) => {
       {loading ? (
         <ActivityIndicator size="large" style={{ marginTop: 40 }} />
       ) : (
-      <FlatList
+        <FlatList
   data={members}
   renderItem={renderItem}
   keyExtractor={(item) => item.id.toString()}
-  contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+  contentContainerStyle={{
+  padding: 16,
+  flexGrow: members.length === 0 ? 1 : 0
+}}
+  
+  ListEmptyComponent={
+    <View style={styles.emptyContainer}>
+      <Ionicons name="people-outline" size={60} color="#9CA3AF" />
+      <Text style={styles.emptyTitle}>No Family Members</Text>
+      <Text style={styles.emptySub}>
+        Add your family members so security can allow them easily.
+      </Text>
+
+      <TouchableOpacity
+        style={styles.emptyBtn}
+        onPress={() => navigation.navigate("AddMember")}
+      >
+        <Text style={styles.emptyBtnText}>Add Member</Text>
+      </TouchableOpacity>
+    </View>
+  }
+
   refreshControl={
     <RefreshControl
       refreshing={refreshing}
@@ -164,15 +185,18 @@ const MembersScreen = ({ navigation }) => {
     />
   }
 />
+
       )}
 
       {/* Floating Button */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate("AddMember")}
-      >
-        < Ionicons name="add" size={28} color="#fff" />
-      </TouchableOpacity>
+   {members.length > 0 && (
+  <TouchableOpacity
+    style={styles.fab}
+    onPress={() => navigation.navigate("AddMember")}
+  >
+    <Ionicons name="add" size={28} color="#fff" />
+  </TouchableOpacity>
+)}
 
     </SafeAreaView>
   );
@@ -187,14 +211,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#F4F6F9",
   },
 
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
+ card: {
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: "#fff",
+  padding: 14,
+  borderRadius: 10,
+  marginBottom: 12,
+  overflow: "visible",   // ✅ add this
+  zIndex: 1,             // ✅ add this
+},
 
   avatar: {
     width: 40,
@@ -218,16 +244,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  menu: {
-    position: "absolute",
-    top: 40,
-    right: 10,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    width: 130,
-    paddingVertical: 6,
-    elevation: 5,
-  },
+menu: {
+  position: "absolute",
+  top: 40,
+  right: 10,
+  backgroundColor: "#fff",
+  borderRadius: 8,
+  width: 130,
+  paddingVertical: 6,
+  elevation: 8,
+  zIndex: 999,     // ✅ important
+},
 
   menuItem: {
     flexDirection: "row",
@@ -253,5 +280,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 6,
   },
+  emptyContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  marginTop: 80,
+  paddingHorizontal: 20,
+},
+
+emptyTitle: {
+  fontSize: 16,
+  fontWeight: "600",
+  color: "#374151",
+  marginTop: 10,
+},
+
+emptySub: {
+  fontSize: 13,
+  color: "#6B7280",
+  marginTop: 4,
+  textAlign: "center",
+},
+
+emptyBtn: {
+  marginTop: 16,
+  backgroundColor: "#1565A9",
+  paddingHorizontal: 18,
+  paddingVertical: 10,
+  borderRadius: 8,
+},
+
+emptyBtnText: {
+  color: "#fff",
+  fontSize: 14,
+  fontWeight: "600",
+},
 
 });

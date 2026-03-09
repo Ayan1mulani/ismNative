@@ -22,6 +22,7 @@ const commonStyles = {
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    padding:5
   },
   safeArea: {
     flex: 1,

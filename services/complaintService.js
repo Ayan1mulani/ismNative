@@ -14,10 +14,6 @@ const complaintService = {
       "per_page": 10,
       "page_no": 1
     };
-
-
-
-
     const url = complaintService.appendParamsInUrl(`${API_URL2}/my/complaints`, params);
     const headers = await Util.getCommonAuth()
     const response = await ApiCommon.getReq(url, headers);
@@ -25,6 +21,36 @@ const complaintService = {
     return response
   },
 
+
+  getSocietyConfiguration: async () => {
+  try {
+    const user = await Common.getLoggedInUser();
+
+    const userObj = {
+      user_id: user.unit_id,
+      group_id: user.role_id,
+      flat_no: user.flat_no,
+      unit_id: user.unit_id,
+      society_id: user.societyId,
+    };
+
+    const encodedUser = encodeURIComponent(JSON.stringify(userObj));
+
+    const url = `${API_URL2}/getSocietyConfigurationToResident/${user.societyId}?api-token=${user.api_token}&user-id=${encodedUser}`;
+
+    const headers = await Util.getCommonAuth();
+
+    const response = await ApiCommon.getReq(url, headers);
+
+    console.log("Society Config:", response);
+
+    return response;
+
+  } catch (error) {
+    console.log("Config API Error:", error);
+    throw error;
+  }
+},
   updateComplaintStatus: async (complaint, status = "Closed") => {
   try {
 
@@ -146,19 +172,19 @@ const complaintService = {
   },
 
 
-  addComplaint: async ({
+addComplaint: async ({
   sub_category,
   complaint_type,
   description,
   severity = "normal",
   sub_category_id,
   schedule_date = null,
+  probable_date = null,   // ✅ ADD THIS
   probable_time = null,
   location_id = null,
 }) => {
   try {
     const user = await Common.getLoggedInUser();
-
     const userObj = {
       user_id: user.unit_id,
       group_id: user.role_id,
@@ -166,11 +192,8 @@ const complaintService = {
       unit_id: user.unit_id,
       society_id: user.societyId,
     };
-
     const encodedUser = encodeURIComponent(JSON.stringify(userObj));
-
     const url = `${API_URL2}/addComplaint?api-token=${user.api_token}&user-id=${encodedUser}`;
-
     const headers = await Util.getCommonAuth();
 
     const payload = {
@@ -180,14 +203,13 @@ const complaintService = {
       severity,
       sub_category_id,
       schedule_date,
+      probable_date,   // ✅ ADD THIS
       probable_time,
       location_id,
     };
 
     const response = await ApiCommon.postReq(url, payload, headers);
-
     console.log("Add Complaint Response:", response);
-
     return response;
 
   } catch (error) {

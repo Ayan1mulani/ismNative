@@ -1,7 +1,6 @@
 // NoticesScreen.js
 import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   FlatList,
@@ -15,9 +14,10 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { WebView } from 'react-native-webview';
 import { usePermissions } from '../../Utils/ConetextApi';
 import { ismServices } from '../../services/ismServices';
+import BRAND from '../config'
 
 const THEME = {
-  primary: '#1996D3',
+  primary: BRAND.COLORS.primary,
   bgLight: '#F4F7F9',
   cardLight: '#FFFFFF',
   textDark: '#333333',
@@ -109,14 +109,14 @@ export default function NoticesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.center, { backgroundColor: theme.bg }]}>
+      <View style={[styles.center, { backgroundColor: theme.bg }]}>
         <ActivityIndicator size="large" color={THEME.primary} />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
 
       <FlatList
         data={notices}
@@ -138,7 +138,7 @@ export default function NoticesScreen() {
         animationType="slide"
         presentationStyle="fullScreen"
       >
-        <SafeAreaView style={[styles.modal, { backgroundColor: theme.bg }]}>
+        <View style={[styles.modal, { backgroundColor: theme.bg }]}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={closeModal} style={styles.closeBtn}>
               < Ionicons name="close" size={24} color={theme.text} />
@@ -168,9 +168,9 @@ export default function NoticesScreen() {
               style={{ flex: 1, backgroundColor: 'transparent' }}
             />
           )}
-        </SafeAreaView>
+        </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -15,6 +15,8 @@ import { otherServices } from '../../services/otherServices';
 import AppHeader from '../components/AppHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RefreshControl } from 'react-native';
+import BRAND from '../config'
+
 const BillsPage = () => {
   const { nightMode } = usePermissions();
 
@@ -25,7 +27,7 @@ const BillsPage = () => {
       textColor: '#111827',
       secondaryText: '#6B7280',
       borderColor: '#E5E7EB',
-      iconBg: '#EAF4FB',
+      iconBg: BRAND.COLORS.iconbg,
       accent: '#1996D3',
       danger: '#DC3545',
     },
@@ -119,7 +121,7 @@ const BillsPage = () => {
                 { backgroundColor: currentTheme.iconBg },
               ]}
             >
-              < Ionicons name="document-outline" size={20} color={currentTheme.accent} />
+              < Ionicons name="document-outline" size={20} color={BRAND.COLORS.icon} />
             </View>
 
             <View style={styles.billInfo}>
@@ -180,7 +182,7 @@ const BillsPage = () => {
             <Text
               style={[
                 styles.balanceValueInline,
-                { color: currentTheme.accent },
+                { color: BRAND.COLORS.icon },
               ]}
             >
               ₹{balance.toLocaleString()}
@@ -287,7 +289,7 @@ const BillsPage = () => {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={currentTheme.accent}
-            colors={[currentTheme.accent]}
+            colors={[BRAND.COLORS.primary]}
           />
         }
       />
@@ -333,13 +335,13 @@ const BillsPage = () => {
               <View
                 style={[
                   styles.sheetIcon,
-                  { backgroundColor: currentTheme.iconBg },
+                  { backgroundColor:  BRAND.COLORS.iconbg },
                 ]}
               >
                 < Ionicons
                   name="download"
                   size={20}
-                  color={currentTheme.accent}
+                  color={BRAND.COLORS.icon }
                 />
               </View>
 

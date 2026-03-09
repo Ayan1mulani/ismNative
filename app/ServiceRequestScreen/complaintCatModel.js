@@ -107,7 +107,7 @@ const CategorySelectionScreen = () => {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#1996D3" />
+          <ActivityIndicator size="large" color={BRAND.COLORS.primary} />
           <Text style={{ marginTop: 8, color: theme.secondary }}>
             Loading categories...
           </Text>
@@ -128,7 +128,7 @@ const CategorySelectionScreen = () => {
 
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={[styles.backButton, { borderColor: theme.border }]}
+          style={[styles.backButton]}
         >
           < Ionicons name="arrow-back" size={18} color={theme.text} />
         </TouchableOpacity>
@@ -271,7 +271,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
 
   title: {

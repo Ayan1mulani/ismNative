@@ -19,6 +19,7 @@ import { CommonActions } from '@react-navigation/native';
 import { Modal } from 'react-native';
 import { TextInput } from 'react-native';
 import { ismServices } from '../../services/ismServices';
+import BRAND from '../config'
 
 const ProfileScreen = () => {
   const { nightMode, setNightMode } = usePermissions();
@@ -46,7 +47,7 @@ const ProfileScreen = () => {
     divider: nightMode ? '#374151' : '#E5E7EB',
     cardBg: nightMode ? '#1F2937' : '#F9FAFB',
     danger: '#EF4444',
-    primary: '#3B82F6',
+    primary: BRAND.COLORS.primary,
   };
 
   useEffect(() => {
@@ -82,16 +83,35 @@ const ProfileScreen = () => {
       setLoading(false);
     }
   };
-const handleLogout = async () => {
-  console.log("Logout function running");
+const handleLogout = () => {
+  Alert.alert(
+    "Logout",
+    "Are you sure you want to logout?",
+    [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await AsyncStorage.clear();
 
-  await AsyncStorage.clear();
-
-  navigation.dispatch(
-    CommonActions.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    })
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              })
+            );
+          } catch (error) {
+            console.log("Logout error:", error);
+          }
+        },
+      },
+    ],
+    { cancelable: true }
   );
 };
 
@@ -402,7 +422,7 @@ const handleLogout = async () => {
 
             <TouchableOpacity
               style={{
-                backgroundColor: '#3B82F6',
+                backgroundColor: theme.primary,
                 padding: 14,
                 borderRadius: 10,
                 alignItems: 'center'

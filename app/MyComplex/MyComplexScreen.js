@@ -10,6 +10,7 @@ import SlidingTabs from "../components/SlidingTabs";
 import GuidelinesTab from "./GuidelinesTab";
 import AppHeader from "../components/AppHeader";
 import MgtTab from "./FacilityTab";
+import BRAND from '../config'
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import FormsScreen from "./FormsTab";
@@ -87,7 +88,7 @@ const MyComplexScreen = () => {
               animated: true,
             });
           }}
-          primaryColor="#1996D3"
+          primaryColor= {BRAND.COLORS.primarydark}
           inactiveColor="#6B7280"
           scrollX={scrollX}
         />

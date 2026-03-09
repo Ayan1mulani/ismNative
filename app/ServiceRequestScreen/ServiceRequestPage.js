@@ -34,7 +34,15 @@ const ComplaintListScreen = ({
     textColor:        currentNightMode ? THEME_COLORS.darkTextColor    : THEME_COLORS.darkText,
     inactiveTextColor:currentNightMode ? THEME_COLORS.darkInactiveText : THEME_COLORS.inactiveText,
   };
-
+const uniqueComplaints = React.useMemo(() => {
+  const seen = new Set();
+  return complaints.filter((item) => {
+    const key = item.id ?? item.com_no;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}, [complaints]);
   // ── Loading state ──
   if (isLoading) {
     return (
@@ -52,7 +60,7 @@ const ComplaintListScreen = ({
     <View style={styles.container}>
   
       <FlatList
-        data={complaints}
+        data={uniqueComplaints}
         renderItem={({ item }) => (
           <ComplaintCard
             complaint={item}
@@ -60,9 +68,9 @@ const ComplaintListScreen = ({
             onPress={() => navigation.navigate('ServiceRequestDetail', { complaint: item })}
           />
         )}
-        keyExtractor={(item, index) =>
-          item.id ? item.id.toString() : index.toString()
-        }
+       keyExtractor={(item, index) =>
+  `complaint-${item.id ?? item.com_no ?? 'noid'}-${index}`
+}
         ListEmptyComponent={() => (
           <View style={styles.emptyWrap}>
             <Text style={[styles.emptyText, { color: currentTheme.inactiveTextColor }]}>
@@ -70,11 +78,11 @@ const ComplaintListScreen = ({
             </Text>
           </View>
         )}
-        contentContainerStyle={
-          complaints.length === 0
-            ? styles.emptyContainer
-            : { paddingVertical: 10, paddingBottom: listBottomPadding }
-        }
+     contentContainerStyle={
+  uniqueComplaints.length === 0
+    ? styles.emptyContainer
+    : { paddingVertical: 10, paddingBottom: listBottomPadding }
+}
         showsVerticalScrollIndicator={false}
         refreshing={isLoading}
         onRefresh={onRefresh}
