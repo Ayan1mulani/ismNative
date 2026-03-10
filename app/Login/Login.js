@@ -44,6 +44,14 @@ const Wave = () => (
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 
+const register = async () => {
+    try {
+      await workOrderService.appRegisterOneSignal();
+    } catch (error) {
+      console.error("Error registering OneSignal:", error);
+    }
+  };
+
 const NewLoginScreen = () => {
   const [email, setEmail] = useState('sahilmulanioneplus@gmail.com');
   const [password, setPassword] = useState('123456');
@@ -77,7 +85,10 @@ const NewLoginScreen = () => {
     }
   };
 
-  useEffect(() => { getUserDetails(); }, []);
+  useEffect(() => {
+     getUserDetails(); 
+
+  }, []);
 
   const handleLogin = async (userid) => {
     setIsLoading(true);
@@ -107,7 +118,7 @@ const NewLoginScreen = () => {
 
         // ✅ Register device with OneSignal after fresh login
         setTimeout(() => RegisterAppOneSignal(), 2000);
-
+        register(); 
         navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'MainApp' }] }));
       }
       else {

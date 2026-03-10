@@ -6,38 +6,30 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const ismServices = {
 
-
   getMyNotifications: async () => {
-  const url = await ismServices.appendParamsInUrl(
-    `${API_URL2}/getmynotifications`,
-    { cache: 0 }   
-  );
+    const url = await ismServices.appendParamsInUrl(
+      `${API_URL2}/getmynotifications`,
+      { cache: 0 }
+    );
+    const headers = await Util.getCommonAuth();
+    return ApiCommon.getReq(url, headers);
+  },
 
-  const headers = await Util.getCommonAuth();
-  return ApiCommon.getReq(url, headers);
-},
-
+  // ✅ KEPT: original function used by other pages
   getUserDetails: async () => {
-    const user = await Common.getLoggedInUser()
+    const user = await Common.getLoggedInUser();
 
     const uObj = {
       user_id: user.unit_id,
       group_id: user.role_id,
-      flat_no:  user.flat_no,
+      flat_no: user.flat_no,
       unit_id: user.unit_id,
       society_id: user.societyId
     };
 
-    // ✅ stringify ONCE
     const u = encodeURIComponent(JSON.stringify(uObj));
-
-
-    // 👇 build base url
     let url = `${API_URL2}/userDetailsById/${u}`;
-
-    // 👇 pass primitive string, not object
     url = await ismServices.appendParamsInUrl(url);
-
 
     const headers = await Util.getCommonAuth();
     const response = await ApiCommon.getReq(url, headers);
@@ -46,8 +38,23 @@ const ismServices = {
     return response;
   },
 
+  // ✅ NEW: fetches full profile including permissions — used by ConetextApi
+  getUserProfileData: async () => {
+    const user = await Common.getLoggedInUser();
+
+    const url = await ismServices.appendParamsInUrl(
+      `${API_URL2}/getUserProfileData`,
+      { tenant: user.tenant ?? 0 }
+    );
+
+    const headers = await Util.getCommonAuth();
+    const response = await ApiCommon.getReq(url, headers);
+
+    return response; // response.data.permissions has the permissions array
+  },
+
   getMyBalance: async () => {
-    const user = await Common.getLoggedInUser()
+    const user = await Common.getLoggedInUser();
 
     const url = await ismServices.appendParamsInUrl(
       `${API_URL2}/getOutstandingBalance/${user.id}`,
@@ -55,24 +62,49 @@ const ismServices = {
         cache: 0,
         bill_type: 835
       }
-    )
+    );
 
-    const headers = await Util.getCommonAuth()
-    return ApiCommon.getReq(url, headers)
+    const headers = await Util.getCommonAuth();
+    return ApiCommon.getReq(url, headers);
+  },
+  
+
+  generateOtp: async (mobile) => {
+    const payload = {
+      identity: mobile,
+      app_roles: ["member", "resident", "tenant"]
+    };
+    const url = `${API_URL2}/generateotp`;
+    return ApiCommon.postReq(url, payload);
   },
 
-generateOtp: async (mobile) => {
+  appRegisterOneSignal: async () => {
+    try {
+      const userInfo = await AsyncStorage.getItem('userInfo');
+      if (!userInfo) throw new Error('User information not found');
+      const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
+      const payload = {
+        app_name: 'ism_resident',
+        app_version_code: APP_VERSION_CODE,
+        app_device_id: deviceId,
+        userId: deviceId,
+        app_id: deviceId,
+        tenant: 0,
+      };
 
-  const payload = {
-    identity: mobile,
-    app_roles: ["member","resident","tenant"]
-  };
+      const url = `${API_URL2}/appRegistered`
+      const headers = await Util.getCommonAuth();
+      const params = { app_id: APP_ID_ONE_SIGNAL };
 
-  const url = `${API_URL2}/generateotp`;
+      const response = await ApiCommon.postReq(url, payload, headers, params);
+      console.log(response,"respons")
+      return response
+    } catch (error) {
+      console.error('Error registering app with OneSignal:', error);
+      throw error;
+    }
+  },
 
-  return ApiCommon.postReq(url, payload);
-
-},
   loginUser: async (data) => {
     try {
       const url = `${API_URL2}/login`;
@@ -83,65 +115,59 @@ generateOtp: async (mobile) => {
     }
   },
 
-
-
-getMyNotices: async (category = "COMMON") => {
-  const user = await Common.getLoggedInUser();
-
-  const uObj = {
-    user_id: user.unit_id,
-    group_id: user.role_id,
-    flat_no: user.flat_no,
-    unit_id: user.unit_id,
-    society_id: user.societyId
-  };
-
-  const url =
-    `${API_URL2}/myNotices` +
-    `?api-token=${user.api_token}` +
-    `&user-id=${encodeURIComponent(JSON.stringify(uObj))}` +
-    `&category=${category}`;
-
-  const headers = await Util.getCommonAuth();
-  return ApiCommon.getReq(url, headers);
-},
-
-
-  getFacilityStaffCategory: async () => {
-  const user = await Common.getLoggedInUser();
-
-  const url = await ismServices.appendParamsInUrl(
-    `${API_URL2}/society/${user.societyId}/constant`,
-    {
-      type: "FACILITY_STAFF_CATEGORY"
-    }
-  );
-
-  const headers = await Util.getCommonAuth();
-  return ApiCommon.getReq(url, headers);
-},
-
-  // 🔥 Common param handler
-  appendParamsInUrl: async (url, extraParams = {}) => {
-    const user = await Common.getLoggedInUser()
+  getMyNotices: async (category = "COMMON") => {
+    const user = await Common.getLoggedInUser();
 
     const uObj = {
       user_id: user.unit_id,
       group_id: user.role_id,
-      flat_no:  user.flat_no,
+      flat_no: user.flat_no,
       unit_id: user.unit_id,
       society_id: user.societyId
     };
 
+    const url =
+      `${API_URL2}/myNotices` +
+      `?api-token=${user.api_token}` +
+      `&user-id=${encodeURIComponent(JSON.stringify(uObj))}` +
+      `&category=${category}`;
 
-    const u = JSON.stringify(uObj); // ✅ no encode
+    const headers = await Util.getCommonAuth();
+    return ApiCommon.getReq(url, headers);
+  },
 
-   const commonParams = {
-  "api-token": user.api_token,
-  "user-id": u,
-  "group-id": user.role_id,   // dynamic
-  "app_id": "ism_resident"
-};
+  getFacilityStaffCategory: async () => {
+    const user = await Common.getLoggedInUser();
+
+    const url = await ismServices.appendParamsInUrl(
+      `${API_URL2}/society/${user.societyId}/constant`,
+      { type: "FACILITY_STAFF_CATEGORY" }
+    );
+
+    const headers = await Util.getCommonAuth();
+    return ApiCommon.getReq(url, headers);
+  },
+
+  // 🔥 Common param handler
+  appendParamsInUrl: async (url, extraParams = {}) => {
+    const user = await Common.getLoggedInUser();
+
+    const uObj = {
+      user_id: user.unit_id,
+      group_id: user.role_id,
+      flat_no: user.flat_no,
+      unit_id: user.unit_id,
+      society_id: user.societyId
+    };
+
+    const u = JSON.stringify(uObj);
+
+    const commonParams = {
+      "api-token": user.api_token,
+      "user-id": u,
+      "group-id": user.role_id,
+      "app_id": "ism_resident"
+    };
 
     const finalParams = {
       ...commonParams,
@@ -150,10 +176,7 @@ getMyNotices: async (category = "COMMON") => {
 
     const queryParams = Object.keys(finalParams)
       .filter(key => finalParams[key] !== null && finalParams[key] !== undefined)
-      .map(
-        key =>
-          `${encodeURIComponent(key)}=${encodeURIComponent(finalParams[key])}`
-      )
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(finalParams[key])}`)
       .join("&");
 
     if (queryParams) {
@@ -164,6 +187,6 @@ getMyNotices: async (category = "COMMON") => {
     return url;
   }
 
-}
+};
 
-export { ismServices }
+export { ismServices };

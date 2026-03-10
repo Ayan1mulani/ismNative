@@ -12,11 +12,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePermissions } from "../../Utils/ConetextApi";
 import { ismServices } from "../../services/ismServices";
 import { otherServices } from "../../services/otherServices";
+import { hasPermission } from "../../Utils/PermissionHelper";
 import BRAND from "../config";
 
 
 const ResidentProfile = () => {
-  const { nightMode, setFlatNo } = usePermissions();
+ const { nightMode, setFlatNo, permissions } = usePermissions();
+ const canViewDashboard =
+  permissions && hasPermission(permissions, "RESDSB", "READ");
   const COLORS = BRAND.COLORS;
 
   const [userDetails, setUserDetails] = useState({});
@@ -67,6 +70,9 @@ const ResidentProfile = () => {
     (sum, item) => sum + parseFloat(item?.data?.balance || '0'),
     0
   );
+  if (!canViewDashboard) {
+  return null;
+}
 
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -168,7 +174,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 10,
     paddingTop: 5,
-    paddingBottom: 15,
     marginTop: 5,
 
   },
@@ -176,7 +181,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 50,
 
   },
 

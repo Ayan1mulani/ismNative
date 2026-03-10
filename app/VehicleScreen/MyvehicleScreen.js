@@ -14,11 +14,17 @@ import { otherServices } from "../../services/otherServices";
 import AppHeader from "../components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BRAND from '../config'
+import { usePermissions } from "../../Utils/ConetextApi";
+import { hasPermission } from "../../Utils/PermissionHelper";
 
 const PRIMARY = BRAND.COLORS.primary;
 
+
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getVehicleIcon = (model = "") => {
+
+
   const lower = model.toLowerCase();
   if (lower.includes("bike") || lower.includes("scooter") || lower.includes("motorcycle"))
     return "bicycle-outline";
@@ -58,6 +64,9 @@ const VehicleCard = ({ item, onPress }) => {
   const isIn = item.status === 1;
   const isSubscribed = item.is_subscribed === 1;
   const iconName = getVehicleIcon(item.model);
+
+  
+
 
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={onPress}>
@@ -118,6 +127,11 @@ const EmptyState = ({ onAdd }) => (
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const MyVehiclesScreen = ({ navigation }) => {
+
+  const { permissions } = usePermissions();
+
+const canCreateVehicle =
+  permissions && hasPermission(permissions, "VEH", "CREATE");
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -188,13 +202,14 @@ const MyVehiclesScreen = ({ navigation }) => {
       />
 
       {/* FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate("AddVehicleScreen")}
-        activeOpacity={0.85}
-      >
-        < Ionicons name="add" size={28} color="#fff" />
-      </TouchableOpacity>
+     {canCreateVehicle && (
+  <TouchableOpacity
+    style={styles.fab}
+    onPress={() => navigation.navigate("AddVehicleScreen")}
+  >
+    <Ionicons name="add" size={28} color="#fff" />
+  </TouchableOpacity>
+)}
     </SafeAreaView>
   );
 };

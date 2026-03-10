@@ -25,71 +25,72 @@ const SingleCabForm = ({ theme }) => {
   const [modalType, setModalType] = useState(null);
 
   const handleVehicleChange = (text) => {
-  const numeric = text.replace(/[^0-9]/g, "");
-  if (numeric.length <= 4) {
-    setVehicleNo(numeric);
+
+    const numeric = text.replace(/[^0-9]/g, "");
+
+    setVehicleNo(numeric.slice(0, 4));
+
     if (errors.vehicle) {
       setErrors((prev) => ({ ...prev, vehicle: null }));
     }
-  }
-};
+
+  };
 
   const handleSubmit = async () => {
-  let newErrors = {};
+    let newErrors = {};
 
-  if (!selectedProvider) {
-    newErrors.provider = "Please select cab company";
-  }
+    if (!selectedProvider) {
+      newErrors.provider = "Please select cab company";
+    }
 
-  if (!visitDate) {
-    newErrors.date = "Please select visit date";
-  }
+    if (!visitDate) {
+      newErrors.date = "Please select visit date";
+    }
 
-  if (!vehicleNo || vehicleNo.length !== 4) {
-    newErrors.vehicle = "Enter 4-digit cab number";
-  }
+   if (!vehicleNo || vehicleNo.length !== 4) {
+  newErrors.vehicle = "Enter 4-digit cab number";
+}
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
 
-  if (Object.keys(newErrors).length > 0) {
-    setErrors(newErrors);
-    return;
-  }
+    setErrors({});
 
-  setErrors({});
+    try {
+      const formattedDate =
+        visitDate instanceof Date
+          ? visitDate.toISOString().split("T")[0]
+          : visitDate;
 
-  try {
-    const formattedDate =
-      visitDate instanceof Date
-        ? visitDate.toISOString().split("T")[0]
-        : visitDate;
-
-    const payload = {
-      date_time: formattedDate,
-      company_name: selectedProvider?.name || selectedProvider,
-      cab_number: vehicleNo,
-      type: "cab",
-    };
+      const payload = {
+        date_time: formattedDate,
+        company_name: selectedProvider?.name || selectedProvider,
+        cab_number: vehicleNo,
+        type: "cab",
+      };
 
 
-    setModalType("loading");
+      setModalType("loading");
 
-    const res = await visitorServices.addMyVisitor(payload);
+      const res = await visitorServices.addMyVisitor(payload);
 
-    if (res) {
-      setModalType("success");
+      if (res) {
+        setModalType("success");
 
-      setTimeout(() => {
-        setModalType(null);
-        navigation.goBack();
-      }, 1400);
-    } else {
+        setTimeout(() => {
+          setModalType(null);
+          navigation.goBack();
+        }, 1400);
+      } else {
+        setModalType("error");
+        setTimeout(() => setModalType(null), 2000);
+      }
+    } catch (error) {
       setModalType("error");
       setTimeout(() => setModalType(null), 2000);
     }
-  } catch (error) {
-    setModalType("error");
-    setTimeout(() => setModalType(null), 2000);
-  }
-};
+  };
 
 
   return (
@@ -102,6 +103,7 @@ const SingleCabForm = ({ theme }) => {
         <ProviderSelector
           visitorType="cab"
           theme={theme}
+          required={true}
           selectedProvider={selectedProvider}
           setSelectedProvider={(val) => {
             setSelectedProvider(val);
@@ -134,7 +136,7 @@ const SingleCabForm = ({ theme }) => {
 
         {/* Vehicle */}
         <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
-         <Text style={[styles.label, { color: theme.text }]}>
+          <Text style={[styles.label, { color: theme.text }]}>
   Vehicle Number (Last 4 Digits) <Text style={{ color: "#EF4444" }}>*</Text>
 </Text>
 
@@ -155,8 +157,8 @@ const SingleCabForm = ({ theme }) => {
             ]}
           />
           {errors.vehicle && (
-  <Text style={styles.errorText}>{errors.vehicle}</Text>
-)}
+            <Text style={styles.errorText}>{errors.vehicle}</Text>
+          )}
         </View>
 
         {/* Entries */}
@@ -190,11 +192,11 @@ const SingleCabForm = ({ theme }) => {
       </ScrollView>
 
       {/* Sticky Button */}
-  <SubmitButton
-  title="Schedule Cab"
-  onPress={handleSubmit}
-  loading={modalType === "loading"}
-/>
+      <SubmitButton
+        title="Schedule Cab"
+        onPress={handleSubmit}
+        loading={modalType === "loading"}
+      />
 
       {/* Reusable Modal */}
       <StatusModal
@@ -204,15 +206,15 @@ const SingleCabForm = ({ theme }) => {
           modalType === "loading"
             ? "Scheduling..."
             : modalType === "success"
-            ? "Cab Scheduled"
-            : "Failed!"
+              ? "Cab Scheduled"
+              : "Failed!"
         }
         subtitle={
           modalType === "loading"
             ? "Please wait"
             : modalType === "success"
-            ? "Cab pass created"
-            : "Please try again"
+              ? "Cab pass created"
+              : "Please try again"
         }
       />
     </View>
@@ -234,13 +236,13 @@ const styles = StyleSheet.create({
   },
 
   vehicleInput: {
-    height: 45,
+    height: 50,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 12,
     textAlign: "center",
-    fontSize: 26,
-    letterSpacing: 15,
-    paddingTop: 0,
+    fontSize: 22,
+    letterSpacing: 8,
+    fontWeight: "600",
   },
 
   counterRow: {
@@ -264,9 +266,9 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
-  color: "#EF4444",
-  fontSize: 12,
-  marginTop: 6,
-  marginLeft: 4,
-},
+    color: "#EF4444",
+    fontSize: 12,
+    marginTop: 6,
+    marginLeft: 4,
+  },
 });

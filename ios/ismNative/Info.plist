@@ -43,6 +43,8 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>We need permission to send you important notifications about your society updates</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

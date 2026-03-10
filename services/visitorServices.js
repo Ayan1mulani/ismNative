@@ -34,6 +34,7 @@ const visitorServices = {
   },
   getMyPasses: async () => {
     const user = await Common.getLoggedInUser()
+
     const params = {
       "api-token": user.api_token,
       "user-id": user.id,
@@ -45,6 +46,7 @@ const visitorServices = {
     const url = await visitorServices.appendParamsInUrl(`${API_URL4}/v1/society/${user.societyId}/searchPass`);
     const headers = await Util.getCommonAuth()
     const response = await ApiCommon.postReq(url, paylod, headers);
+    console.log(response,"response")
     return response
   },
 

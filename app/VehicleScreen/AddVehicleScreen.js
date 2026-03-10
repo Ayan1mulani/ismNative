@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -17,7 +18,10 @@ import { API_URL2 } from "../config/env";
 import SubmitButton from "../components/SubmitButton";
 import StatusModal from "../components/StatusModal";
 
-/* ---------- INPUT COMPONENT (MOVED OUTSIDE) ---------- */
+import { usePermissions } from "../../Utils/ConetextApi";
+import { hasPermission } from "../../Utils/PermissionHelper";
+
+/* ---------- INPUT COMPONENT ---------- */
 
 const Input = ({ label, value, onChangeText, placeholder }) => {
   return (
@@ -38,8 +42,19 @@ const Input = ({ label, value, onChangeText, placeholder }) => {
 /* ---------- MAIN SCREEN ---------- */
 
 const AddVehicleScreen = ({ navigation, route }) => {
+  const { permissions } = usePermissions();
+
   const vehicle = route?.params?.vehicle;
   const isEdit = !!vehicle;
+
+  const permissionsLoaded =
+    permissions !== null && permissions !== undefined;
+
+  const canCreateVehicle =
+    permissionsLoaded && hasPermission(permissions, "VEH", "CREATE");
+
+  const canUpdateVehicle =
+    permissionsLoaded && hasPermission(permissions, "VEH", "UPDATE");
 
   const [statusModal, setStatusModal] = useState({
     visible: false,
@@ -60,8 +75,48 @@ const AddVehicleScreen = ({ navigation, route }) => {
 
   const [showTypeModal, setShowTypeModal] = useState(false);
 
+  /* ---------- PERMISSION LOADING ---------- */
+
+  if (!permissionsLoaded) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={{ marginTop: 10 }}>Loading permissions...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  /* ---------- PERMISSION BLOCK ---------- */
+
+  if ((!isEdit && !canCreateVehicle) || (isEdit && !canUpdateVehicle)) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.center}>
+          <Ionicons name="lock-closed-outline" size={60} color="#9CA3AF" />
+          <Text style={{ fontSize: 16, marginTop: 10 }}>
+            You don't have permission to perform this action
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  /* ---------- SUBMIT ---------- */
+
   const handleSubmit = async () => {
     if (loading) return;
+
+    if ((!isEdit && !canCreateVehicle) || (isEdit && !canUpdateVehicle)) {
+      setStatusModal({
+        visible: true,
+        type: "error",
+        title: "Access Denied",
+        subtitle: "You don't have permission for this action",
+      });
+      return;
+    }
 
     if (!vehicleNo.trim() || !owner.trim() || !type) {
       setStatusModal({
@@ -160,9 +215,12 @@ const AddVehicleScreen = ({ navigation, route }) => {
     }
   };
 
+  /* ---------- UI ---------- */
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
+
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={26} color="#111" />
@@ -239,6 +297,7 @@ const AddVehicleScreen = ({ navigation, route }) => {
       </ScrollView>
 
       {/* Vehicle Type Modal */}
+
       <Modal transparent visible={showTypeModal} animationType="fade">
         <TouchableOpacity
           style={styles.modalOverlay}

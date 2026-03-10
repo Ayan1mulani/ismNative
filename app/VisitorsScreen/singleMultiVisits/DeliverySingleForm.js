@@ -75,6 +75,7 @@ const SingleDeliveryForm = ({ theme }) => {
         <ProviderSelector
           visitorType="delivery"
           theme={theme}
+          required={true}
           selectedProvider={selectedProvider}
           setSelectedProvider={(val) => {
             setSelectedProvider(val);

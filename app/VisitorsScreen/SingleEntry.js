@@ -19,6 +19,10 @@ import BRAND from '../config'
 const BASE_URL = "https://ism-vms.s3.amazonaws.com/company-logo/";
 const DEFAULT_GUEST_IMAGE =
   "https://app.factech.co.in/user/assets/images/visitor/default-guest.png";
+const LOCAL_IMAGES = {
+  cab: require('../../assets/images/cab.jpg'),
+  delivery: require('../../assets/images/delivery.jpg'),
+};
 
 // Theme configuration
 const COLORS = {
@@ -48,8 +52,8 @@ const COLORS = {
 
 // Pass status constants
 const PASS_STATUS = {
-  ACTIVE: '1',
-  INACTIVE: '0',
+  ACTIVE: '0',
+  INACTIVE: '1',
 };
 
 // Pass purpose icons mapping
@@ -72,26 +76,52 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
   const [showFilters, setShowFilters] = useState(false);
 
   const theme = nightMode ? COLORS.dark : COLORS.light;
+  const [failedImages, setFailedImages] = useState({});
 
 
-  const getPassImage = (pass) => {
-    const purpose = pass.purpose?.toLowerCase();
+ const getPassImage = (pass) => {
+  const purpose = pass.purpose?.toLowerCase();
+  const name =
+    pass.company_name?.toLowerCase() ||
+    pass.name?.toLowerCase();
 
-    if (purpose === "guest") {
-      return DEFAULT_GUEST_IMAGE;
+  const key = `${purpose}-${name}`;
+
+  // If image previously failed → show fallback
+  if (failedImages[key]) {
+    if (purpose === "cab") return LOCAL_IMAGES.cab;
+    if (purpose === "delivery") return LOCAL_IMAGES.delivery;
+  }
+
+  // Guest
+  if (purpose === "guest") {
+    return { uri: DEFAULT_GUEST_IMAGE };
+  }
+
+  // Cab
+  if (purpose === "cab") {
+    if (!name || name === "any") {
+      return LOCAL_IMAGES.cab;
     }
 
-    if (purpose === "cab" || purpose === "delivery") {
-      const name = pass.company_name || pass.name;
-      if (!name) return null;
+    return {
+      uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
+    };
+  }
 
-      const fileName = name.toLowerCase().replace(/\s+/g, "-");
-      return `${BASE_URL}${fileName}.png`;
+  // Delivery
+  if (purpose === "delivery") {
+    if (!name || name === "any") {
+      return LOCAL_IMAGES.delivery;
     }
 
-    return null;
-  };
+    return {
+      uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
+    };
+  }
 
+  return { uri: DEFAULT_GUEST_IMAGE };
+};
   const getPassStatus = (status) => {
     const statusStr = String(status);
 
@@ -164,20 +194,20 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
   };
 
   // 👇 PLACE THIS ABOVE renderPassCard
-const getParkingBooking = (pass) => {
-  if (!parkingBookings || parkingBookings.length === 0) return null;
+  const getParkingBooking = (pass) => {
+    if (!parkingBookings || parkingBookings.length === 0) return null;
 
-  return parkingBookings.find(
-    booking =>
-      booking.reference_id &&
-      String(booking.reference_id) === String(pass.id)
-  );
-};
+    return parkingBookings.find(
+      booking =>
+        booking.reference_id &&
+        String(booking.reference_id) === String(pass.id)
+    );
+  };
   const renderPassCard = ({ item: pass }) => {
     const parkingBooking = getParkingBooking(pass);
 
     const status = getPassStatus(pass.status);
- 
+
     // console.log("PASS:", pass.id, "Parking Match:", parkingBooking);
     return (
       <TouchableOpacity
@@ -191,13 +221,11 @@ const getParkingBooking = (pass) => {
         {/* Card Header */}
         <View style={styles.cardHeader}>
           <View style={styles.leftSection}>
-            <View style={[styles.iconContainer, {
-              backgroundColor: `${COLORS.primary}15`,
-            }]}>
+            <View style={[styles.iconContainer]}>
               <Image
-                source={{ uri: getPassImage(pass) }}
+                source={getPassImage(pass)}
                 style={styles.passImage}
-                resizeMode="contain"
+                resizeMode="cover"
                 onError={() => console.log("Image load failed")}
                 alt='images'
               />
@@ -501,8 +529,8 @@ const createStyles = (theme, nightMode) =>
       flex: 1,
     },
     passImage: {
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
     },
     passTitle: {
       fontSize: 16,

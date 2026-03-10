@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { hasPermission } from "../../Utils/PermissionHelper";
 import {
   View,
   Text,
@@ -17,7 +18,7 @@ import BRAND from '../config'
 
 const AllServicesScreen = () => {
   const navigation = useNavigation();
-  const { nightMode } = usePermissions();
+  const { nightMode, permissions } = usePermissions();
   const searchInputRef = useRef(null);
 
   const [search, setSearch] = useState("");
@@ -35,10 +36,7 @@ const AllServicesScreen = () => {
   const services = [
     // { title: "Payment", icon: "card-outline" },
     { title: "Notices", icon: "notifications-outline", route: "MyNoticesScreen" },
-    { title: "Events", icon: "calendar-outline" },
     { title: "Book Ameneties", icon: "bookmarks-outline", route: "AmenitiesListScreen" },
-    { title: "Surveys", icon: "clipboard-outline" },
-    { title: "Profile", icon: "person-outline" },
     { title: "My Complex", icon: "notifications-outline", route: "Notices" },
     { title: "Settings", icon: "settings-outline", route:'Settings'},
     { title: "My vehicles", icon: "car-outline", route: "MyVehiclesScreen" },
@@ -63,7 +61,25 @@ const AllServicesScreen = () => {
     }, [])
   );
 
-  const filteredServices = services.filter((item) =>
+  const filteredServices = services
+  .filter((item) => {
+    if (!permissions) return false;
+
+    if (item.title === "Add vehicle") {
+      return hasPermission(permissions, "VEH", "CREATE");
+    }
+
+    if (item.title === "My vehicles") {
+      return hasPermission(permissions, "VEH", "READ");
+    }
+
+    if (item.title === "Bills") {
+      return hasPermission(permissions, "BILL", "READ");
+    }
+
+    return true;
+  })
+  .filter((item) =>
     item.title.toLowerCase().includes(search.toLowerCase())
   );
 

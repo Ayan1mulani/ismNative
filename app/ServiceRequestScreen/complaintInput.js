@@ -1,9 +1,9 @@
 // ComplaintInputScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ScrollView, TextInput, Alert,
-  Image, Modal, Dimensions, Platform
+  Image, Modal, Dimensions, Platform, Animated
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -14,17 +14,183 @@ import { usePermissions } from '../../Utils/ConetextApi';
 import CalendarSelector from '../VisitorsScreen/components/Calender';
 import { complaintService } from '../../services/complaintService';
 import BRAND from '../config';
+import AppHeader from '../components/AppHeader';
 
 const { width } = Dimensions.get('window');
 const PRIMARY = BRAND.COLORS.primary;
 
 const LOCATIONS = [
-  { id: 1, name: 'Lobby Area' },    { id: 2, name: 'Parking Area' },
-  { id: 3, name: 'Garden Area' },   { id: 4, name: 'Swimming Pool' },
-  { id: 5, name: 'Gym Area' },      { id: 6, name: 'Terrace' },
-  { id: 7, name: 'Basement' },      { id: 8, name: 'Common Bathroom' },
-  { id: 9, name: 'Elevator' },      { id: 10, name: 'Staircase' },
+  { id: 1, name: 'Lobby Area' }, { id: 2, name: 'Parking Area' },
+  { id: 3, name: 'Garden Area' }, { id: 4, name: 'Swimming Pool' },
+  { id: 5, name: 'Gym Area' }, { id: 6, name: 'Terrace' },
+  { id: 7, name: 'Basement' }, { id: 8, name: 'Common Bathroom' },
+  { id: 9, name: 'Elevator' }, { id: 10, name: 'Staircase' },
 ];
+
+// ─── Status Modal Component ───────────────────────────────────────────────────
+const StatusModal = ({
+  visible,
+  type = "loading", // loading | success | error
+  title,
+  subtitle,
+  onClose,
+  autoClose = true,
+}) => {
+  const [internalVisible, setInternalVisible] = useState(visible);
+
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.8)).current;
+  const rotation = useRef(new Animated.Value(0)).current;
+  const rotationAnim = useRef(null);
+
+  useEffect(() => {
+    if (visible) {
+      setInternalVisible(true);
+
+      // Open animation
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          tension: 120,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Start rotation for loading
+      if (type === "loading") {
+        rotation.setValue(0);
+        rotationAnim.current = Animated.loop(
+          Animated.timing(rotation, {
+            toValue: 1,
+            duration: 1200,
+            useNativeDriver: true,
+          })
+        );
+        rotationAnim.current.start();
+      }
+
+      // Auto close success
+      if (type === "success" && autoClose) {
+        setTimeout(() => {
+          handleClose();
+        }, 1500);
+      }
+    } else {
+      handleClose();
+    }
+
+    return () => {
+      if (rotationAnim.current) rotationAnim.current.stop();
+      rotation.stopAnimation();
+    };
+  }, [visible, type]);
+
+  const handleClose = () => {
+    if (rotationAnim.current) rotationAnim.current.stop();
+
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 0.8,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setInternalVisible(false);
+      if (onClose) onClose();
+    });
+  };
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  const renderIcon = () => {
+    if (type === "success")
+      return <Ionicons name="checkmark-circle" size={60} color="#22C55E" />;
+
+    if (type === "error")
+      return <Ionicons name="close-circle" size={60} color="#EF4444" />;
+
+    return (
+      <Animated.View style={{ transform: [{ rotate: spin }] }}>
+        <Ionicons name="sync" size={50} color={PRIMARY} />
+      </Animated.View>
+    );
+  };
+
+  if (!internalVisible) return null;
+
+  return (
+    <Modal transparent visible={internalVisible} animationType="none">
+      <View style={sm.overlay}>
+        <Animated.View style={[sm.box, { opacity, transform: [{ scale }] }]}>
+          {renderIcon()}
+          {title && <Text style={sm.title}>{title}</Text>}
+          {subtitle && <Text style={sm.subtitle}>{subtitle}</Text>}
+
+          {type === "error" && (
+            <TouchableOpacity style={sm.closeBtn} onPress={handleClose}>
+              <Text style={sm.closeText}>Close</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+};
+
+const sm = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  box: {
+    width: 280,
+    backgroundColor: "#FFFFFF",
+    padding: 24,
+    borderRadius: 18,
+    alignItems: "center",
+    elevation: 6,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 12,
+    textAlign: "center",
+    color: "#111827"
+  },
+  subtitle: {
+    fontSize: 13,
+    marginTop: 6,
+    textAlign: "center",
+    color: "#6B7280",
+  },
+  closeBtn: {
+    marginTop: 20,
+    backgroundColor: "#EF4444",
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+  },
+  closeText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+});
 
 // ─── Safe date formatter ──────────────────────────────────────────────────────
 const formatDate = (raw) => {
@@ -34,26 +200,34 @@ const formatDate = (raw) => {
     const d = raw instanceof Date ? raw : new Date(raw);
     if (isNaN(d.getTime())) { console.warn('[formatDate] unparseable:', raw); return null; }
     const yyyy = d.getFullYear();
-    const mm   = String(d.getMonth() + 1).padStart(2, '0');
-    const dd   = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   } catch (e) { console.warn('[formatDate] error:', e); return null; }
 };
 
-// ─── Time Picker Modal (Cross-Platform Fix) ───────────────────────────────────
+// ─── Helper: build a Date at a specific hour/minute ──────────────────────────
+const makeTime = (hours, minutes = 0) => {
+  const d = new Date();
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+};
+
+// ─── Time Picker Modal ────────────────────────────────────────────────────────
 const TimePicker = ({ visible, onClose, fromTime, toTime, onFromChange, onToChange, nightMode }) => {
-  const [picking, setPicking] = useState('from'); // 'from' | 'to'
+  const [picking, setPicking] = useState('from');
   const [tempFrom, setTempFrom] = useState(null);
   const [tempTo, setTempTo] = useState(null);
   const [showAndroidPicker, setShowAndroidPicker] = useState(false);
+  const [timeError, setTimeError] = useState('');
 
-  // Sync props to temp state when opening
   useEffect(() => {
     if (visible) {
-      setTempFrom(fromTime || new Date());
-      setTempTo(toTime || new Date());
+      setTempFrom(fromTime || makeTime(9));
+      setTempTo(toTime || makeTime(10));
       setPicking('from');
       setShowAndroidPicker(false);
+      setTimeError('');
     }
   }, [visible]);
 
@@ -65,14 +239,30 @@ const TimePicker = ({ visible, onClose, fromTime, toTime, onFromChange, onToChan
     ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     : '-- : --';
 
-  // Apply changes
   const handleDone = () => {
+    if (tempFrom && tempTo) {
+      const fromMins = tempFrom.getHours() * 60 + tempFrom.getMinutes();
+      const toMins = tempTo.getHours() * 60 + tempTo.getMinutes();
+      if (fromMins >= toMins) {
+        setTimeError('End time must be after start time.');
+        return;
+      }
+    }
+    setTimeError('');
     if (tempFrom) onFromChange(tempFrom);
-    if (tempTo)   onToChange(tempTo);
+    if (tempTo) onToChange(tempTo);
     onClose();
   };
 
-  // Android specific change handler
+  // Directly open picker when pressing tab
+  const handleTabPress = (tab) => {
+    setPicking(tab);
+    setTimeError('');
+    if (Platform.OS === 'android') {
+      setShowAndroidPicker(true);
+    }
+  };
+
   const onAndroidChange = (event, date) => {
     setShowAndroidPicker(false);
     if (event.type === 'set' && date) {
@@ -81,7 +271,7 @@ const TimePicker = ({ visible, onClose, fromTime, toTime, onFromChange, onToChan
     }
   };
 
-  const activeTime = picking === 'from' ? (tempFrom || new Date()) : (tempTo || new Date());
+  const activeTime = picking === 'from' ? (tempFrom || makeTime(9)) : (tempTo || makeTime(10));
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -91,11 +281,17 @@ const TimePicker = ({ visible, onClose, fromTime, toTime, onFromChange, onToChan
           <View style={[tp.handle, { backgroundColor: t.border }]} />
           <Text style={[tp.title, { color: t.text }]}>Select Time Range</Text>
 
-          {/* TABS: From / To */}
+          {Platform.OS === 'android' && (
+            <Text style={{ fontSize: 13, color: t.sub, marginBottom: 14, marginTop: -4 }}>
+              Tap on FROM or TO to change the time
+            </Text>
+          )}
+
           <View style={tp.row}>
             <TouchableOpacity
               style={[tp.timeBtn, { backgroundColor: t.row, borderColor: picking === 'from' ? PRIMARY : t.border }]}
-              onPress={() => setPicking('from')}
+              onPress={() => handleTabPress('from')}
+              activeOpacity={0.7}
             >
               <Ionicons name="time-outline" size={16} color={PRIMARY} />
               <View style={{ marginLeft: 8 }}>
@@ -108,7 +304,8 @@ const TimePicker = ({ visible, onClose, fromTime, toTime, onFromChange, onToChan
 
             <TouchableOpacity
               style={[tp.timeBtn, { backgroundColor: t.row, borderColor: picking === 'to' ? PRIMARY : t.border }]}
-              onPress={() => setPicking('to')}
+              onPress={() => handleTabPress('to')}
+              activeOpacity={0.7}
             >
               <Ionicons name="time-outline" size={16} color={PRIMARY} />
               <View style={{ marginLeft: 8 }}>
@@ -118,16 +315,20 @@ const TimePicker = ({ visible, onClose, fromTime, toTime, onFromChange, onToChan
             </TouchableOpacity>
           </View>
 
-          {/* PICKER AREA */}
-          <View style={tp.pickerContainer}>
-            {Platform.OS === 'ios' ? (
-              /* iOS: Inline Spinner */
+          {!!timeError && (
+            <Text style={[tp.errorTxt, { color: '#EF4444' }]}>{timeError}</Text>
+          )}
+
+          {/* iOS requires the spinner inline */}
+          {Platform.OS === 'ios' && (
+            <View style={tp.pickerContainer}>
               <DateTimePicker
                 value={activeTime}
                 mode="time"
                 display="spinner"
                 onChange={(_, date) => {
                   if (date) {
+                    setTimeError('');
                     if (picking === 'from') setTempFrom(date);
                     else setTempTo(date);
                   }
@@ -135,35 +336,23 @@ const TimePicker = ({ visible, onClose, fromTime, toTime, onFromChange, onToChan
                 style={{ height: 140 }}
                 textColor={t.text}
               />
-            ) : (
-              /* Android: Clickable Button -> Dialog */
-              <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 10 }}>
-                <Text style={{ color: t.sub, fontSize: 12, marginBottom: 8 }}>
-                  Editing {picking.toUpperCase()} time
-                </Text>
-                <TouchableOpacity
-                  style={[tp.androidBtn, { backgroundColor: t.btn, borderColor: t.border }]}
-                  onPress={() => setShowAndroidPicker(true)}
-                >
-                  <Text style={[tp.androidTime, { color: PRIMARY }]}>{fmt(activeTime)}</Text>
-                  <Text style={{ fontSize: 10, color: t.sub }}>Tap to change</Text>
-                </TouchableOpacity>
+            </View>
+          )}
 
-                {showAndroidPicker && (
-                  <DateTimePicker
-                    value={activeTime}
-                    mode="time"
-                    display="default"
-                    is24Hour={false}
-                    onChange={onAndroidChange}
-                  />
-                )}
-              </View>
-            )}
-          </View>
+          {/* Android opens native popup on top of the screen */}
+          {Platform.OS === 'android' && showAndroidPicker && (
+            <DateTimePicker
+              key={picking}
+              value={activeTime}
+              mode="time"
+              display="default"
+              is24Hour={false}
+              onChange={onAndroidChange}
+            />
+          )}
 
           <TouchableOpacity
-            style={[tp.doneBtn, { backgroundColor: PRIMARY }]}
+            style={[tp.doneBtn, { backgroundColor: PRIMARY, marginTop: Platform.OS === 'android' ? 20 : 12 }]}
             onPress={handleDone}
           >
             <Text style={tp.doneTxt}>Done</Text>
@@ -175,24 +364,19 @@ const TimePicker = ({ visible, onClose, fromTime, toTime, onFromChange, onToChan
 };
 
 const tp = StyleSheet.create({
-  overlay:  { flex: 1, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet:    { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 36 },
-  handle:   { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  title:    { fontSize: 16, fontWeight: '700', marginBottom: 18 },
-  row:      { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  timeBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1.5, padding: 12 },
-  label:    { fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
-  time:     { fontSize: 18, fontWeight: '700', marginTop: 2 },
-  doneBtn:  { marginTop: 12, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
-  doneTxt:  { color: '#fff', fontSize: 14, fontWeight: '700' },
+  sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 36 },
+  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  title: { fontSize: 16, fontWeight: '700', marginBottom: 18 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  timeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1.5, padding: 12 },
+  label: { fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
+  time: { fontSize: 18, fontWeight: '700', marginTop: 2 },
+  doneBtn: { marginTop: 12, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  doneTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  errorTxt: { fontSize: 12, fontWeight: '500', marginBottom: 8, marginTop: 8, textAlign: 'center' },
   pickerContainer: { height: 150, justifyContent: 'center' },
-  androidBtn: {
-    paddingHorizontal: 30, paddingVertical: 15, borderRadius: 12,
-    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
-    minWidth: 180
-  },
-  androidTime: { fontSize: 26, fontWeight: '700', marginBottom: 4 },
 });
 
 // ─── Location Modal ────────────────────────────────────────────────────────────
@@ -231,13 +415,13 @@ const LocationModal = ({ visible, onClose, selected, onSelect, nightMode }) => {
 };
 
 const lm = StyleSheet.create({
-  overlay:  { flex: 1, justifyContent: 'flex-end' },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet:    { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 36, maxHeight: '70%' },
-  handle:   { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  title:    { fontSize: 16, fontWeight: '700', marginBottom: 14 },
-  item:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, borderBottomWidth: 1 },
-  itemTxt:  { flex: 1, fontSize: 14, fontWeight: '500' },
+  sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 36, maxHeight: '70%' },
+  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  title: { fontSize: 16, fontWeight: '700', marginBottom: 14 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, borderBottomWidth: 1 },
+  itemTxt: { flex: 1, fontSize: 14, fontWeight: '500' },
 });
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -261,17 +445,24 @@ const ComplaintInputScreen = ({ navigation, route }) => {
     text: '#111827', sub: '#6B7280', input: '#F8FAFC',
   };
 
-  const [config,         setConfig]         = useState(null);
-  const [isASAP,         setIsASAP]         = useState(true);
-  const [selectedDate,   setSelectedDate]   = useState(null);
-  const [fromTime,       setFromTime]       = useState(null);
-  const [toTime,         setToTime]         = useState(null);
+  const [config, setConfig] = useState(null);
+  const [isASAP, setIsASAP] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [fromTime, setFromTime] = useState(null);
+  const [toTime, setToTime] = useState(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [location,       setLocation]       = useState(null);
-  const [showLocModal,   setShowLocModal]   = useState(false);
-  const [remarks,        setRemarks]        = useState('');
-  const [images,         setImages]         = useState([]);
-  const [submitting,     setSubmitting]     = useState(false);
+  const [location, setLocation] = useState(null);
+  const [showLocModal, setShowLocModal] = useState(false);
+  const [remarks, setRemarks] = useState('');
+  const [images, setImages] = useState([]);
+
+  // Modal State
+  const [modalConfig, setModalConfig] = useState({
+    visible: false,
+    type: 'loading',
+    title: '',
+    subtitle: ''
+  });
 
   useEffect(() => { loadConfig(); }, []);
 
@@ -284,6 +475,15 @@ const ComplaintInputScreen = ({ navigation, route }) => {
     }
   };
 
+  const handlePriorityChange = (val) => {
+    setIsASAP(val);
+    if (val) {
+      setSelectedDate(null);
+      setFromTime(null);
+      setToTime(null);
+    }
+  };
+
   const fmtTime = (d) => d
     ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     : null;
@@ -291,8 +491,8 @@ const ComplaintInputScreen = ({ navigation, route }) => {
   const timeLabel = fromTime && toTime
     ? `${fmtTime(fromTime)}  →  ${fmtTime(toTime)}`
     : fromTime
-    ? `From ${fmtTime(fromTime)}`
-    : 'Select time range';
+      ? `From ${fmtTime(fromTime)}`
+      : 'Select time range';
 
   const pickImage = async () => {
     const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 5, quality: 0.8 });
@@ -301,25 +501,36 @@ const ComplaintInputScreen = ({ navigation, route }) => {
     }
   };
 
+  const showModal = (type, title, subtitle) => {
+    setModalConfig({ visible: true, type, title, subtitle });
+  };
+
+  const hideModal = () => {
+    setModalConfig(prev => ({ ...prev, visible: false }));
+  };
+
   const handleSubmit = async () => {
-    if (!location) { Alert.alert('Required', 'Please select a location.'); return; }
-    if (!remarks.trim()) { Alert.alert('Required', 'Please describe the issue.'); return; }
+    if (!location) { showModal('error', 'Required', 'Please select a location.'); return; }
+    if (!remarks.trim()) { showModal('error', 'Required', 'Please describe the issue.'); return; }
 
     if (!isASAP) {
-      if (!selectedDate) { Alert.alert('Required', 'Please select a date.'); return; }
-      if (!fromTime || !toTime) { Alert.alert('Required', 'Please select both start and end time.'); return; }
+      if (!selectedDate) { showModal('error', 'Required', 'Please select a date.'); return; }
+      if (!fromTime || !toTime) { showModal('error', 'Required', 'Please select both start and end time.'); return; }
 
       const fromMins = fromTime.getHours() * 60 + fromTime.getMinutes();
-      const toMins   = toTime.getHours()   * 60 + toTime.getMinutes();
-      if (fromMins >= toMins) { Alert.alert('Invalid Time', 'End time must be after start time.'); return; }
+      const toMins = toTime.getHours() * 60 + toTime.getMinutes();
+      if (fromMins >= toMins) {
+        showModal('error', 'Invalid Time', 'End time must be after start time.');
+        return;
+      }
     }
 
     if (isASAP && config?.complaint_lock_time) {
       const current = new Date().toTimeString().slice(0, 5);
-      const from    = config.complaint_lock_time.from;
-      const to      = config.complaint_lock_time.to;
+      const from = config.complaint_lock_time.from;
+      const to = config.complaint_lock_time.to;
       if (current < from || current > to) {
-        Alert.alert('Complaints Closed', `Complaints allowed only between ${from} and ${to}`);
+        showModal('error', 'Complaints Closed', `Complaints allowed only between ${from} and ${to}`);
         return;
       }
     }
@@ -330,65 +541,50 @@ const ComplaintInputScreen = ({ navigation, route }) => {
       : null;
 
     if (!isASAP && !probableDate) {
-      Alert.alert('Invalid Date', 'Could not read the selected date. Please try again.');
+      showModal('error', 'Invalid Date', 'Could not read the selected date. Please try again.');
       return;
     }
 
-    setSubmitting(true);
+    showModal('loading', 'Submitting...', 'Please wait while we process your request');
 
     try {
       const res = await complaintService.addComplaint({
-        sub_category:        subCategory?.name,
-        complaint_type:      category?.id,
-        description:         `${subCategory?.name} : ${remarks}`,
-        severity:            'normal',
-        sub_category_id:     subCategory?.id,
-        probable_date:       probableDate,
-        probable_time:       probableTime,
+        sub_category: subCategory?.name,
+        complaint_type: category?.id,
+        description: `${subCategory?.name} : ${remarks}`,
+        severity: 'normal',
+        sub_category_id: subCategory?.id,
+        probable_date: probableDate,
+        probable_time: probableTime,
         constant_society_id: 4710,
-        location_id:         location?.id,
+        location_id: location?.id,
       });
 
       if (res?.status === 'success') {
-        Alert.alert(
-          'Success',
-          `Complaint No: ${res.data.com_no}`,
-          [{
-            text: 'OK',
-            onPress: () => navigation.navigate('MainApp', {
-              screen: 'Service Requests',
-              params: { screen: 'ServiceRequestsMain' },
-            }),
-          }]
-        );
+        showModal('success', 'Success', `Complaint No: ${res.data.com_no}`);
+
+        // Wait for success modal to finish showing before navigating
+        setTimeout(() => {
+          navigation.navigate('MainApp', {
+            screen: 'Service Requests',
+            params: { screen: 'ServiceRequestsMain' },
+          });
+        }, 1500);
+
       } else {
-        Alert.alert('Error', res?.message || 'Failed to submit complaint.');
+        showModal('error', 'Error', res?.message || 'Failed to submit complaint.');
       }
 
     } catch (error) {
       console.log('Submit Error:', error);
-      Alert.alert('Error', error?.message || error?.response?.data?.message || 'Something went wrong.');
-    } finally {
-      setSubmitting(false);
+      showModal('error', 'Error', error?.message || error?.response?.data?.message || 'Something went wrong.');
     }
   };
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: t.bg }]} edges={['top']}>
       {/* ── Header ── */}
-      <View style={s.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[s.backBtn, { backgroundColor: t.surface, borderColor: t.border }]}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={18} color={t.text} />
-        </TouchableOpacity>
-        <View>
-          <Text style={[s.title, { color: t.text }]}>Submit Complaint</Text>
-          <Text style={[s.subtitle, { color: t.sub }]}>Fill in the details below</Text>
-        </View>
-      </View>
+      <AppHeader title={"Submit Complaint"} />
 
       <ScrollView
         contentContainerStyle={s.scroll}
@@ -408,20 +604,20 @@ const ComplaintInputScreen = ({ navigation, route }) => {
           </View>
         </Section>
 
-        {/* ── Priority ── */}
+        {/* ── Priority & Schedule ── */}
         <Section label="Priority" t={t}>
           <View style={s.priorityRow}>
             {[
-              { val: true,  label: 'ASAP',     icon: 'flash-outline'    },
-              { val: false, label: 'Schedule',  icon: 'calendar-outline' },
+              { val: true, label: 'ASAP', icon: 'flash-outline' },
+              { val: false, label: 'Schedule', icon: 'calendar-outline' },
             ].map(opt => (
               <TouchableOpacity
                 key={String(opt.val)}
                 style={[s.priorityBtn, {
-                  borderColor:     isASAP === opt.val ? PRIMARY : t.border,
+                  borderColor: isASAP === opt.val ? PRIMARY : t.border,
                   backgroundColor: isASAP === opt.val ? `${PRIMARY}12` : t.input,
                 }]}
-                onPress={() => setIsASAP(opt.val)}
+                onPress={() => handlePriorityChange(opt.val)}
                 activeOpacity={0.75}
               >
                 <Ionicons name={opt.icon} size={16} color={isASAP === opt.val ? PRIMARY : t.sub} />
@@ -431,35 +627,38 @@ const ComplaintInputScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             ))}
           </View>
+        </Section>
 
-          {!isASAP && (
-            <View style={s.scheduleRow}>
-              <View style={{ flex: 1 }}>
-                <CalendarSelector
-                  selectedDate={selectedDate}
-                  onDateSelect={setSelectedDate}
-                  label="Date"
-                  required
-                  nightMode={nightMode}
-                />
-              </View>
+        {/* Render Schedule row OUTSIDE the Priority Section box, directly below it */}
+        {!isASAP && (
+          <View style={s.scheduleRow}>
+            <View style={{ flex: 1 }}>
+              <CalendarSelector
+                selectedDate={selectedDate}
+                onDateSelect={setSelectedDate}
+                label="Date"
+                required
+                nightMode={nightMode}
+              />
+            </View>
 
+            <View style={{ flex: 1 }}>
+              <Text style={[s.timeOutLabel, { color: t.sub }]}>TIME *</Text>
               <TouchableOpacity
                 style={[s.timeBtn, { borderColor: t.border, backgroundColor: t.input }]}
                 onPress={() => setShowTimePicker(true)}
                 activeOpacity={0.8}
               >
-                <Text style={[s.timeBtnLabel, { color: t.sub }]}>TIME</Text>
                 <View style={s.timeValueRow}>
-                  <Ionicons name="time-outline" size={14} color={PRIMARY} />
+                  <Ionicons name="time-outline" size={16} color={PRIMARY} />
                   <Text style={[s.timeBtnValue, { color: fromTime ? t.text : t.sub }]} numberOfLines={1}>
                     {timeLabel}
                   </Text>
                 </View>
               </TouchableOpacity>
             </View>
-          )}
-        </Section>
+          </View>
+        )}
 
         {/* ── Location ── */}
         <Section label="Location *" t={t}>
@@ -492,18 +691,15 @@ const ComplaintInputScreen = ({ navigation, route }) => {
 
         {/* ── Submit ── */}
         <TouchableOpacity
-          style={[s.submitBtn, { backgroundColor: PRIMARY, opacity: submitting ? 0.7 : 1 }]}
+          style={[s.submitBtn, { backgroundColor: PRIMARY, opacity: modalConfig.type === 'loading' && modalConfig.visible ? 0.7 : 1 }]}
           onPress={handleSubmit}
-          disabled={submitting}
+          disabled={modalConfig.type === 'loading' && modalConfig.visible}
           activeOpacity={0.85}
         >
-          {submitting
-            ? <Text style={s.submitTxt}>Submitting…</Text>
-            : <>
-                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                <Text style={s.submitTxt}>Submit Complaint</Text>
-              </>
-          }
+          <>
+            <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+            <Text style={s.submitTxt}>Submit Complaint</Text>
+          </>
         </TouchableOpacity>
 
         <View style={{ height: 30 }} />
@@ -526,6 +722,14 @@ const ComplaintInputScreen = ({ navigation, route }) => {
         onSelect={setLocation}
         nightMode={nightMode}
       />
+
+      <StatusModal
+        visible={modalConfig.visible}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        subtitle={modalConfig.subtitle}
+        onClose={hideModal}
+      />
     </SafeAreaView>
   );
 };
@@ -543,18 +747,18 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: 8,
     alignItems: 'center', justifyContent: 'center',
   },
-  title:    { fontSize: 17, fontWeight: '600' },
+  title: { fontSize: 17, fontWeight: '600' },
   subtitle: { fontSize: 12, marginTop: 2 },
 
   scroll: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 90 },
 
-  section:  { borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1 },
+  section: { borderRadius: 12, padding: 14, marginBottom: 8 },
   secLabel: { fontSize: 11, fontWeight: '600', marginBottom: 10 },
 
-  issueRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  issueRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   issueIcon: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  issueCat:  { fontSize: 15, fontWeight: '600' },
-  issueSub:  { fontSize: 13, marginTop: 2 },
+  issueCat: { fontSize: 15, fontWeight: '600' },
+  issueSub: { fontSize: 13, marginTop: 2 },
 
   priorityRow: { flexDirection: 'row', gap: 10 },
   priorityBtn: {
@@ -564,11 +768,11 @@ const s = StyleSheet.create({
   },
   priorityTxt: { fontSize: 13, fontWeight: '500' },
 
-  scheduleRow:  { flexDirection: 'row', gap: 10, marginTop: 12, alignItems: 'flex-end' },
-  timeBtn:      { flex: 1, borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, justifyContent: 'center' },
-  timeBtnLabel: { fontSize: 11, marginBottom: 4 },
-  timeValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  timeBtnValue: { fontSize: 13, fontWeight: '500', flex: 1 },
+  scheduleRow: { flexDirection: 'row', gap: 12, marginBottom: 12, alignItems: 'flex-start' , paddingHorizontal:12},
+  timeOutLabel: { fontSize: 11, fontWeight: '600', marginBottom: 6, marginTop: 2 },
+  timeBtn: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, height: 47, justifyContent: 'center' },
+  timeValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  timeBtnValue: { fontSize: 12, flex: 1 },
 
   picker: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

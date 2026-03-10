@@ -2,14 +2,17 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   Animated,
   Dimensions,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { usePermissions } from '../../Utils/ConetextApi';
+import { hasPermission } from '../../Utils/PermissionHelper';
 import ComplaintListScreen from './ServiceRequestPage';
 import { complaintService } from '../../services/complaintService';
 import SlidingTabs from '../components/SlidingTabs';
@@ -24,11 +27,13 @@ const COLORS = {
   light: {
     background: '#FFFFFF',
     surface: '#F8F9FA',
+    text: '#111827',
     textSecondary: '#6C757D',
   },
   dark: {
     background: '#121212',
     surface: '#1E1E1E',
+    text: '#FFFFFF',
     textSecondary: '#9E9E9E',
   },
 };
@@ -41,19 +46,43 @@ const REQUEST_STATUS = {
 
 const ServiceRequestTabs = () => {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
-  const [requests, setRequests] = useState({
-    open: [],
-    closed: [],
-    all: [],
-  });
+  const [requests, setRequests] = useState({ open: [], closed: [], all: [] });
   const [isLoading, setIsLoading] = useState(true);
 
   const scrollViewRef = useRef(null);
   const scrollX = useRef(new Animated.Value(0)).current;
 
-  const { nightMode } = usePermissions();
+  const { nightMode, permissions } = usePermissions();
   const navigation = useNavigation();
   const theme = nightMode ? COLORS.dark : COLORS.light;
+
+  // ── Permission flags ──────────────────────────────────────────────────────
+  const permissionsLoaded = permissions !== null && permissions !== undefined;
+  const canViewComplaints  = permissionsLoaded && hasPermission(permissions, 'COM', 'READ');
+  const canCreateComplaint = permissionsLoaded && hasPermission(permissions, 'COM', 'CREATE');
+
+  // ── Loading state: permissions not yet fetched ────────────────────────────
+  if (!permissionsLoaded) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ color: theme.textSecondary, marginTop: 12 }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // ── Access restricted: no READ permission ─────────────────────────────────
+  if (!canViewComplaints) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Ionicons name="lock-closed-outline" size={64} color={theme.textSecondary} />
+        <Text style={[styles.restrictedTitle, { color: theme.text }]}>Access Restricted</Text>
+        <Text style={[styles.restrictedSub, { color: theme.textSecondary }]}>
+          You do not have permission to view service requests.{'\n'}Please contact your administrator.
+        </Text>
+      </View>
+    );
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -64,23 +93,17 @@ const ServiceRequestTabs = () => {
   const fetchServiceRequests = async () => {
     try {
       setIsLoading(true);
-
-      // Single API call — API returns all regardless of status param
       const res = await complaintService.getMyComplaints();
       const allData = res.data || [];
 
       const openData = allData.filter((item) =>
-  ['Open', 'WIP', 'In Progress', 'Pending'].includes(item.status)
-);
-     const closedData = allData.filter((item) =>
-  ['Closed', 'Resolved', 'Completed'].includes(item.status)
-);
+        ['Open', 'WIP', 'In Progress', 'Pending'].includes(item.status)
+      );
+      const closedData = allData.filter((item) =>
+        ['Closed', 'Resolved', 'Completed'].includes(item.status)
+      );
 
-      setRequests({
-        open: openData,
-        closed: closedData,
-        all: allData,
-      });
+      setRequests({ open: openData, closed: closedData, all: allData });
     } catch (error) {
       console.error('Failed to fetch service requests:', error);
     } finally {
@@ -90,14 +113,10 @@ const ServiceRequestTabs = () => {
 
   const getCurrentRequests = (tabName) => {
     switch (tabName) {
-      case REQUEST_STATUS.OPEN:
-        return requests.open;
-      case REQUEST_STATUS.CLOSED:
-        return requests.closed;
-      case REQUEST_STATUS.ALL:
-        return requests.all;
-      default:
-        return [];
+      case REQUEST_STATUS.OPEN:   return requests.open;
+      case REQUEST_STATUS.CLOSED: return requests.closed;
+      case REQUEST_STATUS.ALL:    return requests.all;
+      default:                    return [];
     }
   };
 
@@ -124,10 +143,7 @@ const ServiceRequestTabs = () => {
         activeIndex={activeTabIndex}
         onTabPress={(index) => {
           setActiveTabIndex(index);
-          scrollViewRef.current?.scrollTo({
-            x: index * SCREEN_WIDTH,
-            animated: true,
-          });
+          scrollViewRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
         }}
         scrollX={scrollX}
       />
@@ -141,9 +157,7 @@ const ServiceRequestTabs = () => {
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
         onMomentumScrollEnd={(event) => {
-          const index = Math.round(
-            event.nativeEvent.contentOffset.x / SCREEN_WIDTH
-          );
+          const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
           setActiveTabIndex(index);
         }}
         onScroll={Animated.event(
@@ -158,19 +172,22 @@ const ServiceRequestTabs = () => {
         ))}
       </Animated.ScrollView>
 
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          {
-            backgroundColor: COLORS.primary,
-            shadowColor: nightMode ? '#000' : COLORS.primary,
-          },
-        ]}
-        onPress={handleAddRequest}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      {/* FAB — only shown if user has CREATE permission */}
+      {canCreateComplaint && (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            {
+              backgroundColor: COLORS.primary,
+              shadowColor: nightMode ? '#000' : COLORS.primary,
+            },
+          ]}
+          onPress={handleAddRequest}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -198,5 +215,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  restrictedTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  restrictedSub: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
   },
 });

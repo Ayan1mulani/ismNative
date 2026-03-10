@@ -12,7 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 const ACTIONS = [
   { id: "1", title: "Pass", icon: "create-outline", screen: "Visitors" },
   { id: "2", title: "Amenities", icon: "bookmark-outline", screen: "AmenitiesListScreen" },
-  { id: "3", title: "Raise", icon: "alert-circle-outline", screen: "RaiseComplaintScreen" },
+  { id: "3", title: "Notice", icon: "mail-outline", screen: "MyNoticesScreen" },
   { id: "4", title: "Bookings", icon: "calendar-outline", screen: "MyBookings" },
   { id: "5", title: "My Vehicles", icon: "car-outline", screen: "MyVehiclesScreen" },
 ];
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 16,
     alignItems: "center",
-    marginLeft: 10, // To offset the first gap
+    marginLeft: 8, // To offset the first gap
   },
   card: {
     alignItems: "center",
@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   label: {
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 10,
+    fontWeight: "900",
     color: "#374151",
     textAlign: "center",
   },

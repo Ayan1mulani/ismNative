@@ -11,9 +11,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { usePermissions } from '../../Utils/ConetextApi';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BRAND from '../config'
-
-
+import BRAND from '../config';
+import AppHeader from '../components/AppHeader'; // ✅ Added AppHeader
 
 const ICON_MAP = [
   { keys: ['electric', 'power'], name: 'electrical-services' },
@@ -47,7 +46,7 @@ const SubCategorySelectionScreen = ({ navigation, route }) => {
         sub: '#9CA3AF',
       }
     : {
-        bg: '#FFFFFF',
+        bg: '#F4F6FA', // Light background for better contrast
         surface: '#FFFFFF',
         border: '#E5E7EB',
         text: '#111827',
@@ -55,26 +54,16 @@ const SubCategorySelectionScreen = ({ navigation, route }) => {
       };
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: theme.bg }]} edges={['top']}>
-  
+    <SafeAreaView style={[styles.root]} edges={['bottom']}>
+      
+      {/* 1. Standardized Header */}
+      <AppHeader title={selectedCategory?.name || 'Select Issue'} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backBtn, { borderColor: theme.border }]}
-        >
-          < Ionicons name="arrow-back" size={18} color={theme.text} />
-        </TouchableOpacity>
-
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
-            {selectedCategory?.name || 'Select Issue'}
+      {/* 2. Issue Count Summary */}
+      <View style={styles.summaryContainer}>
+         <Text style={[styles.subtitle, { color: theme.sub }]}>
+            Choose the specific {selectedCategory?.name?.toLowerCase()} issue ({subCategories.length})
           </Text>
-          <Text style={[styles.subtitle, { color: theme.sub }]}>
-            {subCategories.length} issue types
-          </Text>
-        </View>
       </View>
 
       {/* List */}
@@ -84,8 +73,8 @@ const SubCategorySelectionScreen = ({ navigation, route }) => {
       >
         {subCategories.length === 0 ? (
           <View style={styles.empty}>
-            <MaterialIcons name="search-off" size={32} color={theme.sub} />
-            <Text style={{ marginTop: 6, color: theme.sub }}>
+            <MaterialIcons name="search-off" size={48} color={theme.sub} />
+            <Text style={{ marginTop: 10, color: theme.sub, fontSize: 15 }}>
               No issue types available
             </Text>
           </View>
@@ -97,7 +86,7 @@ const SubCategorySelectionScreen = ({ navigation, route }) => {
                 styles.card,
                 { backgroundColor: theme.surface, borderColor: theme.border },
               ]}
-              activeOpacity={0.75}
+              activeOpacity={0.7}
               onPress={() =>
                 navigation.navigate('complaintInput', {
                   category: selectedCategory,
@@ -105,11 +94,13 @@ const SubCategorySelectionScreen = ({ navigation, route }) => {
                 })
               }
             >
-              <MaterialIcons
-                name={getIcon(item.name)}
-                size={22}
-                color={BRAND.COLORS.primary}
-              />
+              <View style={[styles.iconBox, { backgroundColor: nightMode ? '#252525' : '#F0F7FF' }]}>
+                <MaterialIcons
+                  name={getIcon(item.name)}
+                  size={24}
+                  color={BRAND.COLORS.primary}
+                />
+              </View>
 
               <Text
                 style={[styles.cardText, { color: theme.text }]}
@@ -118,9 +109,9 @@ const SubCategorySelectionScreen = ({ navigation, route }) => {
                 {item.name}
               </Text>
 
-              < Ionicons
+              <Ionicons
                 name="chevron-forward"
-                size={16}
+                size={18}
                 color={theme.sub}
               />
             </TouchableOpacity>
@@ -134,58 +125,54 @@ const SubCategorySelectionScreen = ({ navigation, route }) => {
 export default SubCategorySelectionScreen;
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1 ,    backgroundColor:'#ffff'
+},
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  summaryContainer: {
     paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 10,
-    gap: 10,
-    marginBottom:20
-  },
-
-  backBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  title: {
-    fontSize: 17,
-    fontWeight: '600',
+    paddingVertical: 12,
   },
 
   subtitle: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '500',
   },
 
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    paddingVertical: 20,   // reduced from 20 (less white space)
+    paddingVertical: 12,
     paddingHorizontal: 12,
     marginHorizontal: 16,
-    marginBottom: 8,
-    gap: 10,
+    marginBottom: 10,
+    // Subtle shadow
+    elevation: 0.1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
 
   cardText: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: '500',
-    
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   empty: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 50,
+    paddingTop: 100,
   },
 });

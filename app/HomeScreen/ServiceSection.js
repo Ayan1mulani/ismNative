@@ -15,12 +15,13 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { usePermissions } from '../../Utils/ConetextApi';
 import { useNavigation } from '@react-navigation/native';
 import { otherServices } from '../../services/otherServices';
-import BRAND from '../config'
+import { hasPermission } from '../../Utils/PermissionHelper';
+import BRAND from '../config';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 const ServicesSection = () => {
-  const { nightMode } = usePermissions();
+  const { nightMode, permissions } = usePermissions();
   const navigation = useNavigation();
 
   const [panicVisible, setPanicVisible] = useState(false);
@@ -31,34 +32,39 @@ const ServicesSection = () => {
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [sending, setSending] = useState(false);
 
+  // ── Permission flags ──────────────────────────────────────────────────────
+  const permissionsLoaded = permissions !== null && permissions !== undefined;
+
+  // FIX 1: "WRITE" does not exist — correct values are CREATE / UPDATE / DELETE / READ
+  const canViewPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'READ');
+  const canSendPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'CREATE'); // ✅ was "WRITE"
+
   const allServices = [
-    { id: '1', title: 'Accounts', icon: 'card', route: 'Accounts' },
-    { id: '2', title: 'Staff', icon: 'checkmark-circle-outline', route: 'StaffScreen' },
-    { id: '3', title: 'Visitors', icon: 'people-outline', route: 'Visitors' },
-    { id: '4', title: 'SOS', icon: 'alert-circle', isPanic: true },
-    { id: '5', title: "Add member", icon: "person-add-outline", route: "AddMember" },
-    { id: '6', title: 'Contact Us', icon: 'mail-outline', route: 'ContactUsScreen' },
-    { id: '7', title: 'Setting', icon: 'settings-outline', route: 'Settings' },
-    { id: '8', title: "Bookings", icon: "bookmark-outline", route: "MyBookings" },
-    { id: '9', title: "Bills", icon: "receipt-outline", route: "bills" },
-    { id: '10', title: "Add vehicle", icon: "car-outline", route: "AddVehicleScreen" },
-    { id: '11', title: "Ameneties", icon: "bookmarks-outline", route: "AmenitiesListScreen" },
-    { id: '12', title: 'More', icon: 'ellipsis-horizontal-outline', route: 'AllServicesScreen' },
-
-
+    { id: '1',  title: 'Accounts',   icon: 'card',                       route: 'Accounts'          },
+    { id: '2',  title: 'Staff',      icon: 'checkmark-circle-outline',   route: 'StaffScreen'       },
+    { id: '3',  title: 'Visitors',   icon: 'people-outline',             route: 'Visitors'          },
+    { id: '4',  title: 'SOS',        icon: 'alert-circle',               isPanic: true              },
+    { id: '5',  title: 'Add member', icon: 'person-add-outline',         route: 'AddMember'         },
+    { id: '6',  title: 'Contact Us', icon: 'mail-outline',               route: 'ContactUsScreen'   },
+    { id: '7',  title: 'Setting',    icon: 'settings-outline',           route: 'Settings'          },
+    { id: '8',  title: 'Bookings',   icon: 'bookmark-outline',           route: 'MyBookings'        },
+    { id: '9',  title: 'Bills',      icon: 'receipt-outline',            route: 'bills'             },
+    { id: '10', title: 'Add vehicle',icon: 'car-outline',                route: 'AddVehicleScreen'  },
+    { id: '11', title: 'Ameneties',  icon: 'bookmarks-outline',          route: 'AmenitiesListScreen'},
+    { id: '12', title: 'More',       icon: 'ellipsis-horizontal-outline',route: 'AllServicesScreen' },
   ];
 
   const panicReasons = [
-    { label: 'Fire', icon: 'flame' },
-    { label: 'Theft', icon: 'alert-circle' },
-    { label: 'Lift', icon: 'warning' },
-    { label: 'Emergency', icon: 'medical' },
+    { label: 'Fire',      icon: 'flame'        },
+    { label: 'Theft',     icon: 'alert-circle' },
+    { label: 'Lift',      icon: 'warning'      },
+    { label: 'Emergency', icon: 'medical'      },
   ];
 
   const theme = {
-    iconBgUnselected: nightMode ? '#1F2937' : '#F3F4F6',
-    iconColorUnselected: nightMode ? '#D1D5DB' : '#4B5563',
-    textColor: nightMode ? '#D1D5DB' : '#374151',
+    iconBgUnselected:   nightMode ? '#1F2937' : '#F3F4F6',
+    iconColorUnselected:nightMode ? '#D1D5DB' : '#4B5563',
+    textColor:          nightMode ? '#D1D5DB' : '#374151',
   };
 
   const handleServicePress = async (service) => {
@@ -67,7 +73,6 @@ const ServicesSection = () => {
       fetchContacts();
       return;
     }
-
     if (service.route) {
       navigation.navigate(service.route);
     }
@@ -77,23 +82,14 @@ const ServicesSection = () => {
     try {
       setLoadingContacts(true);
       const res = await otherServices.getPanicContacts();
-
-      if (res?.status === "success") {
+      if (res?.status === 'success') {
         const phoneData = res.data?.phone_nos;
-
-        if (!phoneData) {
-          setContacts([]);
-        }
-        else if (Array.isArray(phoneData)) {
-          setContacts(phoneData);
-        }
-        else {
-          // if single number comes as string
-          setContacts([phoneData]);
-        }
+        if (!phoneData)            setContacts([]);
+        else if (Array.isArray(phoneData)) setContacts(phoneData);
+        else                       setContacts([phoneData]);
       }
     } catch (error) {
-      console.log("Panic Contact Fetch Error:", error);
+      console.log('Panic Contact Fetch Error:', error);
       setContacts([]);
     } finally {
       setLoadingContacts(false);
@@ -106,51 +102,57 @@ const ServicesSection = () => {
 
   const handleSendAlert = async () => {
     if (!selectedReason) return;
-
     try {
       setSending(true);
-
-      const res = await otherServices.sendPanicAlert(
-        selectedReason.toUpperCase()
-      );
-
-      if (res?.status === "success") {
+      const res = await otherServices.sendPanicAlert(selectedReason.toUpperCase());
+      if (res?.status === 'success') {
         setPanicVisible(false);
         setSuccessVisible(true);
-
-        setTimeout(() => {
-          setSuccessVisible(false);
-        }, 2500);
-
+        setTimeout(() => setSuccessVisible(false), 2500);
         setSelectedReason(null);
         setNote('');
       } else {
-        Alert.alert("Error", "Failed to send alert");
+        Alert.alert('Error', 'Failed to send alert');
       }
     } catch (error) {
-      Alert.alert("Error", "Something went wrong");
+      Alert.alert('Error', 'Something went wrong');
     } finally {
       setSending(false);
     }
   };
 
+  // ── Filter services based on permissions ──────────────────────────────────
+  const visibleServices = allServices.filter((service) => {
+    // FIX 2: if permissions still loading (null), show all services
+    // so the grid doesn't flash empty while context loads
+    if (!permissionsLoaded) return true;
+
+    if (service.title === 'Accounts')    return hasPermission(permissions, 'BILL',   'READ');
+    if (service.title === 'Visitors')    return hasPermission(permissions, 'VMS',    'READ');
+    if (service.title === 'Staff')       return hasPermission(permissions, 'ISMSTF', 'READ');
+    if (service.title === 'Bills')       return hasPermission(permissions, 'BILL',   'READ');
+    if (service.title === 'Add vehicle') return hasPermission(permissions, 'VEH',    'CREATE');
+    // FIX 3: use canViewPanic flag consistently
+    if (service.title === 'SOS')         return canViewPanic;
+
+    return true;
+  });
+
   return (
     <View style={styles.container}>
       <View style={styles.sectionHeader}>
-        < Ionicons
+        <Ionicons
           name="construct"
           size={20}
-          color={nightMode ? "#D1D5DB" : "#374151"}
-          style={{ marginRight: 8,     paddingLeft:8 }}
+          color={nightMode ? '#D1D5DB' : '#374151'}
+          style={{ marginRight: 8, paddingLeft: 8 }}
         />
-        <Text style={[styles.sectionTitle, { color: theme.textColor }]}>
-          Services
-        </Text>
+        <Text style={[styles.sectionTitle, { color: theme.textColor }]}>Services</Text>
       </View>
 
       {/* Services Grid */}
       <View style={styles.servicesGrid}>
-        {allServices.map((service) => (
+        {visibleServices.map((service) => (
           <TouchableOpacity
             key={service.id}
             style={styles.serviceItem}
@@ -160,25 +162,15 @@ const ServicesSection = () => {
             <View
               style={[
                 styles.iconContainer,
-                {
-                  backgroundColor:
-                    service.isPanic
-                      ? '#FEE2E2'
-                      : BRAND.COLORS.iconbg,
-                },
+                { backgroundColor: service.isPanic ? '#FEE2E2' : BRAND.COLORS.iconbg },
               ]}
             >
-              < Ionicons
+              <Ionicons
                 name={service.icon}
                 size={22}
-                color={
-                  service.isPanic
-                    ? '#EF4444'
-                    : theme.iconColorUnselected
-                }
+                color={service.isPanic ? '#EF4444' : theme.iconColorUnselected}
               />
             </View>
-
             <Text style={[styles.serviceTitle, { color: theme.textColor }]}>
               {service.title}
             </Text>
@@ -193,20 +185,13 @@ const ServicesSection = () => {
 
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Panic Alert</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setPanicVisible(false);
-                  setSelectedReason(null);
-                  setNote('');
-                }}
-              >
-                < Ionicons name="close" size={22} color="#fff" />
+              <TouchableOpacity onPress={() => { setPanicVisible(false); setSelectedReason(null); setNote(''); }}>
+                <Ionicons name="close" size={22} color="#fff" />
               </TouchableOpacity>
             </View>
 
             <Text style={styles.modalDesc}>
               This feature sends PANIC ALERT to security.
-
             </Text>
 
             <View style={styles.reasonGrid}>
@@ -219,39 +204,35 @@ const ServicesSection = () => {
                   ]}
                   onPress={() => setSelectedReason(reason.label)}
                 >
-                  < Ionicons
+                  <Ionicons
                     name={reason.icon}
                     size={22}
-                    color={selectedReason === reason.label ? "#EF4444" : "#555"}
+                    color={selectedReason === reason.label ? '#EF4444' : '#555'}
                   />
-                  <Text style={styles.reasonText}>
-                    {reason.label}
-                  </Text>
+                  <Text style={styles.reasonText}>{reason.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* SEND BUTTON BELOW OPTIONS */}
+            {/* FIX 3: Send button disabled if no CREATE permission OR nothing selected */}
             <TouchableOpacity
               style={[
                 styles.submitBtn,
-                (!selectedReason || sending) && { opacity: 0.5 },
+                (!selectedReason || sending || !canSendPanic) && { opacity: 0.5 },
               ]}
-              disabled={!selectedReason || sending}
+              disabled={!selectedReason || sending || !canSendPanic}
               onPress={handleSendAlert}
             >
               {sending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.submitBtnText}>
-                  Send Alert
+                  {canSendPanic ? 'Send Alert' : 'No Permission to Send'}
                 </Text>
               )}
             </TouchableOpacity>
 
-            <Text style={styles.contactText}>
-              Emergency Contact Numbers
-            </Text>
+            <Text style={styles.contactText}>Emergency Contact Numbers</Text>
 
             {loadingContacts ? (
               <ActivityIndicator size="small" color="#EF4444" />
@@ -262,7 +243,7 @@ const ServicesSection = () => {
                   style={styles.contactBtn}
                   onPress={() => callNumber(number)}
                 >
-                  < Ionicons name="call" size={18} color="#fff" />
+                  <Ionicons name="call" size={18} color="#fff" />
                   <Text style={styles.contactBtnText}>{number}</Text>
                 </TouchableOpacity>
               ))
@@ -276,17 +257,14 @@ const ServicesSection = () => {
       <Modal visible={successVisible} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.successOverlay}>
           <View style={styles.successContainer}>
-            < Ionicons name="checkmark-circle" size={60} color="#22C55E" />
-            <Text style={styles.successTitle}>
-              Help is on the way
-            </Text>
+            <Ionicons name="checkmark-circle" size={60} color="#22C55E" />
+            <Text style={styles.successTitle}>Help is on the way</Text>
             <Text style={styles.successSubtitle}>
               Please stay calm. Security has been notified.
             </Text>
           </View>
         </View>
       </Modal>
-
     </View>
   );
 };
@@ -294,168 +272,29 @@ const ServicesSection = () => {
 export default ServicesSection;
 
 const styles = StyleSheet.create({
-  container: {
-    marginHorizontal: 10,
-    marginTop: 10,
-  },
-
-  servicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-
-  serviceItem: {
-    width: '25%',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-
-  serviceTitle: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.79)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  modalContainer: {
-    width: screenWidth - 40,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    overflow: 'hidden',
-    paddingBottom: 16,
-  },
-
-  modalHeader: {
-    backgroundColor: '#EF4444',
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  modalTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-
-  modalDesc: {
-    padding: 16,
-    textAlign: 'center',
-  },
-
-  reasonGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-  },
-
-  reasonButton: {
-    width: '48%',
-    margin: '1%',
-    padding: 12,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  reasonSelected: {
-    borderWidth: 1,
-    borderColor: '#EF4444',
-  },
-
-  reasonText: {
-    marginTop: 6,
-    fontWeight: '600',
-  },
-
-  submitBtn: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: '#EF4444',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-
-  submitBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-
-  contactText: {
-    textAlign: 'center',
-    fontWeight: '700',
-    marginTop: 12,
-  },
-
-  contactBtn: {
-    marginHorizontal: 16,
-    marginVertical: 6,
-    backgroundColor: '#dd8585',
-    padding: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  contactBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-
-  /* SUCCESS */
-  successOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.79)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  successContainer: {
-    width: screenWidth - 60,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 30,
-    alignItems: 'center',
-  },
-
-  successTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#16A34A',
-    marginTop: 12,
-  },
-
-  successSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: '#4B5563',
-    marginTop: 6,
-  },
+  container:        { marginHorizontal: 10, marginTop: 10 },
+  servicesGrid:     { flexDirection: 'row', flexWrap: 'wrap' },
+  serviceItem:      { width: '25%', alignItems: 'center', marginBottom: 20 },
+  sectionHeader:    { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  sectionTitle:     { fontSize: 16, fontWeight: '700' },
+  iconContainer:    { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  serviceTitle:     { fontSize: 11, fontWeight: '500' },
+  modalOverlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.79)', justifyContent: 'center', alignItems: 'center' },
+  modalContainer:   { width: screenWidth - 40, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', paddingBottom: 16 },
+  modalHeader:      { backgroundColor: '#EF4444', padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle:       { color: '#fff', fontSize: 18, fontWeight: '700' },
+  modalDesc:        { padding: 16, textAlign: 'center' },
+  reasonGrid:       { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16 },
+  reasonButton:     { width: '48%', margin: '1%', padding: 12, backgroundColor: '#F3F4F6', borderRadius: 10, alignItems: 'center' },
+  reasonSelected:   { borderWidth: 1, borderColor: '#EF4444' },
+  reasonText:       { marginTop: 6, fontWeight: '600' },
+  submitBtn:        { marginHorizontal: 16, marginTop: 12, backgroundColor: '#EF4444', padding: 14, borderRadius: 8, alignItems: 'center' },
+  submitBtnText:    { color: '#fff', fontWeight: '700' },
+  contactText:      { textAlign: 'center', fontWeight: '700', marginTop: 12 },
+  contactBtn:       { marginHorizontal: 16, marginVertical: 6, backgroundColor: '#dd8585', padding: 12, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  contactBtnText:   { color: '#fff', fontWeight: '700', marginLeft: 8 },
+  successOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.79)', justifyContent: 'center', alignItems: 'center' },
+  successContainer: { width: screenWidth - 60, backgroundColor: '#ffffff', borderRadius: 20, padding: 30, alignItems: 'center' },
+  successTitle:     { fontSize: 20, fontWeight: '700', color: '#16A34A', marginTop: 12 },
+  successSubtitle:  { fontSize: 14, textAlign: 'center', color: '#4B5563', marginTop: 6 },
 });

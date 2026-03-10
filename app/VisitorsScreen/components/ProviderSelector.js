@@ -7,20 +7,21 @@ import {
   FlatList,
   StyleSheet,
   Image,
-  TextInput
+  TextInput,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import BRAND from '../../config'
+import BRAND from "../../config";
 
 const BASE_URL = "https://ism-vms.s3.amazonaws.com/company-logo/";
 
 const ProviderSelector = ({
   visitorType,
   theme,
+  required,
   selectedProvider,
   setSelectedProvider,
-  stylesFromParent,
+  stylesFromParent = {},   // FIX 3: default fallback to avoid crash
 }) => {
   const [showProviderModal, setShowProviderModal] = useState(false);
   const [search, setSearch] = useState("");
@@ -29,91 +30,86 @@ const ProviderSelector = ({
     return null;
   }
 
-
-
-const deliveryCompanies = [
-  { name: "Dominos", logo_url: `${BASE_URL}dominos.png` },
-  { name: "Runnr", logo_url: `${BASE_URL}runnr.png` },
-  { name: "Shadow fax", logo_url: `${BASE_URL}shadow-fax.png` },
-  { name: "Snapdeal", logo_url: `${BASE_URL}snapdeal.png` },
-
-  { name: "Swiggy", logo_url: `${BASE_URL}swiggy.png` },
-  { name: "Uber eats", logo_url: `${BASE_URL}uber-eats.png` },
-  { name: "UPS", logo_url: `${BASE_URL}ups.png` },
-  { name: "Xpressbees", logo_url: `${BASE_URL}xpressbees.png` },
-
-  { name: "Zomato", logo_url: `${BASE_URL}zomato.png` },
-  { name: "Box8", logo_url: `${BASE_URL}box8.png` },
-  { name: "DHL", logo_url: `${BASE_URL}dhl.png` },
-  { name: "Pizza hut", logo_url: `${BASE_URL}pizza-hut.png` },
-
-  { name: "Zop now", logo_url: `${BASE_URL}zop-now.png` },
-  { name: "Licious", logo_url: `${BASE_URL}licious.png` },
-  { name: "Firstcry", logo_url: `${BASE_URL}firstcry.png` },
-  { name: "1mg", logo_url: `${BASE_URL}1MG.jpg` },
-
-  { name: "Yatharth", logo_url: `${BASE_URL}Yatharth.png` },
-  // { name: "Apollo Pharmacy", logo_url: `${BASE_URL}Apollo_pharmacy.jpg` },
-  // { name: "Blinkit", logo_url: `${BASE_URL}blinkit.svg` },
-  // { name: "Zepto", logo_url: `${BASE_URL}zepto.svg` },
-
-  { name: "Ekart", logo_url: `${BASE_URL}ekart.png` },
-  { name: "Flipkart", logo_url: `${BASE_URL}flipkart.png` },
-  { name: "Amazon", logo_url: `${BASE_URL}amazon.png` },
-  { name: "Bharat gas", logo_url: `${BASE_URL}bharat-gas.png` },
-
-  { name: "Big basket", logo_url: `${BASE_URL}big-basket.png` },
-  { name: "Delhivery", logo_url: `${BASE_URL}delhivery.png` },
-  { name: "DTDC", logo_url: `${BASE_URL}dtdc.png` },
-  { name: "Dunzo", logo_url: `${BASE_URL}dunzo.png` },
-
-  { name: "Ecom express", logo_url: `${BASE_URL}ecom-express.png` },
-  { name: "Faasos", logo_url: `${BASE_URL}faasos.png` },
-  { name: "Fedex", logo_url: `${BASE_URL}fedex.png` },
-  { name: "First flight", logo_url: `${BASE_URL}first-flight.png` },
-
-  { name: "ABC Retail", logo_url: `${BASE_URL}abc.jpeg` },
-  { name: "Food panda", logo_url: `${BASE_URL}food-panda.png` },
-  { name: "Freshmenu", logo_url: `${BASE_URL}freshmenu.png` },
-  { name: "Gati", logo_url: `${BASE_URL}gati.png` },
-
-  { name: "Grofers", logo_url: `${BASE_URL}grofers.png` },
-  { name: "HP Gas", logo_url: `${BASE_URL}hp-gas.png` },
-  { name: "Indane", logo_url: `${BASE_URL}indane.png` },
-  { name: "India post", logo_url: `${BASE_URL}india-post.png` },
-
-  { name: "Myntra", logo_url: `${BASE_URL}myntra.png` },
-  { name: "Paytm", logo_url: `${BASE_URL}paytm.png` },
-];
-
-
-const cabCompanies = [
-  { name: "Ola", logo_url: `${BASE_URL}ola.png` },
-  { name: "Uber", logo_url: `${BASE_URL}uber.png` },
-  { name: "Meru", logo_url: `${BASE_URL}meru.png` },
-
-];
-  const rawList =
-    visitorType === "cab" ? cabCompanies : deliveryCompanies;
-
-
-  const popularProviders = [
-    "Amazon",
-    "Dominos",
-    "Zop now",
+  const deliveryCompanies = [
+    { name: "Dominos", logo_url: `${BASE_URL}dominos.png` },
+    { name: "Runnr", logo_url: `${BASE_URL}runnr.png` },
+    { name: "Shadow fax", logo_url: `${BASE_URL}shadow-fax.png` },
+    { name: "Snapdeal", logo_url: `${BASE_URL}snapdeal.png` },
+    { name: "Swiggy", logo_url: `${BASE_URL}swiggy.png` },
+    { name: "Uber eats", logo_url: `${BASE_URL}uber-eats.png` },
+    { name: "UPS", logo_url: `${BASE_URL}ups.png` },
+    { name: "Xpressbees", logo_url: `${BASE_URL}xpressbees.png` },
+    { name: "Zomato", logo_url: `${BASE_URL}zomato.png` },
+    { name: "Box8", logo_url: `${BASE_URL}box8.png` },
+    { name: "DHL", logo_url: `${BASE_URL}dhl.png` },
+    { name: "Pizza hut", logo_url: `${BASE_URL}pizza-hut.png` },
+    { name: "Zop now", logo_url: `${BASE_URL}zop-now.png` },
+    { name: "Licious", logo_url: `${BASE_URL}licious.png` },
+    { name: "Firstcry", logo_url: `${BASE_URL}firstcry.png` },
+    { name: "1mg", logo_url: `${BASE_URL}1MG.jpg` },
+    { name: "Yatharth", logo_url: `${BASE_URL}Yatharth.png` },
+    { name: "Ekart", logo_url: `${BASE_URL}ekart.png` },
+    { name: "Flipkart", logo_url: `${BASE_URL}flipkart.png` },
+    { name: "Amazon", logo_url: `${BASE_URL}amazon.png` },
+    { name: "Bharat gas", logo_url: `${BASE_URL}bharat-gas.png` },
+    { name: "Big basket", logo_url: `${BASE_URL}big-basket.png` },
+    { name: "Delhivery", logo_url: `${BASE_URL}delhivery.png` },
+    { name: "DTDC", logo_url: `${BASE_URL}dtdc.png` },
+    { name: "Dunzo", logo_url: `${BASE_URL}dunzo.png` },
+    { name: "Ecom express", logo_url: `${BASE_URL}ecom-express.png` },
+    { name: "Faasos", logo_url: `${BASE_URL}faasos.png` },
+    { name: "Fedex", logo_url: `${BASE_URL}fedex.png` },
+    { name: "First flight", logo_url: `${BASE_URL}first-flight.png` },
+    { name: "ABC Retail", logo_url: `${BASE_URL}abc.jpeg` },
+    { name: "Food panda", logo_url: `${BASE_URL}food-panda.png` },
+    { name: "Freshmenu", logo_url: `${BASE_URL}freshmenu.png` },
+    { name: "Gati", logo_url: `${BASE_URL}gati.png` },
+    { name: "Grofers", logo_url: `${BASE_URL}grofers.png` },
+    { name: "HP Gas", logo_url: `${BASE_URL}hp-gas.png` },
+    { name: "Indane", logo_url: `${BASE_URL}indane.png` },
+    { name: "India post", logo_url: `${BASE_URL}india-post.png` },
+    { name: "Myntra", logo_url: `${BASE_URL}myntra.png` },
+    { name: "Paytm", logo_url: `${BASE_URL}paytm.png` },
   ];
+
+  const cabCompanies = [
+    { name: "Ola", logo_url: `${BASE_URL}ola.png` },
+    { name: "Uber", logo_url: `${BASE_URL}uber.png` },
+    { name: "Meru", logo_url: `${BASE_URL}meru.png` },
+  ];
+
+  const rawList = visitorType === "cab" ? cabCompanies : deliveryCompanies;
+
+  // FIX 1: popularProviders is now actually used to build the quick row
+  const popularProviders = ["Amazon", "Dominos", "Zop now"];
 
   let quickList = [];
 
   if (visitorType === "cab") {
-    quickList = [
-      { name: "Any", logo_url: null },
-      ...rawList,
-    ];
+    quickList = [{ name: "Any", logo_url: null }, ...rawList];
   } else {
+    // FIX 1: filter by popularProviders instead of hardcoded slice(0,3)
+    let popularItems = rawList.filter((item) =>
+      popularProviders.includes(item.name)
+    );
+
+    // FIX 4: if selected item came from modal, replace last slot so row stays fixed
+    const isModalSelection =
+      selectedProvider &&
+      selectedProvider !== "Any" &&
+      !popularProviders.includes(selectedProvider);
+
+    if (isModalSelection) {
+      const selectedItem = rawList.find((item) => item.name === selectedProvider);
+      if (selectedItem) {
+        // Replace last popular item with the modal selection
+        popularItems = [...popularItems.slice(0, -1), selectedItem];
+      }
+    }
+
     quickList = [
       { name: "Any", logo_url: null },
-      ...rawList.slice(0, 3),
+      ...popularItems,
     ];
   }
 
@@ -123,27 +119,32 @@ const cabCompanies = [
     item.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  // FIX 2: clear search when closing modal
+  const handleCloseModal = () => {
+    setShowProviderModal(false);
+    setSearch("");
+  };
+
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.modalItem}
       onPress={() => {
         setSelectedProvider(item.name);
         setShowProviderModal(false);
+        setSearch(""); // FIX 2: clear search on item select
       }}
     >
       <View
         style={[
           styles.logoBox,
-          selectedProvider === item.name && {
-            borderColor: theme.primaryBlue,
-            borderWidth: 2,
-            backgroundColor: "#E6F4FB",
-          },
+          // FIX 5: only change borderColor, not borderWidth (no layout shift)
+          selectedProvider === item.name
+            ? { borderColor: theme.primaryBlue, backgroundColor: "#E6F4FB" }
+            : { borderColor: "transparent" },
         ]}
       >
         <Image source={{ uri: item.logo_url }} style={styles.logo} />
       </View>
-
       <Text style={{ marginTop: 6 }}>{item.name}</Text>
     </TouchableOpacity>
   );
@@ -159,21 +160,12 @@ const cabCompanies = [
       />
 
       {/* Card */}
-      <View
-        style={[
-          stylesFromParent.card,
-          { backgroundColor: theme.cardBg },
-        ]}
-      >
-        <Text
-          style={[
-            stylesFromParent.label,
-            { color: theme.text },
-          ]}
-        >
+      <View style={[stylesFromParent.card, { backgroundColor: theme.cardBg }]}>
+        <Text style={[stylesFromParent.label, { color: theme.text }]}>
           {visitorType === "cab"
             ? "Select Cab Provider"
             : "Select Delivery Company"}
+          {required && <Text style={{ color: "#EF4444" }}> *</Text>}
         </Text>
 
         {/* QUICK ROW */}
@@ -187,41 +179,34 @@ const cabCompanies = [
               <View
                 style={[
                   styles.logoBox,
-                  selectedProvider === item.name && {
-                    borderColor: theme.primaryBlue,
-                    borderWidth: 2,
-                    backgroundColor: "#E6F4FB",
-                  },
+                  // FIX 5: only change borderColor, not borderWidth (no layout shift / blank image)
+                  selectedProvider === item.name
+                    ? { borderColor: "#000000", backgroundColor: "#E6F4FB" }
+                    : { borderColor: "transparent" },
                 ]}
               >
                 {item.name === "Any" ? (
-                  < Ionicons
+                  <Ionicons
                     name="layers-outline"
                     size={26}
                     color={BRAND.COLORS.icon}
                   />
                 ) : (
-                  <Image
-                    source={{ uri: item.logo_url }}
-                    style={styles.logo}
-                  />
+                  <Image source={{ uri: item.logo_url }} style={styles.logo} />
                 )}
               </View>
-
-              <Text style={styles.quickText}>
-                {item.name}
-              </Text>
+              <Text style={styles.quickText}>{item.name}</Text>
             </TouchableOpacity>
           ))}
 
-          {/* DELIVERY ONLY */}
+          {/* DELIVERY ONLY — More button */}
           {visitorType === "delivery" && (
             <TouchableOpacity
               style={styles.quickItem}
               onPress={() => setShowProviderModal(true)}
             >
-              <View style={styles.logoBox}>
-                < Ionicons name="ellipsis-horizontal" size={20} />
+              <View style={[styles.logoBox, { borderColor: "transparent" }]}>
+                <Ionicons name="ellipsis-horizontal" size={20} />
               </View>
               <Text style={styles.quickText}>More</Text>
             </TouchableOpacity>
@@ -234,18 +219,14 @@ const cabCompanies = [
         <Modal visible={showProviderModal} animationType="slide">
           <SafeAreaView style={{ flex: 1 }}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                Delivery Companies
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowProviderModal(false)}
-              >
-                < Ionicons name="close" size={26} color="#fff" />
+              <Text style={styles.modalTitle}>Delivery Companies</Text>
+              <TouchableOpacity onPress={handleCloseModal}>
+                <Ionicons name="close" size={26} color="#fff" />
               </TouchableOpacity>
             </View>
 
             <View style={styles.searchBox}>
-              < Ionicons name="search" size={18} />
+              <Ionicons name="search" size={18} />
               <TextInput
                 placeholder="Search..."
                 value={search}
@@ -276,11 +257,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     marginTop: 12,
+
   },
 
   quickItem: {
     alignItems: "center",
     marginRight: 18,
+    marginBottom: 8,
   },
 
   logoBox: {
@@ -292,6 +275,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
     marginBottom: 6,
+    borderWidth: 2,            // FIX 5: always present — no layout shift
+    borderColor: "transparent", // FIX 5: transparent by default
   },
 
   logo: {

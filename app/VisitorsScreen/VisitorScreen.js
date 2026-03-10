@@ -2,12 +2,15 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   Dimensions,
   Animated,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { usePermissions } from '../../Utils/ConetextApi';
+import { hasPermission } from '../../Utils/PermissionHelper';
 import VisitRequest from './VisitRequest';
 import { useNavigation } from '@react-navigation/native';
 import AddPreVisitorModal from './components/AddPreVisitorModal';
@@ -16,7 +19,7 @@ import { visitorServices } from '../../services/visitorServices';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import SlidingTabs from '../components/SlidingTabs';
 import MyParkingPage from './singleMultiVisits/MyParkingPage';
-import BRAND from '../config'
+import BRAND from '../config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -25,19 +28,26 @@ const COLORS = {
   light: {
     background: '#FFFFFF',
     surface: '#ffffff',
+    text: '#111827',
     textSecondary: '#6C757D',
   },
   dark: {
     background: '#121212',
     surface: '#1E1E1E',
+    text: '#FFFFFF',
     textSecondary: '#9E9E9E',
   },
 };
 
 const VisitorScreen = () => {
   const navigation = useNavigation();
-  const { nightMode } = usePermissions();
+  const { nightMode, permissions } = usePermissions();
   const theme = nightMode ? COLORS.dark : COLORS.light;
+
+  // ── Permission flags ──────────────────────────────────────────────────────
+  const permissionsLoaded  = permissions !== null && permissions !== undefined;
+  const canViewVisitors    = permissionsLoaded && hasPermission(permissions, 'VMS', 'READ');
+  const canCreateVisitor   = permissionsLoaded && hasPermission(permissions, 'VMS', 'CREATE');
 
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [visits, setVisits] = useState([]);
@@ -49,7 +59,6 @@ const VisitorScreen = () => {
   const scrollViewRef = useRef(null);
   const scrollX = useRef(new Animated.Value(0)).current;
 
-  // ✅ Dynamic Tabs
   const TABS = useMemo(() => {
     return [
       'Visit Requests',
@@ -58,33 +67,55 @@ const VisitorScreen = () => {
     ];
   }, [parkingBookings]);
 
-  // ✅ Clamp index if tabs change
   useEffect(() => {
     if (activeTabIndex > TABS.length - 1) {
       setActiveTabIndex(TABS.length - 1);
     }
   }, [TABS]);
 
-  // ✅ Load Data
   useEffect(() => {
+    // Only fetch data if user has READ permission
+    if (!canViewVisitors) return;
+
     const loadData = async () => {
       setIsLoading(true);
-
       const [visitsRes, passesRes, parkingRes] = await Promise.all([
         visitorServices.getMyVisitors(),
         visitorServices.getMyPasses(),
         visitorServices.getParkingBookings(),
       ]);
-
       setVisits(visitsRes.data || []);
       setPasses(passesRes.data || []);
       setParkingBookings(parkingRes.data || []);
-
       setIsLoading(false);
     };
-
+    
     loadData();
-  }, []);
+  }, [canViewVisitors]);
+  
+
+  // ── Permissions still loading ─────────────────────────────────────────────
+  if (!permissionsLoaded) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ color: theme.textSecondary, marginTop: 12 }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // ── No READ access ────────────────────────────────────────────────────────
+  if (!canViewVisitors) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Ionicons name="lock-closed-outline" size={64} color={theme.textSecondary} />
+        <Text style={[styles.restrictedTitle, { color: theme.text }]}>Access Restricted</Text>
+        <Text style={[styles.restrictedSub, { color: theme.textSecondary }]}>
+          You do not have permission to view visitors.{'\n'}Please contact your administrator.
+        </Text>
+      </View>
+    );
+  }
 
   const renderPage = (tabName) => {
     if (tabName === 'Visit Requests') {
@@ -130,10 +161,7 @@ const VisitorScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-   
-      
 
-      {/* ✅ Sliding Tabs */}
       <SlidingTabs
         tabs={TABS}
         activeIndex={activeTabIndex}
@@ -146,13 +174,10 @@ const VisitorScreen = () => {
         }}
         primaryColor={COLORS.primary}
         inactiveColor={theme.textSecondary}
-        containerStyle={{
-          backgroundColor: theme.surface,
-        }}
+        containerStyle={{ backgroundColor: theme.surface }}
         scrollX={scrollX}
       />
 
-      {/* ✅ Swipe Pages */}
       <Animated.ScrollView
         ref={scrollViewRef}
         horizontal
@@ -179,14 +204,16 @@ const VisitorScreen = () => {
         ))}
       </Animated.ScrollView>
 
-      {/* ✅ Floating Button */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: COLORS.primary }]}
-        onPress={() => setShowPreApproveModal(true)}
-        activeOpacity={0.8}
-      >
-        < Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      {/* FAB — only shown if user has CREATE permission */}
+      {canCreateVisitor && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: COLORS.primary }]}
+          onPress={() => setShowPreApproveModal(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
       <AddPreVisitorModal
         visible={showPreApproveModal}
@@ -229,5 +256,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 6,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  restrictedTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  restrictedSub: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
   },
 });

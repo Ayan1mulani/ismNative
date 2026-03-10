@@ -11,14 +11,21 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { usePermissions } from '../../Utils/ConetextApi';
+import { hasPermission } from '../../Utils/PermissionHelper';
 import { otherServices } from '../../services/otherServices';
 import AppHeader from '../components/AppHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RefreshControl } from 'react-native';
-import BRAND from '../config'
+import BRAND from '../config';
 
 const BillsPage = () => {
-  const { nightMode } = usePermissions();
+  const { nightMode, permissions } = usePermissions();
+
+  const permissionsLoaded =
+    permissions !== null && permissions !== undefined;
+
+  const canViewBills =
+    permissionsLoaded && hasPermission(permissions, 'BILL', 'READ');
 
   const theme = {
     light: {
@@ -57,14 +64,11 @@ const BillsPage = () => {
 
       if (Array.isArray(response)) {
         setBills(response);
-      }
-      else if (Array.isArray(response?.data)) {
+      } else if (Array.isArray(response?.data)) {
         setBills(response.data);
-      }
-      else {
+      } else {
         setBills([]);
       }
-
     } catch (error) {
       console.log('Bills Fetch Error:', error);
       setBills([]);
@@ -75,13 +79,15 @@ const BillsPage = () => {
   };
 
   useEffect(() => {
+    if (!canViewBills) return;
     fetchBills();
-  }, []);
+  }, [canViewBills]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchBills();
   }, []);
+
   const downloadBill = () => {
     if (selectedBill?.url) {
       Linking.openURL(selectedBill.url);
@@ -99,6 +105,17 @@ const BillsPage = () => {
     });
   };
 
+  const AmountItem = ({ label, value, theme }) => (
+    <View style={styles.amountItem}>
+      <Text style={[styles.label, { color: theme.secondaryText }]}>
+        {label}
+      </Text>
+      <Text style={[styles.amount, { color: theme.textColor }]}>
+        ₹{value.toLocaleString()}
+      </Text>
+    </View>
+  );
+
   const renderItem = ({ item }) => {
     const current = parseFloat(item.amount || 0);
     const arrear = parseFloat(item.arears || 0);
@@ -106,13 +123,7 @@ const BillsPage = () => {
     const balance = parseFloat(item.bal_amt || 0);
 
     return (
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: currentTheme.cardBg },
-        ]}
-      >
-        {/* TOP ROW - Bill Info + Menu */}
+      <View style={[styles.card, { backgroundColor: currentTheme.cardBg }]}>
         <View style={styles.topRow}>
           <View style={styles.leftPart}>
             <View
@@ -121,7 +132,11 @@ const BillsPage = () => {
                 { backgroundColor: currentTheme.iconBg },
               ]}
             >
-              < Ionicons name="document-outline" size={20} color={BRAND.COLORS.icon} />
+              <Ionicons
+                name="document-outline"
+                size={20}
+                color={BRAND.COLORS.icon}
+              />
             </View>
 
             <View style={styles.billInfo}>
@@ -133,17 +148,29 @@ const BillsPage = () => {
               >
                 {item.bill_no}
               </Text>
+
               <View style={styles.dateRow}>
-                <Text style={[styles.date, { color: currentTheme.secondaryText }]}>
+                <Text
+                  style={[
+                    styles.date,
+                    { color: currentTheme.secondaryText },
+                  ]}
+                >
                   {formatDate(item.bill_date)}
                 </Text>
+
                 <View
                   style={[
                     styles.dueBadge,
                     { backgroundColor: currentTheme.danger + '20' },
                   ]}
                 >
-                  <Text style={[styles.dueBadgeText, { color: currentTheme.danger }]}>
+                  <Text
+                    style={[
+                      styles.dueBadgeText,
+                      { color: currentTheme.danger },
+                    ]}
+                  >
                     Due: {formatDate(item.bill_due_date)}
                   </Text>
                 </View>
@@ -151,7 +178,6 @@ const BillsPage = () => {
             </View>
           </View>
 
-          {/* MENU BUTTON */}
           <TouchableOpacity
             onPress={() => {
               setSelectedBill(item);
@@ -159,11 +185,14 @@ const BillsPage = () => {
             }}
             style={styles.menuBtn}
           >
-            < Ionicons name="ellipsis-vertical" size={20} color={currentTheme.secondaryText} />
+            <Ionicons
+              name="ellipsis-vertical"
+              size={20}
+              color={currentTheme.secondaryText}
+            />
           </TouchableOpacity>
         </View>
 
-        {/* PERIOD + BALANCE ROW */}
         <View style={styles.periodBalanceRow}>
           <Text
             style={[
@@ -171,14 +200,20 @@ const BillsPage = () => {
               { color: currentTheme.secondaryText },
             ]}
           >
-            {formatDate(item.bill_start_date)} — {formatDate(item.bill_end_date)}
+            {formatDate(item.bill_start_date)} —{' '}
+            {formatDate(item.bill_end_date)}
           </Text>
 
-          {/* BALANCE - Inline with amount */}
           <View style={styles.balanceInlineBox}>
-            <Text style={[styles.balanceLabelInline, { color: currentTheme.secondaryText }]}>
+            <Text
+              style={[
+                styles.balanceLabelInline,
+                { color: currentTheme.secondaryText },
+              ]}
+            >
               Balance:
             </Text>
+
             <Text
               style={[
                 styles.balanceValueInline,
@@ -197,18 +232,13 @@ const BillsPage = () => {
           ]}
         />
 
-        {/* AMOUNTS GRID - 3 ITEMS (Current, Tax, Arrear) */}
         <View style={styles.amountGrid}>
           <AmountItem
             label="Current"
             value={current}
             theme={currentTheme}
           />
-          <AmountItem
-            label="Tax"
-            value={tax}
-            theme={currentTheme}
-          />
+          <AmountItem label="Tax" value={tax} theme={currentTheme} />
           <AmountItem
             label="Arrear"
             value={arrear}
@@ -219,21 +249,68 @@ const BillsPage = () => {
     );
   };
 
-  const AmountItem = ({ label, value, theme }) => (
-    <View style={styles.amountItem}>
-      <Text style={[styles.label, { color: theme.secondaryText }]}>
-        {label}
-      </Text>
-      <Text
+  if (!permissionsLoaded) {
+    return (
+      <View
         style={[
-          styles.amount,
-          { color: theme.textColor },
+          styles.centerContainer,
+          { backgroundColor: currentTheme.containerBg },
         ]}
       >
-        ₹{value.toLocaleString()}
-      </Text>
-    </View>
-  );
+        <ActivityIndicator
+          size="large"
+          color={currentTheme.accent}
+        />
+        <Text
+          style={{
+            marginTop: 10,
+            color: currentTheme.secondaryText,
+          }}
+        >
+          Loading...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!canViewBills) {
+    return (
+      <View
+        style={[
+          styles.centerContainer,
+          { backgroundColor: currentTheme.containerBg },
+        ]}
+      >
+        <Ionicons
+          name="lock-closed-outline"
+          size={60}
+          color={currentTheme.secondaryText}
+        />
+        <Text
+          style={{
+            marginTop: 12,
+            fontSize: 16,
+            color: currentTheme.textColor,
+            fontWeight: '600',
+          }}
+        >
+          Access Restricted
+        </Text>
+
+        <Text
+          style={{
+            marginTop: 6,
+            fontSize: 13,
+            color: currentTheme.secondaryText,
+            textAlign: 'center',
+            paddingHorizontal: 40,
+          }}
+        >
+          You do not have permission to view bills.
+        </Text>
+      </View>
+    );
+  }
 
   if (loading) {
     return (
@@ -243,7 +320,10 @@ const BillsPage = () => {
           { backgroundColor: currentTheme.containerBg },
         ]}
       >
-        <ActivityIndicator size="large" color={currentTheme.accent} />
+        <ActivityIndicator
+          size="large"
+          color={currentTheme.accent}
+        />
       </View>
     );
   }
@@ -265,11 +345,11 @@ const BillsPage = () => {
         renderItem={renderItem}
         contentContainerStyle={[
           styles.listContent,
-          bills.length === 0 && { flex: 1 }
+          bills.length === 0 && { flex: 1 },
         ]}
         ListEmptyComponent={
           <View style={styles.centerContainer}>
-            < Ionicons
+            <Ionicons
               name="document-outline"
               size={48}
               color={currentTheme.secondaryText}
@@ -294,7 +374,6 @@ const BillsPage = () => {
         }
       />
 
-      {/* BOTTOM SHEET MODAL */}
       <Modal
         transparent
         visible={menuVisible}
@@ -335,13 +414,13 @@ const BillsPage = () => {
               <View
                 style={[
                   styles.sheetIcon,
-                  { backgroundColor:  BRAND.COLORS.iconbg },
+                  { backgroundColor: BRAND.COLORS.iconbg },
                 ]}
               >
-                < Ionicons
+                <Ionicons
                   name="download"
                   size={20}
-                  color={BRAND.COLORS.icon }
+                  color={BRAND.COLORS.icon}
                 />
               </View>
 
@@ -354,6 +433,7 @@ const BillsPage = () => {
                 >
                   Download Bill
                 </Text>
+
                 <Text
                   style={[
                     styles.sheetItemSub,
@@ -364,7 +444,7 @@ const BillsPage = () => {
                 </Text>
               </View>
 
-              < Ionicons
+              <Ionicons
                 name="chevron-forward"
                 size={20}
                 color={currentTheme.secondaryText}
