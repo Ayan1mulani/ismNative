@@ -1,4 +1,4 @@
-import { API_URL2 } from "../app/config/env"
+import { API_URL2, APP_NAME } from "../app/config/env"
 import { ApiCommon } from "./ApiCommon"
 import { Common } from "./Common"
 import { Util } from "./Util"
@@ -18,6 +18,7 @@ const ismServices = {
   // ✅ KEPT: original function used by other pages
   getUserDetails: async () => {
     const user = await Common.getLoggedInUser();
+    if (!user) throw new Error("User not logged in");
 
     const uObj = {
       user_id: user.unit_id,
@@ -67,7 +68,7 @@ const ismServices = {
     const headers = await Util.getCommonAuth();
     return ApiCommon.getReq(url, headers);
   },
-  
+
 
   generateOtp: async (mobile) => {
     const payload = {
@@ -78,32 +79,29 @@ const ismServices = {
     return ApiCommon.postReq(url, payload);
   },
 
-  appRegisterOneSignal: async () => {
+  verifyOtp: async (payload) => {
     try {
-      const userInfo = await AsyncStorage.getItem('userInfo');
-      if (!userInfo) throw new Error('User information not found');
-      const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
-      const payload = {
-        app_name: 'ism_resident',
-        app_version_code: APP_VERSION_CODE,
-        app_device_id: deviceId,
-        userId: deviceId,
-        app_id: deviceId,
-        tenant: 0,
-      };
 
-      const url = `${API_URL2}/appRegistered`
-      const headers = await Util.getCommonAuth();
-      const params = { app_id: APP_ID_ONE_SIGNAL };
+      const url = `${API_URL2}/validateotp`;
 
-      const response = await ApiCommon.postReq(url, payload, headers, params);
-      console.log(response,"respons")
-      return response
+      const response = await ApiCommon.postReq(url, payload);
+
+      return response;
+
     } catch (error) {
-      console.error('Error registering app with OneSignal:', error);
+
+      console.error("OTP Verify API Error:", error);
+
       throw error;
+
     }
   },
+
+  getMyAccounts: async (token) => {
+    const url = `${API_URL2}/getmyaccounts?token=${token}`;
+    return ApiCommon.getReq(url);
+  },
+
 
   loginUser: async (data) => {
     try {
@@ -114,6 +112,27 @@ const ismServices = {
       throw error;
     }
   },
+
+  
+  // ✅ FIXED
+logMeIn: async (token, account) => {
+  try {
+
+    // ✅ token in URL, account object in POST body
+    const url = `${API_URL2}/logmein?token=${token}`;
+
+    console.log("LOGMEIN URL:", url);
+    console.log("LOGMEIN BODY:", JSON.stringify(account));
+
+    const response = await ApiCommon.postReq(url, account);
+    return response;
+
+  } catch (error) {
+    console.error("logMeIn API Error:", error);
+    throw error;
+  }
+},
+
 
   getMyNotices: async (category = "COMMON") => {
     const user = await Common.getLoggedInUser();
@@ -138,6 +157,7 @@ const ismServices = {
 
   getFacilityStaffCategory: async () => {
     const user = await Common.getLoggedInUser();
+    if (!user) throw new Error("User not logged in");
 
     const url = await ismServices.appendParamsInUrl(
       `${API_URL2}/society/${user.societyId}/constant`,

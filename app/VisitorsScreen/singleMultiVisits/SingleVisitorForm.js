@@ -34,9 +34,26 @@ const SingleVisitorForm = () => {
   const [visitDate, setVisitDate] = useState(null);
   const [vehicleNo, setVehicleNo] = useState("");
   const [selectedParking, setSelectedParking] = useState(null);
-  const [modalType, setModalType] = useState(null);
-  // Replace const [modalType, setModalType] = useState(null); with:
-const [modalConfig, setModalConfig] = useState({ visible: false, type: null, title: "", subtitle: "" });
+
+  const [modalConfig, setModalConfig] = useState({
+    visible: false,
+    type: null,
+    title: "",
+    subtitle: "",
+  });
+
+  const { permissions } = usePermissions();
+
+  const permissionsLoaded =
+    permissions !== null && permissions !== undefined;
+
+  const canAddVehicle =
+    permissionsLoaded && hasPermission(permissions, "VHCLNO", "C");
+
+  const canUseGuestParking =
+    permissionsLoaded && hasPermission(permissions, "GSTPRK", "C");
+
+    console.log(canAddVehicle,"add")
 
   /* ===============================
      RECEIVE PARKING SLOT
@@ -85,32 +102,84 @@ const [modalConfig, setModalConfig] = useState({ visible: false, type: null, tit
      =============================== */
 
   const handleSubmit = async () => {
-  if (!visitorName || !mobileNumber || !visitDate) return;
+
+  if (!visitorName || !mobileNumber || !visitDate) {
+    alert("Please fill all required fields");
+    return;
+  }
 
   try {
-    // 🟢 Show Loading
-    setModalConfig({ 
-      visible: true, 
-      type: "loading", 
-      title: "Adding Visitor", 
-      subtitle: "Please wait..." 
+
+    setModalConfig({
+      visible: true,
+      type: "loading",
+      title: "Adding Visitor",
+      subtitle: "Please wait..."
     });
 
-    const formattedDate = visitDate instanceof Date ? visitDate.toISOString().split("T")[0] : visitDate;
+    const formattedDate =
+      visitDate instanceof Date
+        ? visitDate.toISOString().split("T")[0]
+        : visitDate;
 
-    const visitorRes = await visitorServices.addMyVisitor({ /* ... */ });
-    const visitorId = visitorRes?.data?.id;
+    console.log("Visitor Payload:", {
+      name: visitorName,
+      mobile: mobileNumber,
+      date_time: formattedDate,
+      vehicle_no: vehicleNo
+    });
 
-    if (visitorId && selectedParking) {
-      await visitorServices.bookParking({ /* ... */ });
+    /* ===============================
+       ADD VISITOR
+    =============================== */
+
+const visitorRes = await visitorServices.addMyVisitor({
+  name: visitorName,
+  mobile: mobileNumber,
+  date_time: formattedDate,
+  vehicle_no: vehicleNo || null,
+  type: "guest"
+});
+    console.log("Visitor Response:", visitorRes);
+
+    if (visitorRes?.status !== "success") {
+      throw new Error(visitorRes?.message || "Visitor creation failed");
     }
 
-    // 🟢 Show Success
-    setModalConfig({ 
-      visible: true, 
-      type: "success", 
-      title: "Success!", 
-      subtitle: "Visitor added successfully." 
+    const visitorId = visitorRes?.data?.id;
+
+    /* ===============================
+       BOOK PARKING (OPTIONAL)
+    =============================== */
+
+    if (visitorId && selectedParking) {
+
+      try {
+
+        await visitorServices.bookParking({
+          visitor_id: visitorId,
+          slot: selectedParking.slot,
+          booking_from: selectedParking.booking_from,
+          booking_to: selectedParking.booking_to,
+        });
+
+      } catch (parkingError) {
+
+        console.log("Parking booking failed:", parkingError);
+
+        // parking failure should not stop visitor creation
+      }
+    }
+
+    /* ===============================
+       SUCCESS
+    =============================== */
+
+    setModalConfig({
+      visible: true,
+      type: "success",
+      title: "Success!",
+      subtitle: "Visitor added successfully."
     });
 
     setTimeout(() => {
@@ -119,30 +188,19 @@ const [modalConfig, setModalConfig] = useState({ visible: false, type: null, tit
     }, 1500);
 
   } catch (err) {
-    console.log("Error:", err);
-    
-    // 🔴 Show Error (You can even pass err.message here!)
-    setModalConfig({ 
-      visible: true, 
-      type: "error", 
-      title: "Failed to add", 
-      subtitle: err?.response?.data?.message || "Something went wrong. Please try again." 
+
+    console.log("Visitor Error:", err);
+
+    setModalConfig({
+      visible: true,
+      type: "error",
+      title: "Failed to add",
+      subtitle: err?.message || "Something went wrong. Please try again."
     });
+
   }
+
 };
-
-
-
-     const { permissions } = usePermissions();
-
-const permissionsLoaded =
-  permissions !== null && permissions !== undefined;
-  const canAddVehicle =
-  permissionsLoaded && hasPermission(permissions, "VHCLNO", "WRITE");
-
-const canUseGuestParking =
-  permissionsLoaded && hasPermission(permissions, "GSTPRK", "WRITE");
-  
 
   return (
     <>
@@ -197,83 +255,93 @@ const canUseGuestParking =
 
       {/* Vehicle */}
       {canAddVehicle && (
-<View style={[styles.card, { backgroundColor: theme.cardBg }]}>
-  <Text style={[styles.label, { color: theme.text }]}>
-    Vehicle Number (Last 4 Digits - Optional)
-  </Text>
+        <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
+          <Text style={[styles.label, { color: theme.text }]}>
+            Vehicle Number (Last 4 Digits - Optional)
+          </Text>
 
-  <TextInput
-    value={vehicleNo}
-    onChangeText={setVehicleNo}
-    keyboardType="number-pad"
-    maxLength={4}
-    placeholder="0000"
-    placeholderTextColor={theme.textSecondary}
-    style={[
-      styles.input,
-      { backgroundColor: theme.inputBg, borderColor: theme.border },
-    ]}
-  />
-</View>
-)}
+          <TextInput
+            value={vehicleNo}
+            onChangeText={setVehicleNo}
+            keyboardType="number-pad"
+            maxLength={4}
+            placeholder="0000"
+            placeholderTextColor={theme.textSecondary}
+            style={[
+              styles.input,
+              { backgroundColor: theme.inputBg, borderColor: theme.border },
+            ]}
+          />
+        </View>
+      )}
 
       {/* Parking */}
       {canUseGuestParking && (
-<View style={[styles.card, { backgroundColor: theme.cardBg }]}>
-  <Text style={[styles.label, { color: theme.text }]}>
-    Need parking?
-  </Text>
+        <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
+          <Text style={[styles.label, { color: theme.text }]}>
+            Need parking?
+          </Text>
 
-  <TouchableOpacity
-    style={[
-      styles.selectButton,
-      { backgroundColor: theme.inputBg, borderColor: theme.border },
-    ]}
-    onPress={() => {
-      if (!visitDate) {
-        alert("Please select visit date first");
-        return;
-      }
+          <TouchableOpacity
+            style={[
+              styles.selectButton,
+              { backgroundColor: theme.inputBg, borderColor: theme.border },
+            ]}
+            onPress={() => {
+              if (!visitDate) {
+                alert("Please select visit date first");
+                return;
+              }
 
-      navigation.navigate("AmenitiesListScreen", {
-        type: "PARKING",
-        title: "Parking",
-        onParkingSelected: (parking) => setSelectedParking(parking),
-      });
-    }}
-  >
-    <Ionicons name="car" size={20} color={BRAND.COLORS.icon} />
+              navigation.navigate("AmenitiesListScreen", {
+                type: "PARKING",
+                title: "Parking",
+                onParkingSelected: (parking) =>
+                  setSelectedParking(parking),
+              });
+            }}
+          >
+            <Ionicons name="car" size={20} color={BRAND.COLORS.icon} />
 
-    <Text style={[styles.selectButtonText, { color: theme.textSecondary }]}>
-      {selectedParking?.booking_from
-        ? `${formatParkingDateRange(
-            selectedParking.booking_from,
-            selectedParking.booking_to
-          )} • ${selectedParking.slot}`
-        : "Select Parking"}
-    </Text>    <Ionicons
-      name="chevron-forward"
-      size={20}
-      color={theme.textSecondary}
-    />
-  </TouchableOpacity>
-</View>
-)}
+            <Text
+              style={[
+                styles.selectButtonText,
+                { color: theme.textSecondary },
+              ]}
+            >
+              {selectedParking?.booking_from
+                ? `${formatParkingDateRange(
+                  selectedParking.booking_from,
+                  selectedParking.booking_to
+                )} • ${selectedParking.slot}`
+                : "Select Parking"}
+            </Text>
+
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Submit */}
       <SubmitButton
         title="Add Visitor"
         onPress={handleSubmit}
-        loading={modalType === "loading"}
+        loading={modalConfig.type === "loading"}
       />
 
-  <StatusModal 
-  visible={modalConfig.visible} 
-  type={modalConfig.type} 
-  title={modalConfig.title}
-  subtitle={modalConfig.subtitle}
-  onClose={() => setModalConfig(prev => ({ ...prev, visible: false }))}
-/>
+      <StatusModal
+        visible={modalConfig.visible}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        subtitle={modalConfig.subtitle}
+        onClose={() =>
+          setModalConfig((prev) => ({ ...prev, visible: false }))
+        }
+      />
     </>
   );
 };

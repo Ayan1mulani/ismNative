@@ -1,7 +1,7 @@
 import { ApiCommon } from "./ApiCommon"
 import { Common } from "./Common";
 import { Util } from "./Util";
-import { API_URL2, API_URL4  } from "../app/config/env";
+import { API_URL2, API_URL4 } from "../app/config/env";
 
 const visitorServices = {
 
@@ -46,8 +46,37 @@ const visitorServices = {
     const url = await visitorServices.appendParamsInUrl(`${API_URL4}/v1/society/${user.societyId}/searchPass`);
     const headers = await Util.getCommonAuth()
     const response = await ApiCommon.postReq(url, paylod, headers);
-    console.log(response,"response")
+    console.log(response, "response")
     return response
+  },
+
+  getSocietyImages: async () => {
+
+    const user = await Common.getLoggedInUser();
+
+    const params = {
+      "api-token": user.api_token,
+      "user-id": JSON.stringify({
+        user_id: user.id,
+        group_id: user.group_id,
+        flat_no: user.flat_no,
+        unit_id: user.id,
+        society_id: user.societyId
+      })
+    };
+
+    const url = await visitorServices.appendParamsInUrl(
+      `${API_URL2}/getsocietyimages`
+    );
+
+    const headers = await Util.getCommonAuth();
+
+    const response = await ApiCommon.getReq(url, params, headers);
+
+    console.log("Society Images:", response?.data);
+
+    return response;
+
   },
 
   getParkingLocations: async () => {
@@ -300,7 +329,7 @@ const visitorServices = {
     const commonParams = {
       "api-token": user.api_token,
       "user-id": u,
-      "group-id": 2265,
+      "group-id":user.role_id,
       "app_id": "ism_resident"
     };
 

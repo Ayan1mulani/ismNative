@@ -58,8 +58,8 @@ const ServiceRequestTabs = () => {
 
   // ── Permission flags ──────────────────────────────────────────────────────
   const permissionsLoaded = permissions !== null && permissions !== undefined;
-  const canViewComplaints  = permissionsLoaded && hasPermission(permissions, 'COM', 'READ');
-  const canCreateComplaint = permissionsLoaded && hasPermission(permissions, 'COM', 'CREATE');
+  const canViewComplaints  = permissionsLoaded && hasPermission(permissions, 'COM', 'R');
+  const canCreateComplaint = permissionsLoaded && hasPermission(permissions, 'COM', 'C');
 
   // ── Loading state: permissions not yet fetched ────────────────────────────
   if (!permissionsLoaded) {
@@ -71,7 +71,7 @@ const ServiceRequestTabs = () => {
     );
   }
 
-  // ── Access restricted: no READ permission ─────────────────────────────────
+  // ── Access restricted: no R permission ─────────────────────────────────
   if (!canViewComplaints) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>

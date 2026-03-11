@@ -7,10 +7,12 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Modal,
-  ScrollView
+  ScrollView,
+  Dimensions,
 } from "react-native";
-
 import { ismServices } from "../../services/ismServices";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const NoticeTickerScreen = () => {
 
@@ -18,46 +20,67 @@ const NoticeTickerScreen = () => {
   const [loading, setLoading] = useState(true);
   const [selectedNotice, setSelectedNotice] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [textWidth, setTextWidth] = useState(0);
 
-  const translateX = useRef(new Animated.Value(400)).current;
+  const translateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+  const animationRef = useRef(null);
 
   useEffect(() => {
     loadNotices();
   }, []);
 
+  // ✅ Start ticker only after loading is done and textWidth is measured
+  useEffect(() => {
+    if (!loading && textWidth > 0) {
+      startTicker();
+    }
+    return () => {
+      // Cleanup animation on unmount
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
+    };
+  }, [loading, textWidth]);
+
   const loadNotices = async () => {
     try {
-
       const res = await ismServices.getMyNotices("TICKER");
-
       if (res?.status === "success") {
         setNotices(res.data || []);
       }
-
     } catch (error) {
       console.log("Notice API Error:", error);
     } finally {
       setLoading(false);
-      startTicker();
     }
   };
 
   const startTicker = () => {
+    // Stop any existing animation first
+    if (animationRef.current) {
+      animationRef.current.stop();
+    }
 
-    translateX.setValue(400);
+    translateX.setValue(SCREEN_WIDTH);
 
-    Animated.loop(
+    // ✅ Use actual measured text width so long text fully scrolls off screen
+    const totalDistance = SCREEN_WIDTH + textWidth;
+    const duration = (totalDistance / 80) * 1000; // 80px per second
+
+    animationRef.current = Animated.loop(
       Animated.timing(translateX, {
-        toValue: -1000,
-        duration: 20000,
+        toValue: -textWidth,
+        duration,
         useNativeDriver: true,
       })
-    ).start();
+    );
+
+    animationRef.current.start();
   };
 
   const cleanHtml = (html) => {
     if (!html) return "";
-    return html.replace(/<[^>]+>/g, "");
+    return html.replace(/<[^>]+>/g, "").trim();
   };
 
   const openNotice = (notice) => {
@@ -67,62 +90,67 @@ const NoticeTickerScreen = () => {
 
   const tickerText =
     notices.length > 0
-      ? notices.map((n) => cleanHtml(n.notice)).join("   •   ")
+      ? notices.map((n) => cleanHtml(n.notice)).join("     •     ")
       : "No notices available";
 
   return (
-
     <View style={styles.container}>
 
       {/* Title */}
       <Text style={styles.title}>Notices</Text>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1565A9" />
+        <ActivityIndicator size="small" color="#1565A9" />
       ) : (
-
         <TouchableOpacity
           activeOpacity={0.9}
           style={styles.tickerBox}
           onPress={() => notices.length > 0 && openNotice(notices[0])}
         >
+          {/* ✅ Hidden text to measure actual width before animation starts */}
+          <Text
+            numberOfLines={1}
+            style={[styles.tickerText, styles.hiddenText]}
+            onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
+          >
+            {tickerText}
+          </Text>
 
           <Animated.Text
             numberOfLines={1}
             style={[
               styles.tickerText,
-              { transform: [{ translateX }] }
+              { transform: [{ translateX }] },
             ]}
           >
             {tickerText}
           </Animated.Text>
-
         </TouchableOpacity>
-
       )}
 
       {/* Modal */}
-
       <Modal
         visible={modalVisible}
         animationType="slide"
         transparent
+        onRequestClose={() => setModalVisible(false)}
       >
-
         <View style={styles.modalOverlay}>
-
           <View style={styles.modalContainer}>
 
             <Text style={styles.modalTitle}>
               {selectedNotice?.subject}
             </Text>
 
-            <ScrollView>
+            <View style={styles.divider} />
 
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.scrollView}
+            >
               <Text style={styles.modalText}>
                 {cleanHtml(selectedNotice?.notice)}
               </Text>
-
             </ScrollView>
 
             <TouchableOpacity
@@ -133,9 +161,7 @@ const NoticeTickerScreen = () => {
             </TouchableOpacity>
 
           </View>
-
         </View>
-
       </Modal>
 
     </View>
@@ -156,7 +182,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     marginBottom: 12,
-    color: "#111827"
+    color: "#111827",
   },
 
   tickerBox: {
@@ -165,54 +191,75 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1e3e3",
     justifyContent: "center",
     overflow: "hidden",
-    paddingHorizontal: 10
+    paddingHorizontal: 10,
   },
 
   tickerText: {
     fontSize: 14,
     color: "#1F2937",
-    fontWeight: "500"
+    fontWeight: "500",
   },
 
+  // ✅ Invisible text used only to measure width — positioned off screen
+  hiddenText: {
+    position: "absolute",
+    opacity: 0,
+    top: -9999,
+    left: 0,
+    right: 0,
+  },
+
+  /* Modal */
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
-    padding: 20
+    padding: 20,
   },
 
   modalContainer: {
     backgroundColor: "#FFFFFF",
     borderRadius: 10,
     padding: 18,
-    maxHeight: "90%",
+    maxHeight: "80%",
   },
 
   modalTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#111827",
     marginBottom: 10,
-    color: "#111827"
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: "#F0F2F4",
+    marginBottom: 12,
+  },
+
+  scrollView: {
+    maxHeight: 300,
   },
 
   modalText: {
     fontSize: 14,
-    lineHeight: 20,
-    color: "#374151"
+    lineHeight: 22,
+    color: "#374151",
   },
 
   closeButton: {
-    marginTop: 20,
+    marginTop: 16,
     alignSelf: "flex-end",
     backgroundColor: "#1565A9",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 6,
   },
 
   closeText: {
     color: "#FFF",
-    fontWeight: "600"
-  }
+    fontWeight: "600",
+    fontSize: 13,
+  },
 
 });

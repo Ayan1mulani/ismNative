@@ -71,20 +71,38 @@ const ApiCommon = {
     delReq : (url, data, headers) => {
         return ApiCommon.fetchReq(url, 'DELETE', data, headers)
     },
-    fetchReq : async(url, method, data, headers) => {
-        let conf = {
-            method: method,
-            headers: headers ? headers : {
-                "Content-Type": "application/json",
-            },
-        }
-        if (method !== 'GET' && data) {
-            conf.body = conf.headers && conf.headers['Content-Type']==="application/json" ? JSON.stringify(data) : data
-        }
-        // add auth params in headers / url
-        const response = await fetch(url, conf);
-        return response.json();
-    }
+   fetchReq: async (url, method, data, headers = {}) => {
+
+  const conf = {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+  };
+
+  if (method !== "GET" && data) {
+    conf.body = JSON.stringify(data);
+  }
+
+  const response = await fetch(url, conf);
+
+  // handle server errors
+  if (!response.ok) {
+    const text = await response.text();
+    console.error("API ERROR:", text);
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+
+  const contentType = response.headers.get("content-type");
+
+  if (contentType && contentType.includes("application/json")) {
+    return await response.json();
+  }
+
+  const text = await response.text();
+  throw new Error("Invalid response: " + text);
+}
 }
 
 

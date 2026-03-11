@@ -25,7 +25,7 @@ const BillsPage = () => {
     permissions !== null && permissions !== undefined;
 
   const canViewBills =
-    permissionsLoaded && hasPermission(permissions, 'BILL', 'READ');
+    permissionsLoaded && hasPermission(permissions, 'BILL', 'R');
 
   const theme = {
     light: {

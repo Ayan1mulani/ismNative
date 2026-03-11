@@ -32,10 +32,10 @@ const VisitorSection = ({ refreshTrigger }) => {
     permissions !== null && permissions !== undefined;
 
   const canCreatePass =
-    permissionsLoaded && hasPermission(permissions, "VMS", "CREATE");
+    permissionsLoaded && hasPermission(permissions, "VMS", "C");
 
   const canReadPass =
-    permissionsLoaded && hasPermission(permissions, "VMS", "READ");
+    permissionsLoaded && hasPermission(permissions, "VMS", "R");
 
   const [visitors, setVisitors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -367,7 +367,8 @@ const styles = StyleSheet.create({
 
 
   emptyContainer: {
-    paddingVertical: 20,
+    paddingTop:10,
+    paddingBottom:15,
     alignItems: 'center',
   },
 

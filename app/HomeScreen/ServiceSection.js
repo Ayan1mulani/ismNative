@@ -35,9 +35,9 @@ const ServicesSection = () => {
   // ── Permission flags ──────────────────────────────────────────────────────
   const permissionsLoaded = permissions !== null && permissions !== undefined;
 
-  // FIX 1: "WRITE" does not exist — correct values are CREATE / UPDATE / DELETE / READ
-  const canViewPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'READ');
-  const canSendPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'CREATE'); // ✅ was "WRITE"
+  // FIX 1: "C" does not exist — correct values are CREATE / UPDATE / DELETE / R
+  const canViewPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'R');
+  const canSendPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'C'); 
 
   const allServices = [
     { id: '1',  title: 'Accounts',   icon: 'card',                       route: 'Accounts'          },
@@ -121,17 +121,17 @@ const ServicesSection = () => {
     }
   };
 
-  // ── Filter services based on permissions ──────────────────────────────────
+// ── Filter services based on permissions ──────────────────────────────────
   const visibleServices = allServices.filter((service) => {
     // FIX 2: if permissions still loading (null), show all services
     // so the grid doesn't flash empty while context loads
     if (!permissionsLoaded) return true;
 
-    if (service.title === 'Accounts')    return hasPermission(permissions, 'BILL',   'READ');
-    if (service.title === 'Visitors')    return hasPermission(permissions, 'VMS',    'READ');
-    if (service.title === 'Staff')       return hasPermission(permissions, 'ISMSTF', 'READ');
-    if (service.title === 'Bills')       return hasPermission(permissions, 'BILL',   'READ');
-    if (service.title === 'Add vehicle') return hasPermission(permissions, 'VEH',    'CREATE');
+    if (service.title === 'Accounts')    return hasPermission(permissions, 'BILL',   'R');
+    if (service.title === 'Visitors')    return hasPermission(permissions, 'VMS',    'R');
+    if (service.title === 'Staff')       return hasPermission(permissions, 'VMSSTF', 'R');
+    if (service.title === 'Bills')       return hasPermission(permissions, 'BILL',   'R');
+    if (service.title === 'Add vehicle') return hasPermission(permissions, 'VEH',    'C');
     // FIX 3: use canViewPanic flag consistently
     if (service.title === 'SOS')         return canViewPanic;
 

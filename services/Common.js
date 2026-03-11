@@ -4,6 +4,7 @@ const Common = {
     getLoggedInUser: async () => {
         try {
             const userInfo = await AsyncStorage.getItem('userInfo');
+            console.log(userInfo,"userinfo")
             
             if (!userInfo) {
                 return null;

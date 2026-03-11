@@ -51,10 +51,10 @@ const AddVehicleScreen = ({ navigation, route }) => {
     permissions !== null && permissions !== undefined;
 
   const canCreateVehicle =
-    permissionsLoaded && hasPermission(permissions, "VEH", "CREATE");
+    permissionsLoaded && hasPermission(permissions, "VEH", "C");
 
   const canUpdateVehicle =
-    permissionsLoaded && hasPermission(permissions, "VEH", "UPDATE");
+    permissionsLoaded && hasPermission(permissions, "VEH", "U");
 
   const [statusModal, setStatusModal] = useState({
     visible: false,

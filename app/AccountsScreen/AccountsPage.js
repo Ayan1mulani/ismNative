@@ -53,8 +53,8 @@ export default function AccountsScreen() {
   const permissionsLoaded = permissions !== null && permissions !== undefined;
 
   // STEP 2: Only evaluate permissions once they are loaded
-  const canSeeOutstanding = permissionsLoaded && hasPermission(permissions, 'OUTSND', 'READ');
-  const canSeeBills = permissionsLoaded && hasPermission(permissions, 'BILL', 'READ');
+  const canSeeOutstanding = permissionsLoaded && hasPermission(permissions, 'OUTSND', 'R');
+  const canSeeBills = permissionsLoaded && hasPermission(permissions, 'BILL', 'R');
 
 
   const [outstanding, setOutstanding] = useState([]);
@@ -193,7 +193,7 @@ useEffect(() => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.primary]} tintColor={THEME.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Only shown if user has OUTSND.READ permission */}
+        {/* Only shown if user has OUTSND.R permission */}
         {canSeeOutstanding && (
           <View style={[styles.summaryCard, { backgroundColor: THEME.primary }]}>
             <View style={styles.summaryInner}>
@@ -211,7 +211,7 @@ useEffect(() => {
           </View>
         )}
 
-        {/* Only shown if user has OUTSND.READ permission */}
+        {/* Only shown if user has OUTSND.R permission */}
         {canSeeOutstanding && (
           <>
             <View style={styles.sectionHeader}>
@@ -252,7 +252,7 @@ useEffect(() => {
           </>
         )}
 
-        {/* Only shown if user has BILL.READ permission */}
+        {/* Only shown if user has BILL.R permission */}
         {canSeeBills && (
           <>
             <View style={styles.sectionHeader}>

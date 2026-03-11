@@ -19,7 +19,9 @@ import BRAND from "../config";
 const ResidentProfile = () => {
  const { nightMode, setFlatNo, permissions } = usePermissions();
  const canViewDashboard =
-  permissions && hasPermission(permissions, "RESDSB", "READ");
+  permissions && hasPermission(permissions, "RESDSB", "R");
+  console.log("Permissions:", permissions);
+console.log("Can View Dashboard:", canViewDashboard);
   const COLORS = BRAND.COLORS;
 
   const [userDetails, setUserDetails] = useState({});
@@ -39,8 +41,10 @@ const ResidentProfile = () => {
       const storedUser = await AsyncStorage.getItem("userInfo");
       if (!storedUser) return;
 
+      console.log("stored user", storedUser)
       const detailsRes = await ismServices.getUserDetails();
       setUserDetails(detailsRes || {});
+      console.log(detailsRes,"details1+++++++++++++++++++++++++++++++++")
 
       // ✅ store flatNo globally
       if (detailsRes?.flat_no) {
@@ -48,6 +52,7 @@ const ResidentProfile = () => {
       }
 
       const billRes = await otherServices.getOutStandings();
+      console.log(billRes)
       setOutstanding(billRes?.data || []);
     } catch (err) {
       console.log("Profile Load Error:", err);
@@ -60,10 +65,9 @@ const ResidentProfile = () => {
     loadData();
   }, []);
 
-  if (loading) {
-    return (
-      <View style={[styles.safeArea, { backgroundColor: colors.background }]} />
-    );
+  // Wait to render the actual component until BOTH the APIs are done AND permissions are loaded
+  if (loading || permissions === null) {
+    return <View style={[styles.safeArea, { backgroundColor: colors.background }]} />;
   }
 
   const totalOutstanding = outstanding.reduce(

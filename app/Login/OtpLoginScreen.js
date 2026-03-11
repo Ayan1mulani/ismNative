@@ -23,7 +23,7 @@ const OtpPhoneScreen = () => {
   const navigation = useNavigation();
   const { nightMode } = usePermissions();
 
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [showError, setShowError] = useState(false);
@@ -46,22 +46,35 @@ const OtpPhoneScreen = () => {
         border: "#1996D3"
       };
 
+  const isValidEmail = (email) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleSendOtp = async () => {
 
-    if (phoneNumber.length !== 10) {
+    if (!inputValue) {
       setErrorTitle("Validation Error");
-      setErrorMessage("Enter valid mobile number");
+      setErrorMessage("Enter mobile number or email");
+      setShowError(true);
+      return;
+    }
+
+    const isPhone = /^[0-9]{10}$/.test(inputValue);
+    const isEmail = isValidEmail(inputValue);
+
+    if (!isPhone && !isEmail) {
+      setErrorTitle("Validation Error");
+      setErrorMessage("Enter valid mobile number or email");
       setShowError(true);
       return;
     }
 
     Keyboard.dismiss();
-
     setLoading(true);
 
     try {
 
-     const response = await ismServices.generateOtp(phoneNumber);
+      const response = await ismServices.generateOtp(inputValue);
 
       console.log("OTP RESPONSE:", response);
 
@@ -69,7 +82,7 @@ const OtpPhoneScreen = () => {
 
         navigation.navigate("OtpVerify", {
           otpData: response.data,
-          phone: phoneNumber
+          identity: inputValue
         });
 
       } else {
@@ -109,7 +122,7 @@ const OtpPhoneScreen = () => {
           </Text>
 
           <Text style={[styles.subText, { color: theme.sub }]}>
-            Enter your mobile number to receive OTP
+            Enter your mobile number or email to receive OTP
           </Text>
 
           <TextInput
@@ -121,12 +134,11 @@ const OtpPhoneScreen = () => {
                 borderColor: theme.border
               }
             ]}
-            placeholder="Enter Mobile Number"
+            placeholder="Enter Mobile Number or Email"
             placeholderTextColor={nightMode ? "#888" : "#999"}
-            keyboardType="number-pad"
-            maxLength={10}
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
+            keyboardType="default"
+            value={inputValue}
+            onChangeText={setInputValue}
             editable={!loading}
           />
 

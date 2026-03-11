@@ -46,8 +46,8 @@ const VisitorScreen = () => {
 
   // ── Permission flags ──────────────────────────────────────────────────────
   const permissionsLoaded  = permissions !== null && permissions !== undefined;
-  const canViewVisitors    = permissionsLoaded && hasPermission(permissions, 'VMS', 'READ');
-  const canCreateVisitor   = permissionsLoaded && hasPermission(permissions, 'VMS', 'CREATE');
+  const canViewVisitors    = permissionsLoaded && hasPermission(permissions, 'VMS', 'R');
+  const canCreateVisitor   = permissionsLoaded && hasPermission(permissions, 'VMS', 'C');
 
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [visits, setVisits] = useState([]);
@@ -74,7 +74,7 @@ const VisitorScreen = () => {
   }, [TABS]);
 
   useEffect(() => {
-    // Only fetch data if user has READ permission
+    // Only fetch data if user has R permission
     if (!canViewVisitors) return;
 
     const loadData = async () => {
@@ -104,7 +104,7 @@ const VisitorScreen = () => {
     );
   }
 
-  // ── No READ access ────────────────────────────────────────────────────────
+  // ── No R access ────────────────────────────────────────────────────────
   if (!canViewVisitors) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>

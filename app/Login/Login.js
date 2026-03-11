@@ -16,13 +16,14 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Svg, Path } from 'react-native-svg';
 import { CommonActions, useNavigation } from '@react-navigation/native';
+import { usePermissions } from '../../Utils/ConetextApi';
 import { LoginSrv } from '../../services/LoginSrv';
 import AccountSelectorModal from './SelectUserMode';
 import ErrorPopupModal from '../PopUps/MessagePop';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ismServices } from '../../services/ismServices';
 import BRAND from '../config';
-import { RegisterAppOneSignal } from '../../services/oneSignalService';
+import { RegisterAppOneSignal } from "../../services/oneSignalService";
 
 const { width } = Dimensions.get('window');
 
@@ -44,20 +45,15 @@ const Wave = () => (
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 
-const register = async () => {
-    try {
-      await workOrderService.appRegisterOneSignal();
-    } catch (error) {
-      console.error("Error registering OneSignal:", error);
-    }
-  };
 
 const NewLoginScreen = () => {
   const [email, setEmail] = useState('sahilmulanioneplus@gmail.com');
   const [password, setPassword] = useState('123456');
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-
+  const { loadPermissions } = usePermissions();
+  
+  
   const navigation = useNavigation();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -70,10 +66,13 @@ const NewLoginScreen = () => {
   const getUserDetails = async () => {
     try {
       const userInfo = await AsyncStorage.getItem('userInfo');
+        console.log(userInfo,"user info")
+
       if (!userInfo) return;
       const parsed = JSON.parse(userInfo);
       if (!parsed?.token && !parsed?.id) return;
       await ismServices.getUserDetails();
+      await loadPermissions();
       const updatedUserInfo = await AsyncStorage.getItem('userInfo');
       if (!updatedUserInfo) return;
       const updatedParsed = JSON.parse(updatedUserInfo);
@@ -113,14 +112,38 @@ const NewLoginScreen = () => {
         setErrorTitle('Login Failed');
         setErrorMessage(response.message || 'Incorrect email or password. Please try again.');
         setShowError(true);
-      } else if (response.status === 'success') {
-        await AsyncStorage.setItem('userInfo', JSON.stringify(response.data));
-
-        // ✅ Register device with OneSignal after fresh login
-        setTimeout(() => RegisterAppOneSignal(), 2000);
-        register(); 
-        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'MainApp' }] }));
       }
+      else if (response.status === 'success') {
+
+  const userRole = response?.data?.role;
+
+  const ALLOWED_ROLES = ["member", "resident", "tenant"];
+
+  if (!ALLOWED_ROLES.includes(userRole)) {
+    setErrorTitle("Access Denied");
+    setErrorMessage(`This app is not for ${userRole}`);
+    setShowError(true);
+    return;
+  }
+
+  await AsyncStorage.setItem('userInfo', JSON.stringify(response.data));
+  console.log(userInfo,"user info")
+
+  await AsyncStorage.removeItem("permissions");
+
+  await loadPermissions();
+
+  await RegisterAppOneSignal();
+
+  navigation.dispatch(
+    CommonActions.reset({
+      index: 0,
+      routes: [{ name: 'MainApp' }]
+    })
+  );
+}
+
+      
       else {
         console.warn('Unhandled login status:', response.status);
         setErrorTitle('Login Failed');
@@ -177,12 +200,13 @@ const NewLoginScreen = () => {
 
   return (
     <View style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={BRAND.COLORS.primary} />
+      <StatusBar barStyle="dark-content" />
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+    <KeyboardAvoidingView
+  style={styles.flex}
+  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+  keyboardVerticalOffset={10}
+>
         <ScrollView
           contentContainerStyle={styles.scrollViewContent}
           keyboardShouldPersistTaps="handled"
@@ -267,7 +291,7 @@ const NewLoginScreen = () => {
                 </TouchableOpacity>
 
                 {/* Sign Up */}
-                <View style={styles.signUpContainer}>
+                {/* <View style={styles.signUpContainer}>
                   <Text style={styles.signUpText}>Don't have an account? </Text>
                   <TouchableOpacity
                     onPress={() => {
@@ -278,7 +302,7 @@ const NewLoginScreen = () => {
                   >
                     <Text style={styles.signUpLink}>Sign up</Text>
                   </TouchableOpacity>
-                </View>
+                </View> */}
 
                 {/* ── Terms & Conditions ── */}
                 <View style={styles.termsRow}>

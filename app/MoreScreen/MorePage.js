@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UnRegisterOneSignal } from '../../services/oneSignalService';
+import { OneSignal } from 'react-native-onesignal';
 import { usePermissions } from '../../Utils/ConetextApi';
 import { useNavigation } from '@react-navigation/native';
 import AccountSelectorModal from '../Login/SelectUserMode';
@@ -19,10 +21,12 @@ import { CommonActions } from '@react-navigation/native';
 import { Modal } from 'react-native';
 import { TextInput } from 'react-native';
 import { ismServices } from '../../services/ismServices';
+
 import BRAND from '../config'
+import { RegisterAppOneSignal } from '../../services/oneSignalService';
 
 const ProfileScreen = () => {
-  const { nightMode, setNightMode } = usePermissions();
+const { nightMode, setNightMode, loadPermissions } = usePermissions();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,6 +73,8 @@ const ProfileScreen = () => {
       // ✅ Always fetch fresh user details from API
       const detailsRes = await ismServices.getUserDetails();
 
+console.log("USER DETAILS RESPONSE:", detailsRes);
+
       setUserProfile(detailsRes);
 
       // Optional: store it
@@ -97,6 +103,14 @@ const handleLogout = () => {
         style: "destructive",
         onPress: async () => {
           try {
+
+            // 🔔 Disable push locally
+            await OneSignal.User.pushSubscription.optOut();
+
+            // 🔔 Unregister device from backend
+            await UnRegisterOneSignal();
+
+            // 🧹 Clear stored data
             await AsyncStorage.clear();
 
             navigation.dispatch(
@@ -105,6 +119,7 @@ const handleLogout = () => {
                 routes: [{ name: "Login" }],
               })
             );
+
           } catch (error) {
             console.log("Logout error:", error);
           }
@@ -164,52 +179,65 @@ const handleLogout = () => {
     setPasswordModal(true);
   };
 
-  const confirmSwitchLogin = async () => {
-    if (!password.trim()) {
-      Alert.alert('Enter Password');
-      return;
+ const confirmSwitchLogin = async () => {
+  if (!password.trim()) {
+    Alert.alert('Enter Password');
+    return;
+  }
+
+  try {
+    setIsSwitching(true);
+
+    // 🔔 Unregister old user push notification
+    await OneSignal.User.pushSubscription.optOut();
+    await UnRegisterOneSignal();
+
+    const userInfo = await AsyncStorage.getItem('userInfo');
+    const parsedUser = JSON.parse(userInfo);
+
+    const payload = {
+      identity: parsedUser.email,
+      password: password,
+      tenant: 0,
+      user_id: selectedUserId,
+    };
+
+    const response = await LoginSrv.login(payload);
+
+    if (response.status === 'success') {
+
+      await AsyncStorage.setItem(
+        'userInfo',
+        JSON.stringify(response.data)
+      );
+
+      await AsyncStorage.removeItem("permissions");
+
+      // reload permissions
+      await loadPermissions();
+
+      // 🔔 Register new user device
+      setTimeout(() => RegisterAppOneSignal(), 2000);
+
+      setPasswordModal(false);
+
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'MainApp' }],
+        })
+      );
+
+    } else {
+      Alert.alert('Wrong Password');
     }
 
-    try {
-      setIsSwitching(true);
-
-      const userInfo = await AsyncStorage.getItem('userInfo');
-      const parsedUser = JSON.parse(userInfo);
-
-      const payload = {
-        identity: parsedUser.email,
-        password: password,
-        tenant: 0,
-        user_id: selectedUserId,
-      };
-
-      const response = await LoginSrv.login(payload);
-
-      if (response.status === 'success') {
-        await AsyncStorage.setItem(
-          'userInfo',
-          JSON.stringify(response.data)
-        );
-
-        setPasswordModal(false);
-
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'MainApp' }],
-          })
-        );
-      } else {
-        Alert.alert('Wrong Password');
-      }
-
-    } catch (error) {
-      console.log('Final switch error:', error);
-    } finally {
-      setIsSwitching(false);
-    }
-  };
-
+  } catch (error) {
+    console.log('Final switch error:', error);
+  } finally {
+    setIsSwitching(false);
+  }
+};
   const getAvatarUri = () => {
     if (userProfile?.image_src) return { uri: userProfile.image_src };
     const name = encodeURIComponent(userProfile?.name || 'User');
@@ -409,6 +437,7 @@ const handleLogout = () => {
             <TextInput
               placeholder="Password"
               secureTextEntry
+               placeholderTextColor="#000"
               value={password}
               onChangeText={setPassword}
               style={{
@@ -416,7 +445,8 @@ const handleLogout = () => {
                 borderColor: '#ccc',
                 borderRadius: 10,
                 padding: 12,
-                marginBottom: 15
+                marginBottom: 15,
+                color:'#000'
               }}
             />
 

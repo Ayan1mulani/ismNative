@@ -40,6 +40,7 @@ const AllServicesScreen = () => {
     { title: "My Complex", icon: "notifications-outline", route: "Notices" },
     { title: "Settings", icon: "settings-outline", route:'Settings'},
     { title: "My vehicles", icon: "car-outline", route: "MyVehiclesScreen" },
+    { title: "Staff", icon: "checkmark-circle-outline", route: "StaffScreen" },
     { title: "Family members", icon: "person-add-outline", route: "FamilyMember" },
     { title: "Add vehicle", icon: "car-outline", route: "AddVehicleScreen" },
     { title: "Bills", icon: "receipt-outline", route: "bills" },
@@ -66,15 +67,18 @@ const AllServicesScreen = () => {
     if (!permissions) return false;
 
     if (item.title === "Add vehicle") {
-      return hasPermission(permissions, "VEH", "CREATE");
+      return hasPermission(permissions, "VEH", "C");
     }
 
     if (item.title === "My vehicles") {
-      return hasPermission(permissions, "VEH", "READ");
+      return hasPermission(permissions, "VEH", "R");
     }
 
     if (item.title === "Bills") {
-      return hasPermission(permissions, "BILL", "READ");
+      return hasPermission(permissions, "BILL", "R");
+    }
+    if (item.title === "Staff") {
+    return hasPermission(permissions, "VMSSTF", "R");
     }
 
     return true;

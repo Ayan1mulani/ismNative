@@ -1,31 +1,45 @@
+// src/Utils/ConetextApi.js
+
 import { createContext, useContext, useState, useEffect } from 'react';
-import { ismServices } from '../services/ismServices'; // adjust path if needed
+import { ismServices } from '../services/ismServices';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PermissionsContext = createContext();
 
 export const PermissionsProvider = ({ children }) => {
   const [nightMode, setNightMode] = useState(false);
   const [flatNo, setFlatNo] = useState(null);
-  const [permissions, setPermissions] = useState(null); // null = still loading
+  const [permissions, setPermissions] = useState(null);
 
+const loadPermissions = async () => {
+  try {
+    const userInfo = await AsyncStorage.getItem("userInfo");
+
+    if (!userInfo) {
+      console.log("No user session, skipping permission load");
+      return;
+    }
+
+    const parsedUser = JSON.parse(userInfo);
+
+    if (parsedUser?.permissions) {
+      setPermissions(parsedUser.permissions);
+      console.log("Permissions from storage:", parsedUser.permissions);
+      return;
+    }
+
+    const res = await ismServices.getUserProfileData();
+
+    if (res?.data?.permissions) {
+      setPermissions(res.data.permissions);
+      console.log("Permissions from API:", res.data.permissions);
+    }
+
+  } catch (error) {
+    console.log("Failed to load permissions:", error);
+  }
+};
   useEffect(() => {
-    const loadPermissions = async () => {
-      try {
-        const response = await ismServices.getUserProfileData();
-
-
-        // ✅ permissions live at response.data.permissions
-        const perms = response?.data?.permissions ?? [];
-
-        setPermissions(perms);
-
-        console.log('Permissions loaded:', perms.length, 'entries');
-      } catch (error) {
-        console.error('Failed to load permissions:', error);
-        setPermissions([]); // empty = loaded but no access
-      }
-    };
-
     loadPermissions();
   }, []);
 
@@ -38,6 +52,7 @@ export const PermissionsProvider = ({ children }) => {
         setFlatNo,
         permissions,
         setPermissions,
+        loadPermissions
       }}
     >
       {children}

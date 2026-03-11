@@ -7,7 +7,7 @@ import BRAND from "./app/config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import initializeOneSignal from "./Utils/GlobalFunctions/PushNotifications";
-import { RegisterAppOneSignal } from "./app/OneSignal/RegisterOnesignal";
+import { RegisterAppOneSignal } from "./services/oneSignalService";
 
 export default function App() {
 
@@ -26,6 +26,9 @@ export default function App() {
 
       console.log("👤 User session found");
 
+      // wait for OneSignal initialization
+      await new Promise(res => setTimeout(res, 1500));
+
       const isRegistered = await RegisterAppOneSignal();
 
       if (isRegistered) {
@@ -33,6 +36,7 @@ export default function App() {
       } else {
         console.log("❌ Push registration failed");
       }
+
     };
 
     checkAndRegister();
@@ -42,7 +46,10 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView
-        style={[styles.safeArea, { backgroundColor: BRAND.COLORS.SafeAreaa }]}
+        style={[
+          styles.safeArea,
+          { backgroundColor: BRAND.COLORS.safeArea || BRAND.COLORS.background }
+        ]}
       >
         <NavigationPage />
       </SafeAreaView>

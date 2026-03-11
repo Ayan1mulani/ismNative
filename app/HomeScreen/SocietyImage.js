@@ -1,85 +1,235 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { View, FlatList, Image, StyleSheet, Dimensions } from 'react-native';
+import React, { useRef, useEffect, useState } from "react";
+import {
+  View,
+  FlatList,
+  Image,
+  StyleSheet,
+  Dimensions,
+  ActivityIndicator
+} from "react-native";
 
-const { width } = Dimensions.get('window');
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { visitorServices } from "../../services/visitorServices";
+
+const { width } = Dimensions.get("window");
 
 const CarouselSection = () => {
+
   const flatListRef = useRef(null);
+
   const [activeIndex, setActiveIndex] = useState(0);
-const images = [
-  { id: '1', uri: 'https://images.pexels.com/photos/259588/pexels-photo-259588.jpeg' },
-  { id: '2', uri: 'https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg' },
-];
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  /* ===============================
+     FETCH SOCIETY IMAGES
+  =============================== */
+
+  const fetchImages = async () => {
+
+    try {
+
+      // ensure user is logged in before calling API
+      const userInfo = await AsyncStorage.getItem("userInfo");
+
+      if (!userInfo) {
+        console.log("User not logged in yet");
+        return;
+      }
+
+      const res = await visitorServices.getSocietyImages();
+      
+
+      console.log("SOC IMAGE RESPONSE:", res);
+
+      if (res?.status === "success" && Array.isArray(res?.data)) {
+
+        const formatted = res.data.map((url, index) => ({
+          id: index.toString(),
+          uri: url
+        }));
+
+        setImages(formatted);
+      }
+
+    } catch (error) {
+
+      console.log("Error fetching images:", error);
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  };
+
   useEffect(() => {
+    fetchImages();
+  }, []);
+
+  /* ===============================
+     AUTO SLIDE (only if >1 image)
+  =============================== */
+
+  useEffect(() => {
+
+    if (images.length <= 1) return;
+
     const interval = setInterval(() => {
+
       const nextIndex = (activeIndex + 1) % images.length;
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+
+      flatListRef.current?.scrollToIndex({
+        index: nextIndex,
+        animated: true
+      });
+
       setActiveIndex(nextIndex);
+
     }, 4000);
+
     return () => clearInterval(interval);
-  }, [activeIndex]);
+
+  }, [activeIndex, images]);
+
+  /* ===============================
+     VIEW CHANGE
+  =============================== */
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
+
     if (viewableItems.length > 0) {
       setActiveIndex(viewableItems[0].index);
     }
+
   }).current;
 
+  const viewConfig = useRef({
+    viewAreaCoveragePercentThreshold: 50
+  }).current;
+
+  /* ===============================
+     LOADING
+  =============================== */
+
+  if (loading) {
+
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="small" color="#074B7C" />
+      </View>
+    );
+
+  }
+
+  if (images.length === 0) return null;
+
+  /* ===============================
+     UI
+  =============================== */
+
   return (
+
     <View style={styles.container}>
+
       <FlatList
         ref={flatListRef}
         data={images}
-        renderItem={({ item }) => (
-          <View style={styles.imageContainer}>
-            <Image source={{ uri: item.uri }} style={styles.image} />
-          </View>
-        )}
         horizontal
         pagingEnabled
         keyExtractor={(item) => item.id}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
         showsHorizontalScrollIndicator={false}
+
+        initialNumToRender={1}
+        maxToRenderPerBatch={1}
+        windowSize={2}
+
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewConfig}
+
+        renderItem={({ item }) => (
+
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: item.uri }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          </View>
+
+        )}
       />
-      <View style={styles.pagination}>
-        {images.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.dot,
-              { backgroundColor: activeIndex === index ? '#074B7C' : '#ccc', width: activeIndex === index ? 20 : 8 },
-            ]}
-          />
-        ))}
-      </View>
+
+      {/* PAGINATION DOTS */}
+
+      {images.length > 1 && (
+
+        <View style={styles.pagination}>
+
+          {images.map((_, index) => (
+
+            <View
+              key={index}
+              style={[
+                styles.dot,
+                {
+                  backgroundColor:
+                    activeIndex === index ? "#074B7C" : "#ccc",
+                  width: activeIndex === index ? 20 : 8
+                }
+              ]}
+            />
+
+          ))}
+
+        </View>
+
+      )}
+
     </View>
+
   );
+
 };
 
+export default CarouselSection;
+
 const styles = StyleSheet.create({
-  container: { marginTop: 10 },
+
+  container: {
+    marginTop: 10
+  },
+
+  loader: {
+    height: 120,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+
   imageContainer: {
     width: width - 64,
     height: 120,
     marginHorizontal: 16,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden"
   },
+
   image: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%"
   },
+
   pagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 10
   },
+
   dot: {
     height: 8,
     borderRadius: 4,
-    marginHorizontal: 4,
-  },
-});
+    marginHorizontal: 4
+  }
 
-export default CarouselSection;
+});

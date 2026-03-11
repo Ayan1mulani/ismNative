@@ -3,30 +3,47 @@ import { API_URL2, APP_VERSION_CODE, APP_ID_ONE_SIGNAL } from '../app/config/env
 import { OneSignal } from 'react-native-onesignal';
 import { ApiCommon } from './ApiCommon';
 
+/* ================================
+   REGISTER DEVICE
+================================ */
+
 export const RegisterAppOneSignal = async () => {
   try {
+
     const userInfo = await AsyncStorage.getItem('userInfo');
-    if (!userInfo) return;
 
-    const parsedUserInfo = JSON.parse(userInfo);
+    if (!userInfo) {
+      console.warn("OneSignal: No user info");
+      return false;
+    }
 
-    const userId = parsedUserInfo.id;
-    const apiToken = parsedUserInfo.api_token;
-    const societyId = parsedUserInfo.societyId || parsedUserInfo.s_id;
+    const parsedUser = JSON.parse(userInfo);
+
+    const userId = parsedUser?.id;
+    const apiToken = parsedUser?.api_token;
+    const societyId = parsedUser?.societyId || parsedUser?.s_id;
 
     if (!userId || !apiToken) {
-      console.warn('OneSignal: Missing user credentials');
-      return;
+      console.warn("OneSignal: Missing credentials");
+      return false;
     }
 
-    const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
+    /* WAIT FOR DEVICE ID */
+
+    let deviceId = null;
+
+    for (let i = 0; i < 5; i++) {
+      deviceId = await OneSignal.User.pushSubscription.getIdAsync();
+      if (deviceId) break;
+      await new Promise(res => setTimeout(res, 1000));
+    }
 
     if (!deviceId) {
-      console.warn('OneSignal: Device ID not ready');
-      return;
+      console.warn("OneSignal: Device ID not ready");
+      return false;
     }
 
-    console.log('OneSignal Device ID:', deviceId);
+    console.log("OneSignal Device ID:", deviceId);
 
     const headers = {
       "Content-Type": "application/json",
@@ -38,7 +55,7 @@ export const RegisterAppOneSignal = async () => {
     };
 
     const payload = {
-      app_name: "ism-resident",
+      app_name: "enviro_vms",
       app_version_code: APP_VERSION_CODE,
       app_device_id: deviceId,
       userId: userId,
@@ -54,29 +71,37 @@ export const RegisterAppOneSignal = async () => {
     return true;
 
   } catch (error) {
-    console.error("OneSignal register error:", error);
+
+    console.error("OneSignal register error:", error?.response?.data || error);
+
     return false;
+
   }
 };
 
 
-export const appUnRegistered = async () => {
+/* ================================
+   UNREGISTER DEVICE
+================================ */
+
+export const UnRegisterOneSignal = async () => {
   try {
 
     const userInfo = await AsyncStorage.getItem('userInfo');
+
     if (!userInfo) return;
 
-    const parsedUserInfo = JSON.parse(userInfo);
+    const parsedUser = JSON.parse(userInfo);
 
-    const userId = parsedUserInfo.id;
-    const apiToken = parsedUserInfo.api_token;
-    const societyId = parsedUserInfo.societyId || parsedUserInfo.s_id;
+    const userId = parsedUser?.id;
+    const apiToken = parsedUser?.api_token;
+    const societyId = parsedUser?.societyId || parsedUser?.s_id;
 
-    const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
+    let deviceId = await OneSignal.User.pushSubscription.getIdAsync();
 
     if (!deviceId) {
       console.warn("OneSignal deviceId missing");
-      return;
+      return false;
     }
 
     const headers = {
@@ -102,7 +127,10 @@ export const appUnRegistered = async () => {
     return true;
 
   } catch (error) {
-    console.error("OneSignal unregister error:", error);
+
+    console.error("OneSignal unregister error:", error?.response?.data || error);
+
     return false;
+
   }
 };

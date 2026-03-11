@@ -131,7 +131,7 @@ const MyVehiclesScreen = ({ navigation }) => {
   const { permissions } = usePermissions();
 
 const canCreateVehicle =
-  permissions && hasPermission(permissions, "VEH", "CREATE");
+  permissions && hasPermission(permissions, "VEH", "C");
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
 
