@@ -2,6 +2,8 @@ import {API_URL2 , API_URL4}   from "../app/config/env"
 import { ApiCommon } from "./ApiCommon"
 import { Common } from "./Common";
 import { Util } from "./Util";
+import { OneSignal } from "react-native-onesignal";
+import { visitorServices } from "./visitorServices";
 
  const otherServices = {
 
@@ -74,6 +76,52 @@ getAmenityBookingsByDate: async (locationId, date) => {
   }
 },
 
+sendTestNotification: async () => {
+  try {
+
+    const user = await Common.getLoggedInUser();
+
+    const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
+
+    if (!deviceId) {
+      console.log("Device ID not found");
+      return;
+    }
+
+    const params = {
+      "api-token": user.api_token,
+      "user-id": user.id,
+      deviceid: deviceId
+    };
+
+    const url = otherServices.appendParamsInUrl(
+      `${API_URL4}/v1/society/${user.societyId}/resident/${user.id}/testnotifyring`,
+      params
+    );
+
+    const headers = await Util.getCommonAuth();
+
+    const payload = {
+      test: true
+    };
+
+    const response = await ApiCommon.postReq(url, payload, headers);
+
+    console.log("Test Notification Response:", response);
+
+    return response;
+
+  } catch (error) {
+
+    console.log("Test Notification Error:", error);
+
+    throw error;
+
+  }
+},
+
+
+
 sendFeedback: async (subject, body) => {
   try {
     const user = await Common.getLoggedInUser();
@@ -110,6 +158,53 @@ sendFeedback: async (subject, body) => {
     console.log("Send Feedback Error:", error);
     throw error;
   }
+},
+
+getUserDetail: async () => {
+  const user = await Common.getLoggedInUser();
+
+
+
+
+  const url = otherServices.appendParamsInUrl(
+    `${API_URL2}/userDetail`,
+
+    {
+      "api-token": user.api_token,
+      "user-id": JSON.stringify({
+        user_id: user.unit_id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId
+      })
+    }
+  );
+
+
+  const headers = await Util.getCommonAuth();
+  return ApiCommon.getReq(url, headers);
+},
+
+updateUserSettings: async (payload) => {
+  const user = await Common.getLoggedInUser();
+
+  const url = otherServices.appendParamsInUrl(
+    `${API_URL2}/updateUser`,
+    {
+      "api-token": user.api_token,
+      "user-id": JSON.stringify({
+        user_id: user.unit_id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId
+      })
+    }
+  );
+
+  const headers = await Util.getCommonAuth();
+  return ApiCommon.putReq(url, payload, headers);
 },
     getMyAccounts: async () => {
     const user = await Common.getLoggedInUser()

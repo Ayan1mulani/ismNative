@@ -1,27 +1,41 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView,
   View,
   TextInput,
-  TouchableOpacity,
   Text,
+  TouchableOpacity,
   StyleSheet,
-  Keyboard,
+  StatusBar,
+  ScrollView,
+  Dimensions,
+  Image,
   KeyboardAvoidingView,
   Platform,
-  TouchableWithoutFeedback
+  Keyboard
 } from "react-native";
 
+import { Svg, Path } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
-import { usePermissions } from "../../Utils/ConetextApi";
 import ErrorPopupModal from "../PopUps/MessagePop";
 import { ismServices } from "../../services/ismServices";
 import BRAND from "../config";
 
+const { width } = Dimensions.get("window");
+
+const Wave = () => (
+  <View style={{ backgroundColor: "transparent", height: 100 }}>
+    <Svg height="100%" width="100%" viewBox={`0 0 ${width} 100`} preserveAspectRatio="none">
+      <Path
+        d={`M0,40 C${width * 0.3},120 ${width * 0.6},-20 ${width},60 L${width},100 L0,100 Z`}
+        fill="white"
+      />
+    </Svg>
+  </View>
+);
+
 const OtpPhoneScreen = () => {
 
   const navigation = useNavigation();
-  const { nightMode } = usePermissions();
 
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,25 +44,8 @@ const OtpPhoneScreen = () => {
   const [errorTitle, setErrorTitle] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const theme = nightMode
-    ? {
-        bg: "#121212",
-        text: "#fff",
-        sub: "#B3B3B3",
-        inputBg: "#2a2a2a",
-        border: "#1565C0"
-      }
-    : {
-        bg: "#f8f9fa",
-        text: "#074B7C",
-        sub: "#6c757d",
-        inputBg: "#fff",
-        border: "#1996D3"
-      };
-
-  const isValidEmail = (email) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
+  const isValidEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleSendOtp = async () => {
 
@@ -76,18 +73,17 @@ const OtpPhoneScreen = () => {
 
       const response = await ismServices.generateOtp(inputValue);
 
-      console.log("OTP RESPONSE:", response);
-
       if (response?.status === "success") {
 
         navigation.navigate("OtpVerify", {
           otpData: response.data,
-          identity: inputValue
+          identity: inputValue,
+          message: response.message
         });
 
       } else {
 
-        setErrorTitle("Failed");
+        setErrorTitle("OTP Failed");
         setErrorMessage(response?.message || "Failed to send OTP");
         setShowError(true);
 
@@ -95,71 +91,96 @@ const OtpPhoneScreen = () => {
 
     } catch (error) {
 
-      console.log("OTP ERROR:", error);
-
       setErrorTitle("Error");
       setErrorMessage("Something went wrong");
       setShowError(true);
 
     } finally {
+
       setLoading(false);
+
     }
+
   };
 
   return (
 
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.bg }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
 
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
 
-        <SafeAreaView style={styles.inner}>
+        <ScrollView contentContainerStyle={styles.scrollViewContent}>
 
-          <Text style={[styles.heading, { color: theme.text }]}>
-            OTP LOGIN
-          </Text>
+          <View style={styles.container}>
 
-          <Text style={[styles.subText, { color: theme.sub }]}>
-            Enter your mobile number or email to receive OTP
-          </Text>
+            {/* HEADER */}
+            <View style={styles.headerContainer}>
 
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.inputBg,
-                color: theme.text,
-                borderColor: theme.border
-              }
-            ]}
-            placeholder="Enter Mobile Number or Email"
-            placeholderTextColor={nightMode ? "#888" : "#999"}
-            keyboardType="default"
-            value={inputValue}
-            onChangeText={setInputValue}
-            editable={!loading}
-          />
+              <Image
+                source={BRAND.LOGO}
+                style={styles.logo}
+                resizeMode="contain"
+              />
 
-          <TouchableOpacity
-            style={[
-              styles.button,
-              { backgroundColor: loading ? "#b0b0b0" : BRAND.COLORS.primary }
-            ]}
-            onPress={handleSendOtp}
-            disabled={loading}
-          >
+              <Text style={styles.welcomeMessage}>
+                OTP Login
+              </Text>
 
-            <Text style={styles.buttonText}>
-              {loading ? "Sending OTP..." : "Send OTP"}
-            </Text>
+              <Text style={styles.subWelcomeMessage}>
+                Enter mobile number or email
+              </Text>
 
-          </TouchableOpacity>
+            </View>
 
-        </SafeAreaView>
+            {/* FORM */}
+            <View style={styles.formContainer}>
 
-      </TouchableWithoutFeedback>
+              <Wave />
+
+              <View style={styles.formInputsWrapper}>
+
+                <View style={styles.inputContainer}>
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Mobile Number or Email"
+                    placeholderTextColor="#9e9e9e"
+                    value={inputValue}
+                    onChangeText={setInputValue}
+                    editable={!loading}
+                    autoFocus={true}
+                  />
+
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleSendOtp}
+                  style={[
+                    styles.loginButton,
+                    loading && styles.loginButtonDisabled
+                  ]}
+                  disabled={loading}
+                >
+
+                  <Text style={styles.loginButtonText}>
+                    {loading ? "Sending OTP..." : "Send OTP"}
+                  </Text>
+
+                </TouchableOpacity>
+
+              </View>
+
+            </View>
+
+          </View>
+
+        </ScrollView>
+
+      </KeyboardAvoidingView>
 
       <ErrorPopupModal
         visible={showError}
@@ -170,55 +191,96 @@ const OtpPhoneScreen = () => {
         buttonText="OK"
       />
 
-    </KeyboardAvoidingView>
+    </View>
+
   );
+
 };
 
 export default OtpPhoneScreen;
 
 const styles = StyleSheet.create({
 
-  container: {
-    flex: 1
-  },
+  flex: { flex: 1 },
 
-  inner: {
+  safeArea: {
     flex: 1,
-    justifyContent: "center",
+    backgroundColor: BRAND.PRIMARY_COLOR
+  },
+
+  scrollViewContent: {
+    flexGrow: 1
+  },
+
+  container: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: BRAND.PRIMARY_COLOR
+  },
+
+  headerContainer: {
     alignItems: "center",
-    padding: 20
+    paddingBottom: 40
   },
 
-  heading: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 10
-  },
-
-  subText: {
-    fontSize: 14,
-    marginBottom: 30
-  },
-
-  input: {
-    width: "90%",
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 14,
+  logo: {
+    width: 240,
+    height: 60,
     marginBottom: 20
   },
 
-  button: {
-    width: "90%",
-    padding: 16,
-    borderRadius: 10,
-    alignItems: "center"
+  welcomeMessage: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 6
   },
 
-  buttonText: {
+  subWelcomeMessage: {
+    fontSize: 14,
+    color: "#E8F4FD"
+  },
+
+  formContainer: {},
+
+  formInputsWrapper: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 25,
+    paddingTop: 30,
+    paddingBottom: 50
+  },
+
+  inputContainer: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 12,
+    marginBottom: 20,
+    paddingHorizontal: 15,
+    height: 60,
+    justifyContent: "center"
+  },
+
+  input: {
+    fontSize: 16,
+    color: "#000"
+  },
+
+  loginButton: {
+    backgroundColor: BRAND.COLORS.button,
+    paddingVertical: 18,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    height: 60
+  },
+
+  loginButtonDisabled: {
+    backgroundColor: "#B0B0B0"
+  },
+
+  loginButtonText: {
     color: "#fff",
-    fontWeight: "600",
-    fontSize: 16
+    fontWeight: "bold",
+    fontSize: 18
   }
 
 });

@@ -93,21 +93,49 @@ const visitorServices = {
     return ApiCommon.getReq(url, headers);
   },
 
-  getParkingFormFields: async () => {
-    const user = await Common.getLoggedInUser();
+ getParkingFormFields: async () => {
+  const user = await Common.getLoggedInUser();
 
-    const url = await visitorServices.appendParamsInUrl(
-      `${API_URL2}/${user.society_id}/getfields?form_id=769`
-    );
+  const url = await visitorServices.appendParamsInUrl(
+    `${API_URL4}/v1/society/${user.societyId}/getfields`,
+    {
+      form_type: "PARKING_FORM",
+      default: 1
+    }
+  );
 
+  const headers = await Util.getCommonAuth();
 
-    const headers = await Util.getCommonAuth();
+  return ApiCommon.getReq(url, headers);
+},
 
-    const res = await ApiCommon.getReq(url, headers);
+acceptVisitor: async (visitId) => {
+  const user = await Common.getLoggedInUser();
 
+  const url = `${API_URL4}/v1/society/${user.societyId}/allow`;
 
-    return res;
-  },
+  const headers = await Util.getCommonAuth();
+
+  const payload = {
+    visit_id: visitId
+  };
+
+  return ApiCommon.postReq(url, payload, headers);
+},
+
+denyVisitor: async (visitId) => {
+  const user = await Common.getLoggedInUser();
+
+  const url = `${API_URL4}/v1/society/${user.societyId}/deny`;
+
+  const headers = await Util.getCommonAuth();
+
+  const payload = {
+    visit_id: visitId
+  };
+
+  return ApiCommon.postReq(url, payload, headers);
+},
 
 
   visitAttended: async (visitId, attendedValue) => {
@@ -119,6 +147,9 @@ const visitorServices = {
       unit_id: user.unit_id,
       society_id: user.societyId
     };
+
+
+    
 
 
     const url = await visitorServices.appendParamsInUrl(
@@ -135,6 +166,36 @@ const visitorServices = {
     return ApiCommon.postReq(url, payload, headers);
   },
 
+
+  testIVRCall: async () => {
+  try {
+
+    const user = await Common.getLoggedInUser();
+
+    const url = await visitorServices.appendParamsInUrl(
+      `${API_URL4}/v1/society/${user.societyId}/resident/${user.unit_id}/testivrring`
+    );
+
+    const headers = await Util.getCommonAuth();
+
+    const payload = {
+      test: true
+    };
+
+    const response = await ApiCommon.postReq(url, payload, headers);
+
+    console.log("IVR Test Response:", response);
+
+    return response;
+
+  } catch (error) {
+
+    console.log("IVR Test Error:", error);
+
+    throw error;
+
+  }
+},
 
 
   bookParking: async (payload) => {

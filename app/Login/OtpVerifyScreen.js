@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
-  Platform,
+  Platform
 } from "react-native";
 
 import {
@@ -31,12 +31,19 @@ const OtpVerifyScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
-  const { otpData, identity } = route.params || {};
+  const { otpData, identity, message } = route.params || {};
 
   const { loadPermissions } = usePermissions();
 
+  const inputRef = useRef(null);
+
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [timer, setTimer] = useState(otpData?.expire_in || 0);
+
+  const [verifyMessage, setVerifyMessage] = useState("");
+  const [messageType, setMessageType] = useState("");
 
   const [accounts, setAccounts] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -46,91 +53,110 @@ const OtpVerifyScreen = () => {
   const [errorTitle, setErrorTitle] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const ALLOWED_ROLES = ["Member", "resident", "tenant", "member"];
+  const ALLOWED_ROLES = ["member", "resident", "tenant"];
 
   /* ===============================
-        SAVE USER & NAVIGATE
+        AUTO FOCUS + TIMER
+  =============================== */
 
-        logMeIn returns same shape as login
-        but id field comes as JSON string —
-        we fix it to equal unit_id so all
-        API calls like getMyBalance work correctly
+  useEffect(() => {
+
+    inputRef.current?.focus();
+
+    const interval = setInterval(() => {
+
+      setTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+
+    }, 1000);
+
+    return () => clearInterval(interval);
+
+  }, []);
+
+  const formatTime = () => {
+
+    const minutes = Math.floor(timer / 60);
+    const seconds = timer % 60;
+
+    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+
+  };
+
+  /* ===============================
+        SAVE USER
   =============================== */
 
   const saveUserAndNavigate = async (userData) => {
 
-  let cleanData = { ...userData };
+    let cleanData = { ...userData };
 
-  // 🔥 Fix ID if backend sends JSON string
-  if (typeof cleanData.id === "string" && cleanData.id.startsWith("{")) {
-    try {
-      const parsed = JSON.parse(cleanData.id);
+    if (typeof cleanData.id === "string" && cleanData.id.startsWith("{")) {
+      try {
 
-      cleanData.id = parsed.unit_id;
-      cleanData.unit_id = parsed.unit_id;
-      cleanData.flat_no = parsed.flat_no;
-      cleanData.role_id = parsed.group_id;
-      cleanData.societyId = parsed.society_id;
+        const parsed = JSON.parse(cleanData.id);
 
-    } catch (e) {
-      console.log("Failed to parse id:", e);
+        cleanData.id = parsed.unit_id;
+        cleanData.unit_id = parsed.unit_id;
+        cleanData.flat_no = parsed.flat_no;
+        cleanData.role_id = parsed.group_id;
+        cleanData.societyId = parsed.society_id;
+
+      } catch (e) {
+
+        console.log("ID Parse Failed");
+
+      }
     }
-  }
 
-  // Ensure id = unit_id (same as normal login)
-  if (cleanData.unit_id) {
-    cleanData.id = cleanData.unit_id;
-  }
+    if (cleanData.unit_id) {
+      cleanData.id = cleanData.unit_id;
+    }
 
-  console.log("FINAL USER STORED:", cleanData);
+    const role = cleanData?.role?.toLowerCase();
 
-  const role = cleanData?.role?.toLowerCase();
+    if (!ALLOWED_ROLES.includes(role)) {
 
-  const ALLOWED_ROLES = ["member", "resident", "tenant"];
+      setErrorTitle("Access Denied");
+      setErrorMessage(`This app is not for ${cleanData.role}`);
+      setShowError(true);
+      return;
 
-  if (!ALLOWED_ROLES.includes(role)) {
-    setErrorTitle("Access Denied");
-    setErrorMessage(`This app is not for ${cleanData.role}`);
-    setShowError(true);
-    return;
-  }
+    }
 
-  await AsyncStorage.setItem("userInfo", JSON.stringify(cleanData));
+    await AsyncStorage.setItem("userInfo", JSON.stringify(cleanData));
 
-  await AsyncStorage.removeItem("permissions");
+    await AsyncStorage.removeItem("permissions");
 
-  await loadPermissions();
+    await loadPermissions();
 
-  await RegisterAppOneSignal();
+    await RegisterAppOneSignal();
 
-  navigation.dispatch(
-    CommonActions.reset({
-      index: 0,
-      routes: [{ name: "MainApp" }]
-    })
-  );
-};
-  
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: "MainApp" }]
+      })
+    );
+
+  };
 
   /* ===============================
         LOGIN WITH ACCOUNT
-
-        Sends token in URL + full account
-        object in body — server validates
-        token (who you are) and reads account
-        body (which account to log into)
   =============================== */
+
   const loginWithAccount = async (account, token) => {
 
     try {
 
       const logMeInResponse = await ismServices.logMeIn(token, account);
 
-      console.log("LOGMEIN RESPONSE:", JSON.stringify(logMeInResponse, null, 2));
-
       if (logMeInResponse.status === "success") {
-        const user = await AsyncStorage.getItem("userInfo");
-console.log(JSON.parse(user));
 
         await saveUserAndNavigate(logMeInResponse.data);
 
@@ -144,9 +170,8 @@ console.log(JSON.parse(user));
 
     } catch (error) {
 
-      console.log("loginWithAccount error:", error);
       setErrorTitle("Login Failed");
-      setErrorMessage("Something went wrong. Please try again.");
+      setErrorMessage("Something went wrong.");
       setShowError(true);
 
     }
@@ -156,75 +181,55 @@ console.log(JSON.parse(user));
   /* ===============================
         VERIFY OTP
   =============================== */
+
   const handleVerifyOtp = async () => {
 
-    if (loading) return;
-
     if (!otp || otp.length < 4) {
-      setErrorTitle("Invalid OTP");
-      setErrorMessage("Please enter a valid OTP.");
-      setShowError(true);
+
+      setVerifyMessage("Please enter a valid OTP.");
+      setMessageType("error");
       return;
+
     }
 
     setLoading(true);
 
     try {
 
-      const payload = {
-        id:  otpData?.id,
-        otp: otp
-      };
-
-      const response = await ismServices.verifyOtp(payload);
-
-      console.log("VERIFY OTP RESPONSE:", JSON.stringify(response, null, 2));
+      const response = await ismServices.verifyOtp({
+        id: otpData?.id,
+        otp
+      });
 
       if (response.status === "success") {
 
         const token = response.data.token;
 
-        // Keep in state for modal account select flow
         setAuthToken(token);
 
         const accountResponse = await ismServices.getMyAccounts(token);
 
-        console.log("GET ACCOUNTS RESPONSE:", JSON.stringify(accountResponse, null, 2));
+        if (accountResponse.data.length > 1) {
 
-        if (accountResponse.status === "success") {
-
-          if (accountResponse.data.length > 1) {
-            // Multiple accounts — show picker modal
-            setAccounts(accountResponse.data);
-            setModalVisible(true);
-            return;
-          }
-
-          // Single account — login directly
-          await loginWithAccount(accountResponse.data[0], token);
-
-        } else {
-
-          setErrorTitle("Account Error");
-          setErrorMessage(accountResponse?.message || "Failed to fetch accounts.");
-          setShowError(true);
+          setAccounts(accountResponse.data);
+          setModalVisible(true);
+          return;
 
         }
 
+        await loginWithAccount(accountResponse.data[0], token);
+
       } else {
 
-        setErrorTitle("Verification Failed");
-        setErrorMessage(response?.message || "Invalid OTP");
-        setShowError(true);
+        setVerifyMessage(response?.message || "Invalid OTP");
+        setMessageType("error");
 
       }
 
     } catch (error) {
 
-      console.log("OTP VERIFY ERROR:", error);
-      setErrorTitle("Error");
-      setErrorMessage("Something went wrong. Please try again.");
-      setShowError(true);
+      setVerifyMessage("Something went wrong. Please try again.");
+      setMessageType("error");
 
     } finally {
 
@@ -237,23 +242,12 @@ console.log(JSON.parse(user));
   /* ===============================
         ACCOUNT SELECT
   =============================== */
-  const handleAccountSelect = async (selectedUser) => {
+
+  const handleAccountSelect = async (account) => {
 
     setModalVisible(false);
 
-    try {
-
-      // authToken safely set before modal opened
-      await loginWithAccount(selectedUser, authToken);
-
-    } catch (error) {
-
-      console.log("Account select error:", error);
-      setErrorTitle("Login Failed");
-      setErrorMessage("Unable to login. Please try again.");
-      setShowError(true);
-
-    }
+    await loginWithAccount(account, authToken);
 
   };
 
@@ -271,6 +265,7 @@ console.log(JSON.parse(user));
       </Text>
 
       <TextInput
+        ref={inputRef}
         style={styles.input}
         placeholder="Enter OTP"
         keyboardType="number-pad"
@@ -279,15 +274,57 @@ console.log(JSON.parse(user));
         onChangeText={setOtp}
       />
 
+      {/* OTP INFO MESSAGE */}
+      {message && (
+        <Text style={styles.infoMessage}>
+          {message}
+        </Text>
+      )}
+
+      {/* OTP ERROR MESSAGE */}
+      {verifyMessage !== "" && (
+        <Text
+          style={[
+            styles.verifyMessage,
+            messageType === "error"
+              ? styles.errorText
+              : styles.successText
+          ]}
+        >
+          {verifyMessage}
+        </Text>
+      )}
+
+      {/* TIMER */}
+      {timer > 0 && (
+        <Text style={styles.timer}>
+          OTP expires in {formatTime()}
+        </Text>
+      )}
+
       <TouchableOpacity
         style={styles.button}
         onPress={handleVerifyOtp}
         disabled={loading}
       >
+
         <Text style={styles.buttonText}>
           {loading ? "Verifying..." : "Verify OTP"}
         </Text>
+
       </TouchableOpacity>
+
+      {/* PASSWORD LOGIN OPTION */}
+      {verifyMessage !== "" && (
+        <TouchableOpacity
+          style={styles.altLogin}
+          onPress={() => navigation.navigate("Login")}
+        >
+          <Text style={styles.altLoginText}>
+            Login with Email & Password
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <AccountSelectorModal
         visible={modalVisible}
@@ -313,6 +350,10 @@ console.log(JSON.parse(user));
 
 export default OtpVerifyScreen;
 
+/* ===============================
+        STYLES
+=============================== */
+
 const styles = StyleSheet.create({
 
   container: {
@@ -329,7 +370,7 @@ const styles = StyleSheet.create({
 
   subText: {
     fontSize: 14,
-    marginBottom: 30
+    marginBottom: 20
   },
 
   input: {
@@ -338,8 +379,35 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 15,
     fontSize: 18,
-    marginBottom: 20,
+    marginBottom: 10,
     textAlign: "center"
+  },
+
+  infoMessage: {
+    fontSize: 13,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 5
+  },
+
+  verifyMessage: {
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 10
+  },
+
+  errorText: {
+    color: "#DC2626"
+  },
+
+  successText: {
+    color: "#16A34A"
+  },
+
+  timer: {
+    textAlign: "center",
+    color: "#EF4444",
+    marginBottom: 20
   },
 
   button: {
@@ -353,6 +421,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontSize: 16
+  },
+
+  altLogin: {
+    marginTop: 20,
+    alignItems: "center"
+  },
+
+  altLoginText: {
+    color: BRAND.PRIMARY_COLOR,
+    fontWeight: "600"
   }
 
 });

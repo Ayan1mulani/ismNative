@@ -103,6 +103,8 @@ const StaffDetailScreen = ({ route, navigation }) => {
   const handleAssociate = useCallback(async () => {
     try {
       setAssigning(true);
+          showModal("loading", "Associating", "Please wait...");
+
 
       // FIX (Issue 1): use staffId
       const res = await otherServices.assignStaff(staffId);
@@ -283,12 +285,13 @@ const StaffDetailScreen = ({ route, navigation }) => {
       </ScrollView>
 
       {/* Status Modal */}
-      <StatusModal
-        visible={statusModal.visible}
-        type={statusModal.type}
-        title={statusModal.title}
-        subtitle={statusModal.subtitle}
-      />
+  <StatusModal
+  visible={statusModal.visible}
+  type={statusModal.type}
+  title={statusModal.title}
+  subtitle={statusModal.subtitle}
+  onClose={closeModal}
+/>
     </SafeAreaView>
   );
 };

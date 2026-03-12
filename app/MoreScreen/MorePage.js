@@ -26,7 +26,7 @@ import BRAND from '../config'
 import { RegisterAppOneSignal } from '../../services/oneSignalService';
 
 const ProfileScreen = () => {
-const { nightMode, setNightMode, loadPermissions } = usePermissions();
+  const { nightMode, setNightMode, loadPermissions } = usePermissions();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -70,14 +70,36 @@ const { nightMode, setNightMode, loadPermissions } = usePermissions();
         return;
       }
 
-      // ✅ Always fetch fresh user details from API
+      const parsedUser = JSON.parse(storedUser);
+      const ALLOWED_ROLES = ["member", "resident", "tenant"];
+
+      const userRole = (parsedUser?.role || "").toLowerCase();
+
+      if (!ALLOWED_ROLES.includes(userRole)) {
+        Alert.alert(
+          "Access Denied",
+          `This app is not for ${parsedUser.role}`
+        );
+
+        await AsyncStorage.clear();
+
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          })
+        );
+
+        return;
+      }
+
+      // ✅ Fetch fresh details
       const detailsRes = await ismServices.getUserDetails();
 
-console.log("USER DETAILS RESPONSE:", detailsRes);
+      console.log("USER DETAILS RESPONSE:", detailsRes);
 
       setUserProfile(detailsRes);
 
-      // Optional: store it
       await AsyncStorage.setItem(
         'userDetails',
         JSON.stringify(detailsRes)
@@ -89,46 +111,46 @@ console.log("USER DETAILS RESPONSE:", detailsRes);
       setLoading(false);
     }
   };
-const handleLogout = () => {
-  Alert.alert(
-    "Logout",
-    "Are you sure you want to logout?",
-    [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          try {
-
-            // 🔔 Disable push locally
-            await OneSignal.User.pushSubscription.optOut();
-
-            // 🔔 Unregister device from backend
-            await UnRegisterOneSignal();
-
-            // 🧹 Clear stored data
-            await AsyncStorage.clear();
-
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: "Login" }],
-              })
-            );
-
-          } catch (error) {
-            console.log("Logout error:", error);
-          }
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
         },
-      },
-    ],
-    { cancelable: true }
-  );
-};
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            try {
+
+              // 🔔 Disable push locally
+              await OneSignal.User.pushSubscription.optOut();
+
+              // 🔔 Unregister device from backend
+              await UnRegisterOneSignal();
+
+              // 🧹 Clear stored data
+              await AsyncStorage.clear();
+
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: "Login" }],
+                })
+              );
+
+            } catch (error) {
+              console.log("Logout error:", error);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   const handleSwitchAccount = async () => {
     try {
@@ -179,65 +201,65 @@ const handleLogout = () => {
     setPasswordModal(true);
   };
 
- const confirmSwitchLogin = async () => {
-  if (!password.trim()) {
-    Alert.alert('Enter Password');
-    return;
-  }
-
-  try {
-    setIsSwitching(true);
-
-    // 🔔 Unregister old user push notification
-    await OneSignal.User.pushSubscription.optOut();
-    await UnRegisterOneSignal();
-
-    const userInfo = await AsyncStorage.getItem('userInfo');
-    const parsedUser = JSON.parse(userInfo);
-
-    const payload = {
-      identity: parsedUser.email,
-      password: password,
-      tenant: 0,
-      user_id: selectedUserId,
-    };
-
-    const response = await LoginSrv.login(payload);
-
-    if (response.status === 'success') {
-
-      await AsyncStorage.setItem(
-        'userInfo',
-        JSON.stringify(response.data)
-      );
-
-      await AsyncStorage.removeItem("permissions");
-
-      // reload permissions
-      await loadPermissions();
-
-      // 🔔 Register new user device
-      setTimeout(() => RegisterAppOneSignal(), 2000);
-
-      setPasswordModal(false);
-
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'MainApp' }],
-        })
-      );
-
-    } else {
-      Alert.alert('Wrong Password');
+  const confirmSwitchLogin = async () => {
+    if (!password.trim()) {
+      Alert.alert('Enter Password');
+      return;
     }
 
-  } catch (error) {
-    console.log('Final switch error:', error);
-  } finally {
-    setIsSwitching(false);
-  }
-};
+    try {
+      setIsSwitching(true);
+
+      // 🔔 Unregister old user push notification
+      await OneSignal.User.pushSubscription.optOut();
+      await UnRegisterOneSignal();
+
+      const userInfo = await AsyncStorage.getItem('userInfo');
+      const parsedUser = JSON.parse(userInfo);
+
+      const payload = {
+        identity: parsedUser.email,
+        password: password,
+        tenant: 0,
+        user_id: selectedUserId,
+      };
+
+      const response = await LoginSrv.login(payload);
+
+      if (response.status === 'success') {
+
+        await AsyncStorage.setItem(
+          'userInfo',
+          JSON.stringify(response.data)
+        );
+
+        await AsyncStorage.removeItem("permissions");
+
+        // reload permissions
+        await loadPermissions();
+
+        // 🔔 Register new user device
+        setTimeout(() => RegisterAppOneSignal(), 2000);
+
+        setPasswordModal(false);
+
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'MainApp' }],
+          })
+        );
+
+      } else {
+        Alert.alert('Wrong Password');
+      }
+
+    } catch (error) {
+      console.log('Final switch error:', error);
+    } finally {
+      setIsSwitching(false);
+    }
+  };
   const getAvatarUri = () => {
     if (userProfile?.image_src) return { uri: userProfile.image_src };
     const name = encodeURIComponent(userProfile?.name || 'User');
@@ -367,7 +389,7 @@ const handleLogout = () => {
           <Text style={[styles.sectionTitle, { color: theme.textMain }]}>
             Settings
           </Text>
-{/* 
+          {/* 
           <TouchableOpacity
             style={styles.actionRow}
             onPress={() => setNightMode(prev => !prev)}
@@ -437,7 +459,7 @@ const handleLogout = () => {
             <TextInput
               placeholder="Password"
               secureTextEntry
-               placeholderTextColor="#000"
+              placeholderTextColor="#000"
               value={password}
               onChangeText={setPassword}
               style={{
@@ -446,7 +468,7 @@ const handleLogout = () => {
                 borderRadius: 10,
                 padding: 12,
                 marginBottom: 15,
-                color:'#000'
+                color: '#000'
               }}
             />
 

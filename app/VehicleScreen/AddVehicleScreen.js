@@ -80,7 +80,7 @@ const AddVehicleScreen = ({ navigation, route }) => {
   if (!permissionsLoaded) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.center}>
+        <View >
           <ActivityIndicator size="large" color="#2563EB" />
           <Text style={{ marginTop: 10 }}>Loading permissions...</Text>
         </View>
@@ -190,9 +190,14 @@ const AddVehicleScreen = ({ navigation, route }) => {
         });
 
         setTimeout(() => {
-          setStatusModal((prev) => ({ ...prev, visible: false }));
-          navigation.goBack();
-        }, 1500);
+  setStatusModal((prev) => ({ ...prev, visible: false }));
+
+  navigation.navigate({
+    name: "MyVehiclesScreen",
+    params: { refresh: true },
+    merge: true,
+  });
+}, 1500);
       } else {
         setStatusModal({
           visible: true,

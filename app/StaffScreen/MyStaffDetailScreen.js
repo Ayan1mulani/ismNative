@@ -16,6 +16,7 @@ import { useNavigation } from "@react-navigation/native";
 import { otherServices } from "../../services/otherServices";
 import AppHeader from "../components/AppHeader";
 import BRAND from "../config";
+import StatusModal from "../components/StatusModal";
 
 const COLORS = {
   primary: BRAND.COLORS.primary,
@@ -42,6 +43,8 @@ const parseJSONArray = (raw) => {
   return [];
 };
 
+
+
 const MyStaffDetailScreen = ({ route }) => {
   const { staff } = route.params;
   const navigation = useNavigation();
@@ -59,6 +62,26 @@ const MyStaffDetailScreen = ({ route }) => {
 
   // FIX: uses parseJSONArray so arrays from backend work too
   const houseCount = parseJSONArray(staff.work_location).length;
+
+  const [statusModal, setStatusModal] = useState({
+  visible: false,
+  type: "loading",
+  title: "",
+  subtitle: "",
+});
+
+const closeModal = useCallback(() => {
+  setStatusModal((prev) => ({ ...prev, visible: false }));
+}, []);
+
+const showModal = useCallback((type, title, subtitle) => {
+  setStatusModal({
+    visible: true,
+    type,
+    title,
+    subtitle,
+  });
+}, []);
 
   useEffect(() => {
     fetchExistingRating();
@@ -102,35 +125,43 @@ const MyStaffDetailScreen = ({ route }) => {
     }
   }, []);
 
-  const handleRelease = useCallback(() => {
-    Alert.alert(
-      "Release Staff",
-      "Are you sure you want to release this staff?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes",
-          onPress: async () => {
-            try {
-              // FIX: uses releasing state, not shared loading
-              setReleasing(true);
-              const res = await otherServices.unassignStaff(staffId);
-              if (res?.status === "success") {
+const handleRelease = useCallback(() => {
+  Alert.alert(
+    "Release Staff",
+    "Are you sure you want to release this staff?",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Yes",
+        onPress: async () => {
+          try {
+            setReleasing(true);
+
+            showModal("loading", "Releasing Staff", "Please wait...");
+
+            const res = await otherServices.unassignStaff(staffId);
+
+            if (res?.status === "success") {
+              showModal("success", "Released", "Staff has been released");
+
+              setTimeout(() => {
+                closeModal();
                 navigation.goBack();
-              } else {
-                Alert.alert("Error", res?.message || "Unable to release staff");
-              }
-            } catch (error) {
-              console.error("[MyStaffDetailScreen] release error:", error);
-              Alert.alert("Error", "Failed to release staff");
-            } finally {
-              setReleasing(false);
+              }, 2000);
+            } else {
+              showModal("error", "Error", res?.message || "Unable to release staff");
             }
-          },
+          } catch (error) {
+            console.error("[MyStaffDetailScreen] release error:", error);
+            showModal("error", "Error", "Failed to release staff");
+          } finally {
+            setReleasing(false);
+          }
         },
-      ]
-    );
-  }, [staffId, navigation]);
+      },
+    ]
+  );
+}, [staffId, navigation, showModal, closeModal]);
 
   const handleSubmitRating = useCallback(async () => {
     if (!rating) {
@@ -384,6 +415,13 @@ const MyStaffDetailScreen = ({ route }) => {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      <StatusModal
+  visible={statusModal.visible}
+  type={statusModal.type}
+  title={statusModal.title}
+  subtitle={statusModal.subtitle}
+  onClose={closeModal}
+/>
     </SafeAreaView>
   );
 };

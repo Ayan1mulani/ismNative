@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -15,6 +15,7 @@ import Action from './Action';
 import QuickActionsScreen from './QuickActionsScreen';
 import BRAND from '../../app/config';
 import NoticeTickerScreen from './NoticeTickerScreen';
+import { ismServices } from '../../services/ismServices'; // 👈 import service
 
 const theme = BRAND.COLORS;
 
@@ -38,11 +39,32 @@ const commonStyles = {
   },
 };
 
-
 const HomeScreen = () => {
   const { nightMode } = usePermissions();
 
-  // ✅ Check if context is ready
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // ✅ CALL USER DETAIL API
+  useEffect(() => {
+
+    const loadUserDetails = async () => {
+      try {
+
+        const res = await ismServices.getUserDetails();
+
+        console.log("USER DETAILS RESPONSE:", res);
+
+      } catch (error) {
+        console.log("User detail API error:", error);
+      }
+    };
+
+    loadUserDetails();
+
+  }, []);
+
+  // ✅ Check if context ready
   if (nightMode === undefined) {
     return (
       <View style={[commonStyles.safeArea, commonStyles.center]}>
@@ -51,14 +73,17 @@ const HomeScreen = () => {
     );
   }
 
-  const [refreshing, setRefreshing] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-
   const onRefresh = async () => {
     try {
       setRefreshing(true);
       setRefreshTrigger(prev => prev + 1);
+
+      // reload user details on pull refresh
+      const res = await ismServices.getUserDetails();
+      console.log("REFRESH USER DETAILS:", res);
+
       await new Promise(resolve => setTimeout(resolve, 800));
+
     } catch (error) {
       console.log('Refresh error:', error);
     } finally {
@@ -78,7 +103,7 @@ const HomeScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={theme.primary}   
+            tintColor={theme.primary}
           />
         }
         ListHeaderComponent={
@@ -89,7 +114,7 @@ const HomeScreen = () => {
             <ServicesSection refreshTrigger={refreshTrigger} />
             <Action />
             <QuickActionsScreen />
-            <NoticeTickerScreen/>
+            <NoticeTickerScreen />
             <ImportantContacts refreshTrigger={refreshTrigger} />
           </View>
         }

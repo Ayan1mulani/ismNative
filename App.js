@@ -1,10 +1,11 @@
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet } from "react-native";
+import { StatusBar, StyleSheet } from "react-native";
 import NavigationPage from "./NavigationPage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BRAND from "./app/config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { OneSignal } from "react-native-onesignal";
 
 import initializeOneSignal from "./Utils/GlobalFunctions/PushNotifications";
 import { RegisterAppOneSignal } from "./services/oneSignalService";
@@ -15,46 +16,43 @@ export default function App() {
 
     initializeOneSignal();
 
-    const checkAndRegister = async () => {
+    // when push subscription becomes ready
+    OneSignal.User.pushSubscription.addEventListener("change", async () => {
 
       const userInfo = await AsyncStorage.getItem("userInfo");
 
       if (!userInfo) {
-        console.log("ℹ️ No user session");
+        console.log("No user session");
         return;
       }
 
-      console.log("👤 User session found");
+      const result = await RegisterAppOneSignal();
 
-      // wait for OneSignal initialization
-      await new Promise(res => setTimeout(res, 1500));
-
-      const isRegistered = await RegisterAppOneSignal();
-
-      if (isRegistered) {
-        console.log("🎉 Push registration success");
+      if (result) {
+        console.log("Push registration success");
       } else {
-        console.log("❌ Push registration failed");
+        console.log("Push registration failed");
       }
 
-    };
-
-    checkAndRegister();
+    });
 
   }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView
+
         style={[
           styles.safeArea,
           { backgroundColor: BRAND.COLORS.safeArea || BRAND.COLORS.background }
         ]}
       >
+        <StatusBar barStyle={"dark-content"}/>
         <NavigationPage />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
+
 }
 
 const styles = StyleSheet.create({

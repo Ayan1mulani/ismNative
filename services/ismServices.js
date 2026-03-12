@@ -6,6 +6,31 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const ismServices = {
 
+
+getUserDetails: async () => {
+  try {
+
+    const url = await ismServices.appendParamsInUrl(
+      `${API_URL2}/userDetail`
+    );
+
+    const response = await ApiCommon.getReq(url);
+
+    console.log("USER DETAILS RESPONSE:", response);
+
+    await AsyncStorage.setItem(
+      "userDetails",
+      JSON.stringify(response)
+    );
+
+    return response;
+
+  } catch (error) {
+    console.log("User detail error:", error);
+    throw error;
+  }
+},
+
   getMyNotifications: async () => {
     const url = await ismServices.appendParamsInUrl(
       `${API_URL2}/getmynotifications`,

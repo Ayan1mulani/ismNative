@@ -6,14 +6,14 @@ import { ApiCommon } from './ApiCommon';
 /* ================================
    REGISTER DEVICE
 ================================ */
-
 export const RegisterAppOneSignal = async () => {
+
   try {
 
-    const userInfo = await AsyncStorage.getItem('userInfo');
+    const userInfo = await AsyncStorage.getItem("userInfo");
 
     if (!userInfo) {
-      console.warn("OneSignal: No user info");
+      console.log("No user session");
       return false;
     }
 
@@ -23,23 +23,10 @@ export const RegisterAppOneSignal = async () => {
     const apiToken = parsedUser?.api_token;
     const societyId = parsedUser?.societyId || parsedUser?.s_id;
 
-    if (!userId || !apiToken) {
-      console.warn("OneSignal: Missing credentials");
-      return false;
-    }
-
-    /* WAIT FOR DEVICE ID */
-
-    let deviceId = null;
-
-    for (let i = 0; i < 5; i++) {
-      deviceId = await OneSignal.User.pushSubscription.getIdAsync();
-      if (deviceId) break;
-      await new Promise(res => setTimeout(res, 1000));
-    }
+    const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
 
     if (!deviceId) {
-      console.warn("OneSignal: Device ID not ready");
+      console.log("Device ID not ready");
       return false;
     }
 
@@ -72,13 +59,12 @@ export const RegisterAppOneSignal = async () => {
 
   } catch (error) {
 
-    console.error("OneSignal register error:", error?.response?.data || error);
+    console.error("OneSignal register error:", error);
 
     return false;
 
   }
-};
-
+}
 
 /* ================================
    UNREGISTER DEVICE

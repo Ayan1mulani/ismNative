@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "323621781259",
+    "project_id": "isocietymanager-440a7",
+    "storage_bucket": "isocietymanager-440a7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:323621781259:android:3ae563701193ff0b38ec0e",
+        "android_client_info": {
+          "package_name": "com.ismnative"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCicHD68zaBuQTDgg1vdYA4nMyMV6LjX9c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

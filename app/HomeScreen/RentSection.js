@@ -41,10 +41,8 @@ console.log("Can View Dashboard:", canViewDashboard);
       const storedUser = await AsyncStorage.getItem("userInfo");
       if (!storedUser) return;
 
-      console.log("stored user", storedUser)
       const detailsRes = await ismServices.getUserDetails();
       setUserDetails(detailsRes || {});
-      console.log(detailsRes,"details1+++++++++++++++++++++++++++++++++")
 
       // ✅ store flatNo globally
       if (detailsRes?.flat_no) {
@@ -52,10 +50,8 @@ console.log("Can View Dashboard:", canViewDashboard);
       }
 
       const billRes = await otherServices.getOutStandings();
-      console.log(billRes)
       setOutstanding(billRes?.data || []);
     } catch (err) {
-      console.log("Profile Load Error:", err);
     } finally {
       setLoading(false);
     }
@@ -99,7 +95,7 @@ console.log("Can View Dashboard:", canViewDashboard);
                 source={{
                   uri:
                     userDetails?.image_src ||
-                    "https://i.pravatar.cc/150", 
+                    "https://static.vecteezy.com/system/resources/previews/018/765/757/original/user-profile-icon-in-flat-style-member-avatar-illustration-on-isolated-background-human-permission-sign-business-concept-vector.jpg", 
                 }}
                 style={styles.avatar}
               />

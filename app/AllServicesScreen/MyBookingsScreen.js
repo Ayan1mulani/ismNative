@@ -100,11 +100,10 @@ const fetchBookings = async () => {
       <AppHeader title="My Bookings" />
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.primary}
-          style={{ marginTop: 30 }}
-        />
+        <View style={styles.center}>
+              <ActivityIndicator size="large" color={theme.primary} />
+              <Text style={styles.loadingText}>Loading Bookings...</Text>
+            </View>
       ) : bookings.length === 0 ? (
         <Text style={[styles.emptyText, { color: theme.text }]}>
           No bookings found
@@ -152,5 +151,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 40,
     fontSize: 15,
+  },
+    center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#F4F6F9",
+  },
+  loadingText: {
+    fontSize: 13,
+    color: "#9CA3AF",
   },
 });

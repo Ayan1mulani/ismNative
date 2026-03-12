@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import BRAND from '../config'
 import { usePermissions } from "../../Utils/ConetextApi";
 import { hasPermission } from "../../Utils/PermissionHelper";
-
+import { useFocusEffect, useRoute } from "@react-navigation/native";
 const PRIMARY = BRAND.COLORS.primary;
 
 
@@ -127,6 +127,7 @@ const EmptyState = ({ onAdd }) => (
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const MyVehiclesScreen = ({ navigation }) => {
+  const route = useRoute();
 
   const { permissions } = usePermissions();
 
@@ -135,20 +136,32 @@ const canCreateVehicle =
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchVehicles = async () => {
-    try {
-      const res = await otherServices.getMyVehicles();
-      setVehicles(res?.data || []);
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchVehicles = async () => {
+  try {
+    setLoading(true);
+    const res = await otherServices.getMyVehicles();
+    setVehicles(res?.data || []);
+  } catch (e) {
+    console.log(e);
+  } finally {
+    setLoading(false);
+  }
+};
+useEffect(() => {
+  fetchVehicles();
+}, []);
 
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
+useFocusEffect(
+  React.useCallback(() => {
+    if (route.params?.refresh) {
+      fetchVehicles();
+
+      navigation.setParams({
+        refresh: false,
+      });
+    }
+  }, [route.params?.refresh])
+);
 
   const handleCardPress = (item) => {
     const isApproved = item.is_approved === 1;
@@ -161,22 +174,22 @@ const canCreateVehicle =
   const approved = vehicles.filter((v) => v.is_approved === 1);
   const pending  = vehicles.filter((v) => v.is_approved !== 1);
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color={PRIMARY} />
-        <Text style={styles.loadingText}>Loading vehicles...</Text>
-      </SafeAreaView>
-    );
-  }
+
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* HEADER */}
-    <AppHeader title={"My Vehicles"}/>
+  <SafeAreaView style={styles.container}>
+    
+    <AppHeader title={"My Vehicles"} />
+
+    {loading ? (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={PRIMARY} />
+        <Text style={styles.loadingText}>Loading vehicles...</Text>
+      </View>
+    ) : (
       <FlatList
         data={vehicles}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <VehicleCard item={item} onPress={() => handleCardPress(item)} />
         )}
@@ -200,18 +213,19 @@ const canCreateVehicle =
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
       />
+    )}
 
-      {/* FAB */}
-     {canCreateVehicle && (
-  <TouchableOpacity
-    style={styles.fab}
-    onPress={() => navigation.navigate("AddVehicleScreen")}
-  >
-    <Ionicons name="add" size={28} color="#fff" />
-  </TouchableOpacity>
-)}
-    </SafeAreaView>
-  );
+    {canCreateVehicle && (
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate("AddVehicleScreen")}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+    )}
+
+  </SafeAreaView>
+);
 };
 
 export default MyVehiclesScreen;

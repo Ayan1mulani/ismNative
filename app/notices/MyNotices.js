@@ -109,9 +109,10 @@ export default function NoticesScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.bg }]}>
-        <ActivityIndicator size="large" color={THEME.primary} />
-      </View>
+      <View style={styles.center}>
+                   <ActivityIndicator size="large" color={theme.primary} />
+                   <Text style={styles.loadingText}>Loading Notices...</Text>
+                 </View>
     );
   }
 
@@ -176,7 +177,18 @@ export default function NoticesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#F4F6F9",
+  },
+  loadingText: {
+    fontSize: 13,
+    color: "#9CA3AF",
+  },
+
   card: {
     borderRadius: 12,
     padding: 16,

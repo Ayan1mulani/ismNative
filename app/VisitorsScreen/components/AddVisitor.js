@@ -130,11 +130,7 @@ const getHeaderTitle = () => {
     </Text>
   </View>
 
-  {/* Notification Icon */}
-  <TouchableOpacity style={styles.notificationButton}>
-    < Ionicons name="notifications-outline" size={22} color={theme.textSecondary} />
-    <View style={styles.notificationDot} />
-  </TouchableOpacity>
+
 </View>
 
     

@@ -43,17 +43,24 @@ const Wave = () => (
   </View>
 );
 
-const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
+const isValidIdentity = (val) => {
+  const value = val.trim();
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRegex = /^[0-9]{10}$/;
+
+  return emailRegex.test(value) || phoneRegex.test(value);
+};
 
 
 const NewLoginScreen = () => {
-  const [email, setEmail] = useState('sahilmulanioneplus@gmail.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(true);
   const { loadPermissions } = usePermissions();
-  
-  
+
+
   const navigation = useNavigation();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -66,11 +73,11 @@ const NewLoginScreen = () => {
   const getUserDetails = async () => {
     try {
       const userInfo = await AsyncStorage.getItem('userInfo');
-        console.log(userInfo,"user info")
+      console.log(userInfo, "user info")
 
       if (!userInfo) return;
       const parsed = JSON.parse(userInfo);
-      if (!parsed?.token && !parsed?.id) return;
+      if (!parsed?.api_token || !parsed?.id) return;
       await ismServices.getUserDetails();
       await loadPermissions();
       const updatedUserInfo = await AsyncStorage.getItem('userInfo');
@@ -85,7 +92,7 @@ const NewLoginScreen = () => {
   };
 
   useEffect(() => {
-     getUserDetails(); 
+    getUserDetails();
 
   }, []);
 
@@ -115,35 +122,40 @@ const NewLoginScreen = () => {
       }
       else if (response.status === 'success') {
 
-  const userRole = response?.data?.role;
+        const ALLOWED_ROLES = ["member", "resident", "tenant"];
 
-  const ALLOWED_ROLES = ["member", "resident", "tenant"];
+        const userRole = (response?.data?.role || "").toLowerCase();
 
-  if (!ALLOWED_ROLES.includes(userRole)) {
-    setErrorTitle("Access Denied");
-    setErrorMessage(`This app is not for ${userRole}`);
-    setShowError(true);
-    return;
-  }
+        if (!ALLOWED_ROLES.includes(userRole)) {
+          setErrorTitle("Access Denied");
+          setErrorMessage(`This app is not for ${userRole}`);
+          setShowError(true);
+          return;
+        }
 
-  await AsyncStorage.setItem('userInfo', JSON.stringify(response.data));
-  console.log(userInfo,"user info")
+        await AsyncStorage.setItem('userInfo', JSON.stringify(response.data));
 
-  await AsyncStorage.removeItem("permissions");
+        console.log(response.data, "user info");
 
-  await loadPermissions();
+        await AsyncStorage.removeItem("permissions");
 
-  await RegisterAppOneSignal();
+        await loadPermissions();
 
-  navigation.dispatch(
-    CommonActions.reset({
-      index: 0,
-      routes: [{ name: 'MainApp' }]
-    })
-  );
-}
+        await RegisterAppOneSignal();
 
-      
+        setTimeout(() => {
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: "MainApp" }],
+            })
+          );
+        }, 100);
+
+      }
+
+
+
       else {
         console.warn('Unhandled login status:', response.status);
         setErrorTitle('Login Failed');
@@ -172,9 +184,9 @@ const NewLoginScreen = () => {
       setShowError(true);
       return false;
     }
-    if (!isValidEmail(email)) {
+   if (!isValidIdentity(email)) {
       setErrorTitle('Validation Error');
-      setErrorMessage('Please enter a valid email address.');
+      setErrorMessage('Please enter a valid email or mobile number.');
       setShowError(true);
       return false;
     }
@@ -202,11 +214,11 @@ const NewLoginScreen = () => {
     <View style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
 
-    <KeyboardAvoidingView
-  style={styles.flex}
-  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-  keyboardVerticalOffset={10}
->
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={10}
+      >
         <ScrollView
           contentContainerStyle={styles.scrollViewContent}
           keyboardShouldPersistTaps="handled"
@@ -273,12 +285,12 @@ const NewLoginScreen = () => {
                 </View>
 
                 {/* OTP Login */}
-               <TouchableOpacity
-  style={styles.forgotPasswordButton}
-  onPress={() => navigation.navigate("OtpLogin")}
->
-  <Text style={styles.forgotPasswordText}>OTP LOGIN</Text>
-</TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.forgotPasswordButton}
+                  onPress={() => navigation.navigate("OtpLogin")}
+                >
+                  <Text style={styles.forgotPasswordText}>OTP LOGIN</Text>
+                </TouchableOpacity>
                 {/* Sign In */}
                 <TouchableOpacity
                   onPress={handleLoginPress}
