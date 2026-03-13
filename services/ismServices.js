@@ -31,6 +31,9 @@ getUserDetails: async () => {
   }
 },
 
+
+
+
   getMyNotifications: async () => {
     const url = await ismServices.appendParamsInUrl(
       `${API_URL2}/getmynotifications`,
@@ -103,24 +106,38 @@ getUserDetails: async () => {
     const url = `${API_URL2}/generateotp`;
     return ApiCommon.postReq(url, payload);
   },
+verifyOtp: async (payload) => {
+  try {
 
-  verifyOtp: async (payload) => {
-    try {
+    const url = `${API_URL2}/validateotp`;
 
-      const url = `${API_URL2}/validateotp`;
+    const response = await ApiCommon.postReq(url, payload);
 
-      const response = await ApiCommon.postReq(url, payload);
+    return response;
 
-      return response;
+  } catch (error) {
 
-    } catch (error) {
+    console.error("OTP Verify API Error:", error);
+    throw error;
 
-      console.error("OTP Verify API Error:", error);
+  }
+},
+resendOtp: async (payload) => {
+  try {
 
-      throw error;
+    const url = `${API_URL2}/resendotp`;
 
-    }
-  },
+    const response = await ApiCommon.postReq(url, payload);
+
+    return response;
+
+  } catch (error) {
+
+    console.error("Resend OTP API Error:", error);
+    throw error;
+
+  }
+},
 
   getMyAccounts: async (token) => {
     const url = `${API_URL2}/getmyaccounts?token=${token}`;

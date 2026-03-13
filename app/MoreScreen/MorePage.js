@@ -26,7 +26,7 @@ import BRAND from '../config'
 import { RegisterAppOneSignal } from '../../services/oneSignalService';
 
 const ProfileScreen = () => {
-  const { nightMode, setNightMode, loadPermissions } = usePermissions();
+  const { nightMode, setNightMode, loadPermissions, permissions } = usePermissions();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,6 +41,9 @@ const ProfileScreen = () => {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [password, setPassword] = useState('');
   const [isSwitching, setIsSwitching] = useState(false);
+  const hasMeterReading = permissions?.MTR_READING?.READ;
+  const hasMeter = permissions?.METER?.READ;
+  const hasMeterBalance = permissions?.METER_BALANCE?.READ;
 
   const navigation = useNavigation();
 
@@ -153,46 +156,67 @@ const ProfileScreen = () => {
   };
 
   const handleSwitchAccount = async () => {
-    try {
-      setIsSwitching(true); // 🔥 start loader
+  try {
+    setIsSwitching(true);
 
-      const userInfo = await AsyncStorage.getItem('userInfo');
-      if (!userInfo) return;
+    const userInfo = await AsyncStorage.getItem('userInfo');
+    if (!userInfo) return;
 
-      const parsedUser = JSON.parse(userInfo);
+    const parsedUser = JSON.parse(userInfo);
 
-      const payload = {
-        identity: parsedUser.email,
-        password: '',
-        tenant: 0,
-        user_id: null,
-      };
+    const payload = {
+      identity: parsedUser.email,
+      password: '',
+      tenant: 0,
+      user_id: null,
+    };
 
-      const response = await LoginSrv.login(payload);
+    const response = await LoginSrv.login(payload);
 
-      if (response.status === 'multipleLogin') {
+    // MULTIPLE ACCOUNTS
+    if (response.status === 'multipleLogin') {
 
-        const currentUser = parsedUser;
+      const currentUser = parsedUser;
 
-        const filteredAccounts = response.data.filter(
-          acc => acc.user_id !== currentUser.user_id
+      const filteredAccounts = response.data.filter(
+        acc => acc.user_id !== currentUser.user_id
+      );
+
+      if (filteredAccounts.length === 0) {
+        Alert.alert(
+          "No Other Accounts",
+          "Your email is linked to only one account."
         );
-
-        if (filteredAccounts.length === 0) {
-          Alert.alert('No Other Accounts Available');
-          return;
-        }
-
-        setAccounts(filteredAccounts);
-        setModalVisible(true);
+        return;
       }
 
-    } catch (error) {
-      console.log('Switch error:', error);
-    } finally {
-      setIsSwitching(false); // 🔥 stop loader
+      setAccounts(filteredAccounts);
+      setModalVisible(true);
+      return;
     }
-  };
+
+    // ONLY ONE ACCOUNT
+    if (response.status === 'success') {
+      Alert.alert(
+        "No Other Accounts",
+        "Your email is linked to only one account."
+      );
+      return;
+    }
+
+    // FALLBACK
+    Alert.alert(
+      "Switch Account",
+      "No other accounts available."
+    );
+
+  } catch (error) {
+    console.log('Switch error:', error);
+    Alert.alert("Error", "Unable to check accounts");
+  } finally {
+    setIsSwitching(false);
+  }
+};
 
   const handleAccountSelect = (selectedUser) => {
     setModalVisible(false);
@@ -335,30 +359,47 @@ const ProfileScreen = () => {
           )}
         </View>
 
-        {/* METER DETAILS */}
-        <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
-          <TouchableOpacity
-            style={styles.dropdownHeader}
-            onPress={() => setMeterOpen(prev => !prev)}
-          >
-            <Text style={[styles.sectionTitle, { color: theme.textMain }]}>
-              Meter Details
-            </Text>
-            < Ionicons
-              name={meterOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
-              size={20}
-              color={theme.textSub}
-            />
-          </TouchableOpacity>
 
-          {meterOpen && (
-            <View style={styles.dropdownContent}>
-              <InfoRow label="Grid Meter No" value={userProfile.grid_meter_no} />
-              <InfoRow label="DG Meter No" value={userProfile.dg_meter_no} />
-              <InfoRow label="Gas Meter No" value={userProfile.gas_meter_no} />
-            </View>
-          )}
-        </View>
+        {/* METER DETAILS */}
+        {(hasMeter || hasMeterReading || hasMeterBalance) && (
+  <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
+    <TouchableOpacity
+      style={styles.dropdownHeader}
+      onPress={() => setMeterOpen(prev => !prev)}
+    >
+      <Text style={[styles.sectionTitle, { color: theme.textMain }]}>
+        Meter Details
+      </Text>
+
+      <Ionicons
+        name={meterOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
+        size={20}
+        color={theme.textSub}
+      />
+    </TouchableOpacity>
+
+    {meterOpen && (
+      <View style={styles.dropdownContent}>
+
+        {hasMeter && (
+          <>
+            <InfoRow label="Grid Meter No" value={userProfile.grid_meter_no} />
+            <InfoRow label="DG Meter No" value={userProfile.dg_meter_no} />
+          </>
+        )}
+
+        {hasMeterReading && (
+          <InfoRow label="Gas Meter No" value={userProfile.gas_meter_no} />
+        )}
+
+        {hasMeterBalance && (
+          <InfoRow label="Meter Balance" value={userProfile.meter_balance} />
+        )}
+
+      </View>
+    )}
+  </View>
+)}
 
         {/* MY VEHICLES */}
         <View style={[styles.card, { backgroundColor: theme.cardBg }]}>

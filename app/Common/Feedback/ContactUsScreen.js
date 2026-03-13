@@ -158,7 +158,7 @@ const ContactUsScreen = () => {
               </View>
             </View>
 
-            <View style={styles.facilitySection}>
+            {/* <View style={styles.facilitySection}>
               <View style={styles.facilityHeader}>
                 <Text style={styles.facilityTitle}>
                   Facility Related Concern?
@@ -172,7 +172,7 @@ const ContactUsScreen = () => {
               <Text style={styles.facilitySubtitle}>
                 Share your feedback and concern to your facility manager
               </Text>
-            </View>
+            </View> */}
 
             <View style={styles.formSection}>
               <Text style={styles.formTitle}>Send us a Message</Text>
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     overflow: "hidden",
     backgroundColor: "#FFFFFF",
-    elevation: 2,
+    elevation: 0.8,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginBottom: 18,
-    elevation: 2,
+    elevation: 1.5,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",

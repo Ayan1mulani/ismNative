@@ -16,6 +16,7 @@ import QuickActionsScreen from './QuickActionsScreen';
 import BRAND from '../../app/config';
 import NoticeTickerScreen from './NoticeTickerScreen';
 import { ismServices } from '../../services/ismServices'; // 👈 import service
+import { hasPermission } from '../../Utils/PermissionHelper';
 
 const theme = BRAND.COLORS;
 
@@ -23,7 +24,7 @@ const commonStyles = {
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    padding:5
+    padding: 5
   },
   safeArea: {
     flex: 1,
@@ -40,10 +41,12 @@ const commonStyles = {
 };
 
 const HomeScreen = () => {
-  const { nightMode } = usePermissions();
+  const { nightMode, permissions } = usePermissions();
 
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const canViewNotices =
+    permissions && hasPermission(permissions, "NTC", "R");
 
   // ✅ CALL USER DETAIL API
   useEffect(() => {
@@ -114,7 +117,9 @@ const HomeScreen = () => {
             <ServicesSection refreshTrigger={refreshTrigger} />
             <Action />
             <QuickActionsScreen />
-            <NoticeTickerScreen />
+            {canViewNotices && (
+              <NoticeTickerScreen refreshTrigger={refreshTrigger} />
+            )}
             <ImportantContacts refreshTrigger={refreshTrigger} />
           </View>
         }

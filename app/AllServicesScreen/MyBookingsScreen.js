@@ -105,9 +105,21 @@ const fetchBookings = async () => {
               <Text style={styles.loadingText}>Loading Bookings...</Text>
             </View>
       ) : bookings.length === 0 ? (
-        <Text style={[styles.emptyText, { color: theme.text }]}>
-          No bookings found
-        </Text>
+       <View style={styles.emptyContainer}>
+    <Ionicons
+      name="calendar-outline"
+      size={60}
+      color={"#6B7280"}
+    />
+
+    <Text style={[styles.emptyTitle, { color: theme.text }]}>
+      No Bookings Found
+    </Text>
+
+    <Text style={[styles.emptySub, { color: theme.text }]}>
+      You have not booked any amenities yet.
+    </Text>
+  </View>
       ) : (
         <FlatList
           data={bookings}
@@ -163,4 +175,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9CA3AF",
   },
+  emptyContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  paddingHorizontal: 30,
+},
+
+emptyTitle: {
+  fontSize: 18,
+  fontWeight: "700",
+  marginTop: 12,
+},
+
+emptySub: {
+  fontSize: 13,
+  marginTop: 4,
+  textAlign: "center",
+  opacity: 0.7,
+},
 });

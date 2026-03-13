@@ -10,13 +10,16 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { usePermissions } from '../../../Utils/ConetextApi';
 import { Common } from '../../../services/Common';
 import { useNavigation } from '@react-navigation/native';
+import { hasPermission } from '../../../Utils/PermissionHelper';
 import BRAND from '../../config';
 
 const ResidentHeader = () => {
   const navigation = useNavigation();
-  const { nightMode } = usePermissions();
+  const { nightMode, permissions } = usePermissions();
   const [userDetails, setUserDetails] = useState();
   const [societyInfo, setSocietyInfo] = useState(null);
+  const canViewNotifications =
+    permissions && hasPermission(permissions, "NOTF", "R");
 
   const theme = {
     background: nightMode ? '#1f2937' : '#ffffff',
@@ -34,54 +37,56 @@ const ResidentHeader = () => {
     };
     load();
   }, []);
-return (
-  <View style={{ backgroundColor: theme.background }}>
-    <View style={[styles.header, { borderBottomColor: theme.border }]}>
+  return (
+    <View style={{ backgroundColor: theme.background }}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
 
-      {/* LEFT SECTION */}
-      <View style={styles.leftSection}>
-        <View style={styles.iconContainer}>
- <Image source={BRAND.LOGO} style={styles.logoImage} resizeMode="contain" />
+        {/* LEFT SECTION */}
+        <View style={styles.leftSection}>
+          <View style={styles.iconContainer}>
+            <Image source={BRAND.LOGO} style={styles.logoImage} resizeMode="contain" />
+          </View>
+
+          <View>
+            <Text style={[styles.greetingText, { color: theme.text }]}>
+              {BRAND.APP_NAME}
+            </Text>
+            <Text style={[styles.locationText, { color: theme.subText }]}>
+              {userDetails?.society_name}
+            </Text>
+          </View>
         </View>
-   
-        <View>
-          <Text style={[styles.greetingText, { color: theme.text }]}>
-            {BRAND.APP_NAME}
-          </Text>
-          <Text style={[styles.locationText, { color: theme.subText }]}>
-            {userDetails?.society_name}
-          </Text> 
+
+        {/* RIGHT SECTION */}
+        <View style={styles.rightSection}>
+
+          {/* Search */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AllServicesScreen')}
+            style={styles.iconBtn}
+          >
+            < Ionicons name="search-outline" size={22} color={theme.text} />
+          </TouchableOpacity>
+
+          {/* Notification */}
+          {canViewNotifications && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('NotificationsScreen')}
+              style={styles.iconBtn}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={22}
+                color={theme.text}
+              />
+            </TouchableOpacity>
+          )}
+
         </View>
-      </View>
-
-      {/* RIGHT SECTION */}
-      <View style={styles.rightSection}>
-
-        {/* Search */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('AllServicesScreen')}
-          style={styles.iconBtn}
-        >
-          < Ionicons name="search-outline" size={22} color={theme.text} />
-        </TouchableOpacity>
-
-        {/* Notification */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('NotificationsScreen')}
-          style={styles.iconBtn}
-        >
-          < Ionicons
-            name="notifications-outline"
-            size={22}
-            color={theme.text}
-          />
-        </TouchableOpacity>
 
       </View>
-
     </View>
-  </View>
-);
+  );
 };
 
 export default ResidentHeader;
@@ -100,13 +105,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rightSection: {
-  flexDirection: 'row',
-  alignItems: 'center',
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
 
-iconBtn: {
-  marginLeft: 16,
-},
+  iconBtn: {
+    marginLeft: 16,
+  },
   iconContainer: {
     width: 44,
     height: 44,
@@ -118,7 +123,7 @@ iconBtn: {
   logoImage: {
     width: '100%',
     height: '100%',
-    
+
   },
   greetingText: {
     fontSize: 16,

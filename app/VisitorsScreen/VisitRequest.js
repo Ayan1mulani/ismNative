@@ -14,6 +14,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import BRAND from '../config'
+import EmptyState from '../components/EmptyState';
 
 const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
   const navigation = useNavigation();
@@ -184,11 +185,18 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
   data={filteredVisits}
   renderItem={renderCard}
   keyExtractor={(item) => item.id.toString()}
-  contentContainerStyle={{
-    padding: 16,
-    paddingBottom: 180,
-    flexGrow: 1
-  }}
+contentContainerStyle={
+  filteredVisits.length === 0
+    ? {
+        flexGrow: 1,
+        paddingTop: 120,   // 👈 move empty state down
+        paddingHorizontal: 16,
+      }
+    : {
+        padding: 16,
+        paddingBottom: 180,
+      }
+}
   showsVerticalScrollIndicator={false}
   refreshControl={
     <RefreshControl
@@ -196,16 +204,15 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
       onRefresh={handleRefresh}
       tintColor={theme.primary}
     />
-  }
-  ListEmptyComponent={() => (
-    <View style={styles.emptyContainer}>
-      < Ionicons name="people-outline" size={60} color={theme.textSecondary} />
-
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>
-        No Visitors Yet
-      </Text>
-    </View>
-  )}
+  }s
+ ListEmptyComponent={() => (
+  <EmptyState
+    icon="people-outline"
+    title="No Visit Request Yet"
+    subtitle=""
+    theme={theme}
+  />
+)}
 />
     </View>
   );
@@ -216,7 +223,6 @@ export default VisitsPage;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor:'#ffff'
   },
 
   loaderContainer: {
@@ -263,38 +269,8 @@ const styles = StyleSheet.create({
   borderColor: 'rgba(3, 65, 109, 0.04)',
   overflow: 'hidden', // 👈 important
   },
-  emptyContainer: {
-  flex: 1,
-  justifyContent: "center",
-  alignItems: "center",
-  marginTop: 60,
-},
+  
 
-emptyTitle: {
-  fontSize: 18,
-  fontWeight: "700",
-  marginTop: 10,
-},
-
-emptySubtitle: {
-  fontSize: 13,
-  marginTop: 4,
-},
-
-emptyButton: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 6,
-  marginTop: 16,
-  paddingHorizontal: 16,
-  paddingVertical: 10,
-  borderRadius: 8,
-},
-
-emptyButtonText: {
-  color: "#fff",
-  fontWeight: "600",
-},
 
   cardHeader: {
     flexDirection: 'row',

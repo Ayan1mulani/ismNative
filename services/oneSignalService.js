@@ -1,19 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL2, APP_VERSION_CODE, APP_ID_ONE_SIGNAL } from '../app/config/env';
-import { OneSignal } from 'react-native-onesignal';
+import OneSignal from 'react-native-onesignal';
 import { ApiCommon } from './ApiCommon';
 
-/* ================================
-   REGISTER DEVICE
-================================ */
+/* ======================================================
+   REGISTER DEVICE WITH BACKEND
+====================================================== */
 export const RegisterAppOneSignal = async () => {
-
   try {
 
     const userInfo = await AsyncStorage.getItem("userInfo");
 
     if (!userInfo) {
-      console.log("No user session");
+      console.log("❌ No logged in user");
       return false;
     }
 
@@ -23,14 +22,17 @@ export const RegisterAppOneSignal = async () => {
     const apiToken = parsedUser?.api_token;
     const societyId = parsedUser?.societyId || parsedUser?.s_id;
 
-    const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
+    /* Ensure push subscription enabled */
+    await OneSignal.User.pushSubscription.optIn();
+
+    const deviceId = OneSignal.User.pushSubscription.id;
 
     if (!deviceId) {
-      console.log("Device ID not ready");
+      console.log("⚠️ OneSignal deviceId not ready yet");
       return false;
     }
 
-    console.log("OneSignal Device ID:", deviceId);
+    console.log("📱 OneSignal Device ID:", deviceId);
 
     const headers = {
       "Content-Type": "application/json",
@@ -53,29 +55,35 @@ export const RegisterAppOneSignal = async () => {
 
     const response = await ApiCommon.postReq(url, payload, headers);
 
-    console.log("OneSignal Registered:", response);
+    console.log("✅ OneSignal Registered:", response);
 
     return true;
 
   } catch (error) {
 
-    console.error("OneSignal register error:", error);
+    console.error("❌ OneSignal register error:", error);
 
     return false;
 
   }
-}
+};
 
-/* ================================
-   UNREGISTER DEVICE
-================================ */
+
+
+/* ======================================================
+   UNREGISTER DEVICE FROM BACKEND
+====================================================== */
 
 export const UnRegisterOneSignal = async () => {
+
   try {
 
     const userInfo = await AsyncStorage.getItem('userInfo');
 
-    if (!userInfo) return;
+    if (!userInfo) {
+      console.log("❌ No stored user");
+      return false;
+    }
 
     const parsedUser = JSON.parse(userInfo);
 
@@ -83,10 +91,10 @@ export const UnRegisterOneSignal = async () => {
     const apiToken = parsedUser?.api_token;
     const societyId = parsedUser?.societyId || parsedUser?.s_id;
 
-    let deviceId = await OneSignal.User.pushSubscription.getIdAsync();
+    const deviceId = OneSignal.User.pushSubscription.id;
 
     if (!deviceId) {
-      console.warn("OneSignal deviceId missing");
+      console.warn("⚠️ OneSignal deviceId missing");
       return false;
     }
 
@@ -108,13 +116,19 @@ export const UnRegisterOneSignal = async () => {
 
     const response = await ApiCommon.postReq(url, payload, headers);
 
-    console.log("OneSignal Unregistered:", response);
+    console.log("🧹 OneSignal Unregistered:", response);
+
+    /* Disable push locally */
+    await OneSignal.User.pushSubscription.optOut();
 
     return true;
 
   } catch (error) {
 
-    console.error("OneSignal unregister error:", error?.response?.data || error);
+    console.error(
+      "❌ OneSignal unregister error:",
+      error?.response?.data || error
+    );
 
     return false;
 

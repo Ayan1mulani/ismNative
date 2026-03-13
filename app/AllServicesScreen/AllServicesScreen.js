@@ -38,7 +38,7 @@ const AllServicesScreen = () => {
     { title: "Notices", icon: "notifications-outline", route: "MyNoticesScreen" },
     { title: "Book Ameneties", icon: "bookmarks-outline", route: "AmenitiesListScreen" },
     { title: "My Complex", icon: "notifications-outline", route: "Notices" },
-    { title: "Settings", icon: "settings-outline", route:'Settings'},
+    { title: "Settings", icon: "settings-outline", route: 'Settings' },
     { title: "My vehicles", icon: "car-outline", route: "MyVehiclesScreen" },
     { title: "Staff", icon: "checkmark-circle-outline", route: "StaffScreen" },
     { title: "Family members", icon: "person-add-outline", route: "FamilyMember" },
@@ -63,29 +63,42 @@ const AllServicesScreen = () => {
   );
 
   const filteredServices = services
-  .filter((item) => {
-    if (!permissions) return false;
+    .filter((item) => {
+      if (!permissions) return false;
 
-    if (item.title === "Add vehicle") {
-      return hasPermission(permissions, "VEH", "C");
-    }
+      if (item.title === "Add vehicle") {
+        return hasPermission(permissions, "VEH", "C");
+      }
 
-    if (item.title === "My vehicles") {
-      return hasPermission(permissions, "VEH", "R");
-    }
+      if (item.title === "My vehicles") {
+        return hasPermission(permissions, "VEH", "R");
+      }
 
-    if (item.title === "Bills") {
-      return hasPermission(permissions, "BILL", "R");
-    }
-    if (item.title === "Staff") {
-    return hasPermission(permissions, "VMSSTF", "R");
-    }
+      if (item.title === "Bills") {
+        return hasPermission(permissions, "BILL", "R");
+      }
 
-    return true;
-  })
-  .filter((item) =>
-    item.title.toLowerCase().includes(search.toLowerCase())
-  );
+      if (item.title === "Staff") {
+        return hasPermission(permissions, "VMSSTF", "R");
+      }
+
+      if (item.title === "Book Ameneties") {
+        return hasPermission(permissions, "FBK", "R");
+      }
+
+      if (item.title === "My Bookings") {
+        return hasPermission(permissions, "FBK");
+      }
+      if (item.title === "Notices") {
+        return hasPermission(permissions, "NTC", "R");
+      }
+
+
+      return true;
+    })
+    .filter((item) =>
+      item.title.toLowerCase().includes(search.toLowerCase())
+    );
 
   const clearSearch = () => {
     setSearch("");
@@ -161,7 +174,7 @@ const AllServicesScreen = () => {
                     { backgroundColor: BRAND.COLORS.icon + "15" },
                   ]}
                 >
-                  < Ionicons name={item.icon} size={20} color ={BRAND.COLORS.icon} />
+                  < Ionicons name={item.icon} size={20} color={BRAND.COLORS.icon} />
                 </View>
                 <Text style={[styles.text, { color: theme.text }]}>
                   {item.title}
@@ -238,7 +251,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 60,
-    backgroundColor:"#ffff"
+    backgroundColor: "#ffff"
   },
   emptyText: {
     textAlign: "center",

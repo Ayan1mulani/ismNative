@@ -15,6 +15,7 @@ import AppCard from "../components/AppCard";
 import AppSearchBar from "../components/AppSearchBar";
 import BRAND from "../config";
 import { usePermissions } from "../../Utils/ConetextApi";
+import EmptyState from "../components/EmptyState";
 
 const COLORS = {
   primary: BRAND.COLORS.primary,
@@ -258,83 +259,69 @@ const SearchStaffScreen = ({ nightMode, categories, categoriesLoading }) => {
     [theme, styles, selectedCategory, isStaffAssociated, navigation]
   );
 
-  const renderEmpty = useCallback(
-    () => (
-      <View style={styles.emptyState}>
-        < Ionicons
-          name="people-outline"
-          size={56}
-          color={theme.textSecondary}
-        />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>
-          No Staff Found
-        </Text>
-        <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-          Try another category or search term
-        </Text>
-      </View>
-    ),
-    [theme, styles]
-  );
+
 
   return (
     <View
-      style={{ flex: 1, backgroundColor: theme.background }}
-      edges={["top", "left", "right"]}
+      style={{ flex: 1 }}
     >
-      {/* Category Row */}
-      <View style={styles.categoryRow}>
-        {categoriesLoading ? (
-          <ActivityIndicator
-            size="small"
-            color={COLORS.primary}
-            style={{ marginLeft: 16 }}
-          />
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScrollContent}
-            scrollEventThrottle={16}
-            nestedScrollEnabled={true}
-          >
-            {categories?.map((cat) => {
-              const isActive = selectedCategory === cat;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor: isActive
-                        ? COLORS.primary
-                        : theme.surface,
-                      borderWidth: isActive ? 0 : 1,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                  onPress={() => {
-                    setSelectedCategory(cat);
-                    fetchStaff(cat);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.categoryChipText,
-                      { color: isActive ? "#fff" : theme.text },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
-      </View>
 
-      {/* Search */}
+      {/* Category Row */}
+      {categories?.length > 0 && (
+        <View style={styles.categoryRow}>
+          {categoriesLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={COLORS.primary}
+              style={{ marginLeft: 16 }}
+            />
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryScrollContent}
+              scrollEventThrottle={16}
+              nestedScrollEnabled={true}
+            >
+              {categories?.map((cat) => {
+                const isActive = selectedCategory === cat;
+
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.categoryChip,
+                      {
+                        backgroundColor: isActive
+                          ? COLORS.primary
+                          : theme.surface,
+                        borderWidth: isActive ? 0 : 1,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedCategory(cat);
+                      fetchStaff(cat);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        { color: isActive ? "#fff" : theme.text },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+      )}
+
+
       <AppSearchBar
         value={search}
         onChangeText={handleSearch}
@@ -357,14 +344,22 @@ const SearchStaffScreen = ({ nightMode, categories, categoriesLoading }) => {
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmpty}
+          ListEmptyComponent={() => (
+            <EmptyState
+              icon="people-outline"
+              title="No Staff Found"
+              subtitle="Try another category or search term"
+              theme={theme}
+            />
+          )}
           nestedScrollEnabled={true}
-          initialNumToRender={10}       // render first 10 on mount
-          windowSize={5}                // keep 5 screens in memory
-          maxToRenderPerBatch={10}      // render 10 items per scroll batch
-          removeClippedSubviews={true}  // unmount off-screen items (Android)
+          initialNumToRender={10}
+          windowSize={5}
+          maxToRenderPerBatch={10}
+          removeClippedSubviews={true}
         />
       )}
+
     </View>
   );
 };
@@ -464,22 +459,9 @@ const createStyles = (theme) =>
       flex: 1,
     },
 
-    emptyState: {
-      paddingTop: 80,
-      alignItems: "center",
-    },
+  
 
-    emptyTitle: {
-      fontSize: 18,
-      fontWeight: "600",
-      marginTop: 10,
-    },
 
-    emptySubtitle: {
-      fontSize: 14,
-      textAlign: "center",
-      marginTop: 4,
-    },
   });
 
 export default SearchStaffScreen;

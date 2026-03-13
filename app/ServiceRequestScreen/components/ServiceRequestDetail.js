@@ -104,12 +104,23 @@ const ServiceRequestDetailScreen = () => {
 
   useEffect(() => { loadComments(); }, []);
 
-  const loadComments = async () => {
-    try {
-      const res = await complaintService.getComplaintComments(complaint.id);
-      setComments(res || []);
-    } catch (e) { console.log(e); }
-  };
+ const loadComments = async () => {
+  try {
+    const res = await complaintService.getComplaintComments(complaint.id);
+
+    if (res?.data && Array.isArray(res.data)) {
+      setComments(res.data);
+    } else if (Array.isArray(res)) {
+      setComments(res);
+    } else {
+      setComments([]);
+    }
+
+  } catch (e) {
+    console.log(e);
+    setComments([]);
+  }
+};
 
   const sendComment = async () => {
     if (!message.trim()) return;

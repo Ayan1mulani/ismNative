@@ -229,9 +229,14 @@ const ProviderSelector = ({
               <Ionicons name="search" size={18} />
               <TextInput
                 placeholder="Search..."
+                placeholderTextColor="#9CA3AF"
                 value={search}
                 onChangeText={setSearch}
-                style={{ flex: 1, marginLeft: 8 }}
+                style={{
+                  flex: 1,
+                  marginLeft: 8,
+                  color: "#111827"
+                }}
               />
             </View>
 

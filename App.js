@@ -16,8 +16,14 @@ export default function App() {
 
     initializeOneSignal();
 
-    // when push subscription becomes ready
-    OneSignal.User.pushSubscription.addEventListener("change", async () => {
+    const subscriptionListener = async () => {
+
+      const subscription = OneSignal.User.pushSubscription;
+
+      if (!subscription?.id) {
+        console.log("OneSignal subscription not ready yet");
+        return;
+      }
 
       const userInfo = await AsyncStorage.getItem("userInfo");
 
@@ -34,20 +40,25 @@ export default function App() {
         console.log("Push registration failed");
       }
 
-    });
+    };
+
+    OneSignal.User.pushSubscription.addEventListener("change", subscriptionListener);
+
+    return () => {
+      OneSignal.User.pushSubscription.removeEventListener("change", subscriptionListener);
+    };
 
   }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView
-
         style={[
           styles.safeArea,
           { backgroundColor: BRAND.COLORS.safeArea || BRAND.COLORS.background }
         ]}
       >
-        <StatusBar barStyle={"dark-content"}/>
+        <StatusBar barStyle={"dark-content"} />
         <NavigationPage />
       </SafeAreaView>
     </GestureHandlerRootView>

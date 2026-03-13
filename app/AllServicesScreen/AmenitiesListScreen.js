@@ -307,8 +307,22 @@ const AmenitiesListScreen = () => {
           data={amenities}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderAmenity}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            amenities.length === 0 && { flex: 1 }
+          ]}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="calendar-outline" size={60} color={theme.subText} />
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>
+                No amenities available
+              </Text>
+              <Text style={[styles.emptySub, { color: theme.subText }]}>
+                Currently there are no amenities to display.
+              </Text>
+            </View>
+          )}
         />
       )}
     </SafeAreaView>
@@ -354,6 +368,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  emptyContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  paddingHorizontal: 30,
+},
+
+emptyTitle: {
+  fontSize: 18,
+  fontWeight: "700",
+  marginTop: 12,
+},
+
+emptySub: {
+  fontSize: 13,
+  marginTop: 4,
+  textAlign: "center",
+},
 
   noImageText: {
     fontSize: 13,

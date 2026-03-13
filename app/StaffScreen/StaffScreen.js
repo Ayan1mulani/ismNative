@@ -79,7 +79,7 @@ const loadCategories = async () => {
       <AppHeader title="Staff Management" />
 
       <SlidingTabs
-        tabs={["Assigned Staff", "Find Staff"]}
+        tabs={["Assigned", "Find Staff"]}
         activeIndex={activeIndex}
         onTabPress={handleTabPress}
         scrollX={scrollX} 

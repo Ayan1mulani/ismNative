@@ -37,34 +37,34 @@ const ServicesSection = () => {
 
   // FIX 1: "C" does not exist — correct values are CREATE / UPDATE / DELETE / R
   const canViewPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'R');
-  const canSendPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'C'); 
+  const canSendPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'C');
 
   const allServices = [
-    { id: '1',  title: 'Accounts',   icon: 'card',                       route: 'Accounts'          },
-    { id: '2',  title: 'Staff',      icon: 'checkmark-circle-outline',   route: 'StaffScreen'       },
-    { id: '3',  title: 'Visitors',   icon: 'people-outline',             route: 'Visitors'          },
-    { id: '4',  title: 'SOS',        icon: 'alert-circle',               isPanic: true              },
-    { id: '5',  title: 'Add member', icon: 'person-add-outline',         route: 'AddMember'         },
-    { id: '6',  title: 'Contact Us', icon: 'mail-outline',               route: 'ContactUsScreen'   },
-    { id: '7',  title: 'Setting',    icon: 'settings-outline',           route: 'Settings'          },
-    { id: '8',  title: 'Bookings',   icon: 'bookmark-outline',           route: 'MyBookings'        },
-    { id: '9',  title: 'Bills',      icon: 'receipt-outline',            route: 'bills'             },
-    { id: '10', title: 'Add vehicle',icon: 'car-outline',                route: 'AddVehicleScreen'  },
-    { id: '11', title: 'Ameneties',  icon: 'bookmarks-outline',          route: 'AmenitiesListScreen'},
-    { id: '12', title: 'More',       icon: 'ellipsis-horizontal-outline',route: 'AllServicesScreen' },
+    { id: '1', title: 'Accounts', icon: 'card', route: 'Accounts' },
+    { id: '2', title: 'Staff', icon: 'checkmark-circle-outline', route: 'StaffScreen' },
+    { id: '3', title: 'Visitors', icon: 'people-outline', route: 'Visitors' },
+    { id: '4', title: 'SOS', icon: 'alert-circle', isPanic: true },
+    { id: '5', title: 'Add member', icon: 'person-add-outline', route: 'AddMember' },
+    { id: '6', title: 'Contact Us', icon: 'mail-outline', route: 'ContactUsScreen' },
+    { id: '7', title: 'Setting', icon: 'settings-outline', route: 'Settings' },
+    { id: '8', title: 'Bookings', icon: 'bookmark-outline', route: 'MyBookings' },
+    { id: '9', title: 'Bills', icon: 'receipt-outline', route: 'bills' },
+    { id: '10', title: 'Add vehicle', icon: 'car-outline', route: 'AddVehicleScreen' },
+    { id: '11', title: 'Amenities', icon: 'bookmarks-outline', route: 'AmenitiesListScreen' },
+    { id: '12', title: 'More', icon: 'ellipsis-horizontal-outline', route: 'AllServicesScreen' },
   ];
 
   const panicReasons = [
-    { label: 'Fire',      icon: 'flame'        },
-    { label: 'Theft',     icon: 'alert-circle' },
-    { label: 'Lift',      icon: 'warning'      },
-    { label: 'Emergency', icon: 'medical'      },
+    { label: 'Fire', icon: 'flame' },
+    { label: 'Theft', icon: 'alert-circle' },
+    { label: 'Lift', icon: 'warning' },
+    { label: 'Emergency', icon: 'medical' },
   ];
 
   const theme = {
-    iconBgUnselected:   nightMode ? '#1F2937' : '#F3F4F6',
-    iconColorUnselected:nightMode ? '#D1D5DB' : '#4B5563',
-    textColor:          nightMode ? '#D1D5DB' : '#374151',
+    iconBgUnselected: nightMode ? '#1F2937' : '#F3F4F6',
+    iconColorUnselected: nightMode ? '#D1D5DB' : '#4B5563',
+    textColor: nightMode ? '#D1D5DB' : '#374151',
   };
 
   const handleServicePress = async (service) => {
@@ -84,9 +84,9 @@ const ServicesSection = () => {
       const res = await otherServices.getPanicContacts();
       if (res?.status === 'success') {
         const phoneData = res.data?.phone_nos;
-        if (!phoneData)            setContacts([]);
+        if (!phoneData) setContacts([]);
         else if (Array.isArray(phoneData)) setContacts(phoneData);
-        else                       setContacts([phoneData]);
+        else setContacts([phoneData]);
       }
     } catch (error) {
       console.log('Panic Contact Fetch Error:', error);
@@ -121,19 +121,33 @@ const ServicesSection = () => {
     }
   };
 
-// ── Filter services based on permissions ──────────────────────────────────
+  // ── Filter services based on permissions ──────────────────────────────────
   const visibleServices = allServices.filter((service) => {
-    // FIX 2: if permissions still loading (null), show all services
-    // so the grid doesn't flash empty while context loads
     if (!permissionsLoaded) return true;
 
-    if (service.title === 'Accounts')    return hasPermission(permissions, 'BILL',   'R');
-    if (service.title === 'Visitors')    return hasPermission(permissions, 'VMS',    'R');
-    if (service.title === 'Staff')       return hasPermission(permissions, 'VMSSTF', 'R');
-    if (service.title === 'Bills')       return hasPermission(permissions, 'BILL',   'R');
-    if (service.title === 'Add vehicle') return hasPermission(permissions, 'VEH',    'C');
-    // FIX 3: use canViewPanic flag consistently
-    if (service.title === 'SOS')         return canViewPanic;
+    if (service.title === 'Accounts')
+      return hasPermission(permissions, 'BILL', 'R');
+
+    if (service.title === 'Visitors')
+      return hasPermission(permissions, 'VMS', 'R');
+
+    if (service.title === 'Staff')
+      return hasPermission(permissions, 'VMSSTF', 'R');
+
+    if (service.title === 'Bills')
+      return hasPermission(permissions, 'BILL', 'R');
+
+    if (service.title === 'Add vehicle')
+      return hasPermission(permissions, 'VEH', 'C');
+
+    if (service.title === 'Bookings')
+      return hasPermission(permissions, 'FBK', 'R');
+
+    if (service.title === 'Amenities')
+      return hasPermission(permissions, 'FBK', 'R');
+
+    if (service.title === 'SOS')
+      return canViewPanic;
 
     return true;
   });
@@ -272,29 +286,29 @@ const ServicesSection = () => {
 export default ServicesSection;
 
 const styles = StyleSheet.create({
-  container:        { marginHorizontal: 10, marginTop: 10 },
-  servicesGrid:     { flexDirection: 'row', flexWrap: 'wrap' },
-  serviceItem:      { width: '25%', alignItems: 'center', marginBottom: 20 },
-  sectionHeader:    { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  sectionTitle:     { fontSize: 16, fontWeight: '700' },
-  iconContainer:    { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  serviceTitle:     { fontSize: 11, fontWeight: '500' },
-  modalOverlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.79)', justifyContent: 'center', alignItems: 'center' },
-  modalContainer:   { width: screenWidth - 40, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', paddingBottom: 16 },
-  modalHeader:      { backgroundColor: '#EF4444', padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle:       { color: '#fff', fontSize: 18, fontWeight: '700' },
-  modalDesc:        { padding: 16, textAlign: 'center' },
-  reasonGrid:       { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16 },
-  reasonButton:     { width: '48%', margin: '1%', padding: 12, backgroundColor: '#F3F4F6', borderRadius: 10, alignItems: 'center' },
-  reasonSelected:   { borderWidth: 1, borderColor: '#EF4444' },
-  reasonText:       { marginTop: 6, fontWeight: '600' },
-  submitBtn:        { marginHorizontal: 16, marginTop: 12, backgroundColor: '#EF4444', padding: 14, borderRadius: 8, alignItems: 'center' },
-  submitBtnText:    { color: '#fff', fontWeight: '700' },
-  contactText:      { textAlign: 'center', fontWeight: '700', marginTop: 12 },
-  contactBtn:       { marginHorizontal: 16, marginVertical: 6, backgroundColor: '#dd8585', padding: 12, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  contactBtnText:   { color: '#fff', fontWeight: '700', marginLeft: 8 },
-  successOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.79)', justifyContent: 'center', alignItems: 'center' },
+  container: { marginHorizontal: 10, marginTop: 10 },
+  servicesGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  serviceItem: { width: '25%', alignItems: 'center', marginBottom: 20 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: '700' },
+  iconContainer: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  serviceTitle: { fontSize: 11, fontWeight: '500' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.79)', justifyContent: 'center', alignItems: 'center' },
+  modalContainer: { width: screenWidth - 40, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', paddingBottom: 16 },
+  modalHeader: { backgroundColor: '#EF4444', padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  modalDesc: { padding: 16, textAlign: 'center' },
+  reasonGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16 },
+  reasonButton: { width: '48%', margin: '1%', padding: 12, backgroundColor: '#F3F4F6', borderRadius: 10, alignItems: 'center' },
+  reasonSelected: { borderWidth: 1, borderColor: '#EF4444' },
+  reasonText: { marginTop: 6, fontWeight: '600' },
+  submitBtn: { marginHorizontal: 16, marginTop: 12, backgroundColor: '#EF4444', padding: 14, borderRadius: 8, alignItems: 'center' },
+  submitBtnText: { color: '#fff', fontWeight: '700' },
+  contactText: { textAlign: 'center', fontWeight: '700', marginTop: 12 },
+  contactBtn: { marginHorizontal: 16, marginVertical: 6, backgroundColor: '#dd8585', padding: 12, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  contactBtnText: { color: '#fff', fontWeight: '700', marginLeft: 8 },
+  successOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.79)', justifyContent: 'center', alignItems: 'center' },
   successContainer: { width: screenWidth - 60, backgroundColor: '#ffffff', borderRadius: 20, padding: 30, alignItems: 'center' },
-  successTitle:     { fontSize: 20, fontWeight: '700', color: '#16A34A', marginTop: 12 },
-  successSubtitle:  { fontSize: 14, textAlign: 'center', color: '#4B5563', marginTop: 6 },
+  successTitle: { fontSize: 20, fontWeight: '700', color: '#16A34A', marginTop: 12 },
+  successSubtitle: { fontSize: 14, textAlign: 'center', color: '#4B5563', marginTop: 6 },
 });

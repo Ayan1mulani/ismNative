@@ -4,74 +4,91 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
+  Dimensions,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import { usePermissions } from "../../Utils/ConetextApi";
+import { hasPermission } from "../../Utils/PermissionHelper";
+import BRAND from "../config";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const ACTIONS = [
-  { id: "1", title: "Pass", icon: "create-outline", screen: "Visitors" },
-  { id: "2", title: "Amenities", icon: "bookmark-outline", screen: "AmenitiesListScreen" },
-  { id: "3", title: "Notice", icon: "mail-outline", screen: "MyNoticesScreen" },
-  { id: "4", title: "Bookings", icon: "calendar-outline", screen: "MyBookings" },
-  { id: "5", title: "My Vehicles", icon: "car-outline", screen: "MyVehiclesScreen" },
+  { id: "1", title: "Pass", icon: "create-outline", screen: "Visitors", module: "VMS", action: "R" },
+  { id: "2", title: "Amenities", icon: "bookmark-outline", screen: "AmenitiesListScreen", module: "FBK", action: "R" },
+  { id: "3", title: "Notice", icon: "mail-outline", screen: "MyNoticesScreen", module: "NTC", action: "R" },
+  { id: "4", title: "Bookings", icon: "calendar-outline", screen: "MyBookings", module: "FBK", action: "R" },
+  { id: "5", title: "My Vehicles", icon: "car-outline", screen: "MyVehiclesScreen", module: "VEH", action: "R" },
 ];
 
 const QuickActionsScreen = () => {
   const navigation = useNavigation();
+  const { permissions } = usePermissions();
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.75}
-      onPress={() => navigation.navigate(item.screen)}
-    >
-      <View style={styles.iconWrapper}>
-        < Ionicons name={item.icon} size={22} color="#fff" />
-      </View>
-      <Text style={styles.label} numberOfLines={1}>{item.title}</Text>
-    </TouchableOpacity>
-  );
+  const permissionsLoaded = permissions !== null && permissions !== undefined;
+
+  const visibleActions = ACTIONS.filter((item) => {
+    if (!permissionsLoaded) return false;
+
+    if (!item.module) return true;
+
+    return hasPermission(permissions, item.module, item.action);
+  }).slice(0, 5); // ensure max 5
 
   return (
-    <FlatList
-      data={ACTIONS}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      keyExtractor={(item) => item.id}
-      renderItem={renderItem}
-      contentContainerStyle={styles.row}
-    />
+    <View style={styles.container}>
+      {visibleActions.map((item) => (
+        <TouchableOpacity
+          key={item.id}
+          style={styles.card}
+          activeOpacity={0.75}
+          onPress={() => navigation.navigate(item.screen)}
+        >
+          <View style={styles.iconWrapper}>
+            <Ionicons name={item.icon} size={22} color="#fff" />
+          </View>
+
+          <Text style={styles.label} numberOfLines={1}>
+            {item.title}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
   );
 };
 
 export default QuickActionsScreen;
 
 const styles = StyleSheet.create({
-  row: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 16,
-    alignItems: "center",
-    marginLeft: 8, // To offset the first gap
+
+  container: {
+    flexDirection: "row",
+    justifyContent:"space-evenly",
+    paddingHorizontal: 16,
+    marginTop: 8,
   },
+
   card: {
     alignItems: "center",
-    gap: 6,
-    width: 60,
+    width: SCREEN_WIDTH / 5 - 14, // ensures 5 items fit perfectly
   },
+
   iconWrapper: {
-    width: 50,
-    height: 50,
+    width: 48,
+    height: 48,
     borderRadius: 14,
-    backgroundColor: "#5a7cc6",
+    backgroundColor: BRAND.COLORS.iconbg || "#5a7cc6",
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 6,
   },
+
   label: {
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: "700",
     color: "#374151",
     textAlign: "center",
   },
+
 });
