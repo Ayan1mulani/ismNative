@@ -17,6 +17,7 @@ import AppHeader from '../components/AppHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RefreshControl } from 'react-native';
 import BRAND from '../config';
+import EmptyState from '../components/EmptyState';
 
 const BillsPage = () => {
   const { nightMode, permissions } = usePermissions();
@@ -343,27 +344,27 @@ const BillsPage = () => {
           item?.id ? item.id.toString() : index.toString()
         }
         renderItem={renderItem}
-        contentContainerStyle={[
-          styles.listContent,
-          bills.length === 0 && { flex: 1 },
-        ]}
-        ListEmptyComponent={
-          <View style={styles.centerContainer}>
-            <Ionicons
-              name="document-outline"
-              size={48}
-              color={currentTheme.secondaryText}
-            />
-            <Text
-              style={[
-                styles.emptyText,
-                { color: currentTheme.secondaryText },
-              ]}
-            >
-              No Bills Available
-            </Text>
-          </View>
+        contentContainerStyle={
+          bills.length === 0
+            ? {
+              flexGrow: 1,
+              paddingTop: 120,
+              paddingHorizontal: 16
+            }
+            : styles.listContent
         }
+
+        ListEmptyComponent={() => (
+          <EmptyState
+            icon="document-outline"
+            title="No Bills Available"
+            subtitle=""
+            theme={{
+              text: currentTheme.textColor,
+              textSecondary: currentTheme.secondaryText
+            }}
+          />
+        )}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

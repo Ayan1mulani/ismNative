@@ -184,7 +184,7 @@ const NewLoginScreen = () => {
       setShowError(true);
       return false;
     }
-   if (!isValidIdentity(email)) {
+    if (!isValidIdentity(email)) {
       setErrorTitle('Validation Error');
       setErrorMessage('Please enter a valid email or mobile number.');
       setShowError(true);
@@ -217,7 +217,7 @@ const NewLoginScreen = () => {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={10}
+        keyboardVerticalOffset={5}
       >
         <ScrollView
           contentContainerStyle={styles.scrollViewContent}
@@ -246,7 +246,7 @@ const NewLoginScreen = () => {
                   </View>
                   <TextInput
                     style={styles.input}
-                    placeholder="Email"
+                   placeholder="Email or Mobile Number"
                     placeholderTextColor="#9e9e9e"
                     keyboardType="email-address"
                     value={email}
@@ -325,17 +325,23 @@ const NewLoginScreen = () => {
                   >
                     <Icon
                       name={agreedToTerms ? 'check-box' : 'check-box-outline-blank'}
-                      size={22}
+                      size={20}
                       color={agreedToTerms ? BRAND.PRIMARY_COLOR : '#9e9e9e'}
                     />
                   </TouchableOpacity>
-                  <Text style={styles.termsText}>I Agree and Accept the </Text>
+
+                  <Text style={styles.termsText}>
+                    I Agree and Accept the
+                  </Text>
+
                   <TouchableOpacity
                     onPress={() =>
                       Linking.openURL('https://isocietymanager.com/terms-conditions.html')
                     }
                   >
-                    <Text style={styles.termsLink}>Terms And Conditions</Text>
+                    <Text style={styles.termsLink}>
+                      {' '}Terms And Conditions
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
@@ -378,7 +384,7 @@ const styles = StyleSheet.create({
   scrollViewContent: { flexGrow: 1 },
   container: { flex: 1, justifyContent: 'flex-end', backgroundColor: BRAND.PRIMARY_COLOR },
 
-  headerContainer: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingBottom: 40 },
+  headerContainer: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, paddingBottom: 10 },
   logoContainer: { width: '60%', alignSelf: 'center', justifyContent: 'center' },
   logo: { width: 300, height: 60, alignSelf: 'center' },
   welcomeMessage: { fontSize: 36, fontWeight: '700', color: '#FFFFFF', textAlign: 'center', marginBottom: 8, letterSpacing: -0.5 },
@@ -404,30 +410,39 @@ const styles = StyleSheet.create({
   signUpLink: { fontSize: 14, color: '#074B7C', fontWeight: 'bold' },
 
   // ── Terms ──
-  termsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 12,
-    flexWrap: 'wrap',
-  },
+
   checkboxHit: {
     marginRight: 8,
     padding: 2,
     marginLeft: 15
   },
+
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:'center',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+
+  checkboxHit: {
+    marginRight: 6,
+    padding: 2,
+  },
+
   termsText: {
     fontSize: 13,
     color: '#555',
-
+    flexShrink: 1,
   },
+
   termsLink: {
     fontSize: 13,
     color: '#42aacf',
     fontWeight: '600',
     textDecorationLine: 'underline',
+    flexShrink: 1,
   },
-
   // ── Powered By ──
   poweredBy: {
     textAlign: 'center',

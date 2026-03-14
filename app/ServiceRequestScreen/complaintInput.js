@@ -210,7 +210,7 @@ const formatDate = (raw) => {
 const makeTime = (hours, minutes = 0) => {
   const d = new Date();
   d.setHours(hours, minutes, 0, 0);
-  return d;
+  return d;``
 };
 
 // ─── Time Picker Modal ────────────────────────────────────────────────────────
@@ -772,7 +772,7 @@ const s = StyleSheet.create({
   timeOutLabel: { fontSize: 11, fontWeight: '600', marginBottom: 6, marginTop: 2 },
   timeBtn: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, height: 47, justifyContent: 'center' },
   timeValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  timeBtnValue: { fontSize: 12, flex: 1 },
+  timeBtnValue: { fontSize: 11, flexShrink: 1 , },
 
   picker: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

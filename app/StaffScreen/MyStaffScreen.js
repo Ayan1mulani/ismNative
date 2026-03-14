@@ -14,6 +14,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import AppCard from "../components/AppCard";
 import AppSearchBar from "../components/AppSearchBar";
 import BRAND from '../config'
+import EmptyState from "../components/EmptyState";
 
 const COLORS = {
   primary: BRAND.COLORS.primary,
@@ -211,18 +212,18 @@ const MyStaffScreen = ({ nightMode }) => {
         }
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-        ListEmptyComponent={
-          <View style={styles.center}>
-            < Ionicons
-              name="search-outline"
-              size={40}
-              color={theme.textSecondary}
-            />
-            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              {search ? `No results for "${search}"` : "No Staff Found"}
-            </Text>
-          </View>
-        }
+     ListEmptyComponent={() => (
+  <EmptyState
+    icon="people-outline"
+    title={search ? "No Results Found" : "No Staff Found"}
+    subtitle={
+      search
+        ? `No staff matches "${search}"`
+        : "Add staff to manage them here"
+    }
+    theme={theme}
+  />
+)}
       />
     </View>
   );
@@ -301,8 +302,5 @@ const createStyles = (theme) =>
       paddingTop: 60,
     },
 
-    emptyText: {
-      marginTop: 10,
-      fontSize: 14,
-    },
+  
   });

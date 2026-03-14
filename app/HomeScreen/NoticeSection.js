@@ -6,7 +6,6 @@ import {
   TouchableOpacity, 
   FlatList, 
   Modal,
-  SafeAreaView,
   ActivityIndicator,
   Dimensions 
 } from 'react-native';
@@ -16,6 +15,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { usePermissions } from '../../Utils/ConetextApi';
 import { useNavigation } from '@react-navigation/native';
 import { ismServices } from '../../services/ismServices';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 60;

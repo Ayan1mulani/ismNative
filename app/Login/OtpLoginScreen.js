@@ -113,8 +113,10 @@ const OtpPhoneScreen = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
 
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
-
+        <ScrollView
+          contentContainerStyle={styles.scrollViewContent}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.container}>
 
             {/* HEADER */}

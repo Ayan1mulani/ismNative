@@ -17,19 +17,19 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 import { complaintService } from "../../../services/complaintService";
 import { usePermissions } from "../../../Utils/ConetextApi";
 import AppHeader from "../../components/AppHeader";
-import StatusModal from "../../components/StatusModal"; 
+import StatusModal from "../../components/StatusModal";
 
 const BRAND_BLUE = "#1996D3";
 const KAV_OFFSET = Platform.OS === "ios" ? 90 : 30;
 
 const STATUS_CONFIG = {
-  Open:          { label: "Open",        color: BRAND_BLUE,  bg: "#CCE7FF", icon: "radio-button-on"    },
-  WIP:           { label: "In Progress", color: "#E67E00",   bg: "#FFF3CD", icon: "sync"               },
-  "In Progress": { label: "In Progress", color: "#E67E00",   bg: "#FFF3CD", icon: "sync"               },
-  Pending:       { label: "Pending",     color: "#F59E0B",   bg: "#FEF3C7", icon: "time-outline"        },
-  Closed:        { label: "Closed",      color: "#28A745",   bg: "#D4EDDA", icon: "checkmark-circle"    },
-  Resolved:      { label: "Resolved",    color: "#28A745",   bg: "#D4EDDA", icon: "checkmark-circle"    },
-  Completed:     { label: "Completed",   color: "#28A745",   bg: "#D4EDDA", icon: "checkmark-circle"    },
+  Open: { label: "Open", color: BRAND_BLUE, bg: "#CCE7FF", icon: "radio-button-on" },
+  WIP: { label: "In Progress", color: "#E67E00", bg: "#FFF3CD", icon: "sync" },
+  "In Progress": { label: "In Progress", color: "#E67E00", bg: "#FFF3CD", icon: "sync" },
+  Pending: { label: "Pending", color: "#F59E0B", bg: "#FEF3C7", icon: "time-outline" },
+  Closed: { label: "Closed", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
+  Resolved: { label: "Resolved", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
+  Completed: { label: "Completed", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
 };
 
 const getStatusConfig = (status) =>
@@ -62,18 +62,18 @@ const InfoRow = ({ label, value, theme }) => {
 };
 
 const ServiceRequestDetailScreen = () => {
-  const route      = useRoute();
+  const route = useRoute();
   const navigation = useNavigation();
   const { nightMode } = usePermissions();
-  const complaint  = route.params?.complaint || {};
+  const complaint = route.params?.complaint || {};
 
   const scrollRef = useRef(null);
 
-  const [comments,    setComments]    = useState([]);
-  const [message,     setMessage]     = useState("");
+  const [comments, setComments] = useState([]);
+  const [message, setMessage] = useState("");
   const [ratingModal, setRatingModal] = useState(false);
-  const [rating,      setRating]      = useState(0);
-  const [feedback,    setFeedback]    = useState("");
+  const [rating, setRating] = useState(0);
+  const [feedback, setFeedback] = useState("");
 
   // ✅ New Modal State for UI Box
   const [modalState, setModalState] = useState({
@@ -84,13 +84,13 @@ const ServiceRequestDetailScreen = () => {
   });
 
   const theme = nightMode
-    ? { bg: "#0F0F14", card: "#18181F", text: "#fff",  sub: "#9CA3AF", border: "#2C2C2C", inputBg: "#252525" }
-    : { bg: "#F4F6FA", card: "#fff",   text: "#111",  sub: "#6B7280", border: "#E5E7EB", inputBg: "#F3F4F6" };
+    ? { bg: "#0F0F14", card: "#18181F", text: "#fff", sub: "#9CA3AF", border: "#2C2C2C", inputBg: "#252525" }
+    : { bg: "#F4F6FA", card: "#fff", text: "#111", sub: "#6B7280", border: "#E5E7EB", inputBg: "#F3F4F6" };
 
-  const isClosed  = ["Closed", "Resolved", "Completed"].includes(complaint.status);
+  const isClosed = ["Closed", "Resolved", "Completed"].includes(complaint.status);
   const hasRating = complaint.rating !== null &&
-                    complaint.rating !== undefined &&
-                    parseFloat(complaint.rating) > 0;
+    complaint.rating !== undefined &&
+    parseFloat(complaint.rating) > 0;
 
   const statusConfig = getStatusConfig(complaint.status);
 
@@ -101,14 +101,34 @@ const ServiceRequestDetailScreen = () => {
       return [];
     }
   })();
+  const parsedData = (() => {
+    try {
+      return JSON.parse(complaint.data || "{}");
+    } catch {
+      return {};
+    }
+  })();
+
+  const otp = parsedData?.otp;
 
   useEffect(() => { loadComments(); }, []);
 
   const loadComments = async () => {
     try {
       const res = await complaintService.getComplaintComments(complaint.id);
-      setComments(res || []);
-    } catch (e) { console.log(e); }
+
+      if (res?.data && Array.isArray(res.data)) {
+        setComments(res.data);
+      } else if (Array.isArray(res)) {
+        setComments(res);
+      } else {
+        setComments([]);
+      }
+
+    } catch (e) {
+      console.log(e);
+      setComments([]);
+    }
   };
 
   const sendComment = async () => {
@@ -141,12 +161,12 @@ const ServiceRequestDetailScreen = () => {
     try {
       const payload = {
         ...complaint,
-        status:           "Closed",
-        rating:           String(rating),
+        status: "Closed",
+        rating: String(rating),
         resident_remarks: feedback,
       };
       await complaintService.updateComplaintStatus(payload, "Closed");
-      
+
       // Show Success
       setModalState({
         visible: true,
@@ -203,10 +223,20 @@ const ServiceRequestDetailScreen = () => {
 
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
-            <InfoRow label="Added By"   value={complaint.createdBy}        theme={theme} />
-            <InfoRow label="Block"      value={complaint.block}            theme={theme} />
-            <InfoRow label="Unit"       value={complaint.display_unit_no}  theme={theme} />
-            <InfoRow label="Severity"   value={complaint.severity}         theme={theme} />
+            <InfoRow label="Added By" value={complaint.createdBy} theme={theme} />
+            <InfoRow label="Block" value={complaint.block} theme={theme} />
+            <InfoRow label="Unit" value={complaint.display_unit_no} theme={theme} />
+            <InfoRow label="Severity" value={complaint.severity} theme={theme} />
+            <InfoRow label="Assigned Staff" value={complaint.staff_name} theme={theme} />
+
+            <View style={styles.otpRow}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={[styles.infoLabel, { color: theme.sub }]}>Service OTP</Text>
+              </View>
+
+              <Text style={styles.otpValue}>{otp}</Text>
+            </View>
+
 
             {!!complaint.remarks && (
               <>
@@ -265,6 +295,7 @@ const ServiceRequestDetailScreen = () => {
               })}
             </View>
           )}
+
 
           {/* Card 4: Activities */}
           <View style={[styles.card, { backgroundColor: theme.card }]}>
@@ -327,6 +358,7 @@ const ServiceRequestDetailScreen = () => {
               placeholder="Write your feedback..."
               value={feedback}
               onChangeText={setFeedback}
+              placeholderTextColor={"#afbdda"}
               style={[styles.feedbackInput, { borderColor: "#E5E7EB" }]}
               multiline
               numberOfLines={3}
@@ -394,7 +426,20 @@ const styles = StyleSheet.create({
   modalCard: { backgroundColor: "#fff", width: "88%", borderRadius: 16, padding: 24 },
   modalTitle: { fontSize: 18, fontWeight: "700", textAlign: "center" },
   modalSubtitle: { fontSize: 13, color: "#6B7280", textAlign: "center", marginTop: 4 },
-  feedbackInput: { borderWidth: 1, borderRadius: 8, padding: 10, height: 80, fontSize: 14, marginTop: 10 },
+  feedbackInput: { borderWidth: 1, borderRadius: 8, padding: 10, height: 50, fontSize: 14, marginTop: 10 },
   modalBtns: { flexDirection: "row", gap: 10, marginTop: 16 },
   modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: "center" },
+  otpRow: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  paddingVertical: 6
+},
+
+otpValue: {
+  fontSize: 18,
+  fontWeight: "800",
+  letterSpacing: 4,
+  color: "#16A34A"
+},
 });

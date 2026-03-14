@@ -95,6 +95,7 @@ const ServiceRequestTabs = () => {
       setIsLoading(true);
       const res = await complaintService.getMyComplaints();
       const allData = res.data || [];
+      console.log("res data ", allData)
 
       const openData = allData.filter((item) =>
         ['Open', 'WIP', 'In Progress', 'Pending'].includes(item.status)

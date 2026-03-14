@@ -7,26 +7,26 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 const COLORS = {
-  primary:  '#1996D3',
-  success:  '#28A745',
-  warning:  '#FFC107',
-  info:     '#0052CC',
-  open:     '#1996D3',
+  primary: '#1996D3',
+  success: '#28A745',
+  warning: '#FFC107',
+  info: '#0052CC',
+  open: '#1996D3',
   light: {
-    background:    '#FFFFFF',
-    surface:       '#ffffff',
-    text:          '#212529',
+    background: '#FFFFFF',
+    surface: '#ffffff',
+    text: '#212529',
     textSecondary: '#6C757D',
-    border:        '#DEE2E6',
-    description:   '#495057',
+    border: '#DEE2E6',
+    description: '#495057',
   },
   dark: {
-    background:    '#1E1E1E',
-    surface:       '#2A2A2A',
-    text:          '#FFFFFF',
+    background: '#1E1E1E',
+    surface: '#2A2A2A',
+    text: '#FFFFFF',
     textSecondary: '#9E9E9E',
-    border:        '#2C2C2C',
-    description:   '#CCCCCC',
+    border: '#2C2C2C',
+    description: '#CCCCCC',
   },
 };
 
@@ -34,77 +34,114 @@ const REQUEST_STATUS = {
   // ✅ Open — blue
   OPEN: {
     light: { bg: '#CCE7FF', color: COLORS.primary },
-    dark:  { bg: '#1A2D3D', color: COLORS.primary },
+    dark: { bg: '#1A2D3D', color: COLORS.primary },
     label: 'Open',
-    icon:  'radio-button-on',
+    icon: 'radio-button-on',
   },
   // ✅ WIP / In Progress — orange
   IN_PROGRESS: {
     light: { bg: '#FFF3CD', color: '#E67E00' },
-    dark:  { bg: '#3D3A1A', color: '#FFC107' },
+    dark: { bg: '#3D3A1A', color: '#FFC107' },
     label: 'In Progress',
-    icon:  'sync',
+    icon: 'sync',
   },
   // ✅ Pending — yellow
   PENDING: {
     light: { bg: '#FFF3CD', color: COLORS.warning },
-    dark:  { bg: '#3D3A1A', color: COLORS.warning },
+    dark: { bg: '#3D3A1A', color: COLORS.warning },
     label: 'Pending',
-    icon:  'time-outline',
+    icon: 'time-outline',
   },
   // ✅ Resolved / Closed — green
   RESOLVED: {
     light: { bg: '#D4EDDA', color: COLORS.success },
-    dark:  { bg: '#1A3D2E', color: COLORS.success },
+    dark: { bg: '#1A3D2E', color: COLORS.success },
     label: 'Resolved',
-    icon:  'checkmark-circle',
+    icon: 'checkmark-circle',
   },
   UNKNOWN: {
     light: { bg: '#E9ECEF', color: COLORS.light.textSecondary },
-    dark:  { bg: '#2A2A2A', color: COLORS.dark.textSecondary },
+    dark: { bg: '#2A2A2A', color: COLORS.dark.textSecondary },
     label: 'Unknown',
-    icon:  'help-circle-outline',
+    icon: 'help-circle-outline',
   },
 };
-
 const CATEGORY_ICONS = {
-  AC:          { name: 'snowflake',    library: 'FontAwesome5', color: COLORS.primary },
-  ELECTRICAL:  { name: 'flash',        library: 'Ionicons',     color: '#FF8B00'      },
-  PLUMBING:    { name: 'water',        library: 'Ionicons',     color: COLORS.info    },
-  LIGHTING:    { name: 'bulb-outline', library: 'Ionicons',     color: COLORS.warning },
-  MAINTENANCE: { name: 'construct',    library: 'Ionicons',     color: COLORS.success },
-  DEFAULT:     { name: 'build',        library: 'Ionicons',     color: '#6C757D'      },
+  ELECTRICITY: {
+    name: "flash",
+    library: "Ionicons",
+    color: "#F59E0B"   // orange
+  },
+
+  PLUMBING: {
+    name: "water",
+    library: "Ionicons",
+    color: "#0EA5E9"   // blue
+  },
+
+  HVAC: {
+    name: "snow",
+    library: "Ionicons",
+    color: "#3B82F6"   // cool blue
+  },
+
+  MAINTENANCE: {
+    name: "construct",
+    library: "Ionicons",
+    color: "#22C55E"   // green
+  },
+
+  CLEANING: {
+    name: "sparkles",
+    library: "Ionicons",
+    color: "#A855F7"   // purple
+  },
+
+  DEFAULT: {
+    name: "build",
+    library: "Ionicons",
+    color: "#6B7280"   // gray
+  }
 };
+
 
 // ✅ Fixed: proper status mapping
 const getStatusConfig = (status, nightMode) => {
   const s = status?.toLowerCase() || '';
+  const isActiveStatus = !['resolved', 'closed', 'completed'].includes(status);
+
 
   let key = 'UNKNOWN';
-  if (['resolved', 'closed', 'completed'].includes(s)) key = 'RESOLVED';
-  else if (s === 'open')                                key = 'OPEN';
-  else if (['wip', 'in progress', 'inprogress'].includes(s)) key = 'IN_PROGRESS';
-  else if (s === 'pending')                             key = 'PENDING';
 
-  const config     = REQUEST_STATUS[key];
+  if (['resolved', 'closed', 'completed'].includes(s)) key = 'RESOLVED';
+  else if (s === 'open') key = 'OPEN';
+  else if (['wip', 'in progress', 'inprogress'].includes(s)) key = 'IN_PROGRESS';
+  else if (s === 'pending') key = 'PENDING';
+
+  const config = REQUEST_STATUS[key];
   const themeStyle = nightMode ? config.dark : config.light;
 
   return {
     ...config,
-    bg:    themeStyle.bg,
+    bg: themeStyle.bg,
     color: themeStyle.color,
     label: key === 'UNKNOWN' && status ? status : config.label,
   };
 };
 
-const getCategoryIcon = (category, theme) => {
-  const c = category?.toLowerCase() || '';
-  if (c.includes('ac') || c.includes('air'))            return CATEGORY_ICONS.AC;
-  if (c.includes('electrical') || c.includes('wiring')) return CATEGORY_ICONS.ELECTRICAL;
-  if (c.includes('plumbing') || c.includes('water'))    return CATEGORY_ICONS.PLUMBING;
-  if (c.includes('light'))                              return CATEGORY_ICONS.LIGHTING;
-  if (c.includes('maintenance'))                        return CATEGORY_ICONS.MAINTENANCE;
-  return { ...CATEGORY_ICONS.DEFAULT, color: theme.textSecondary };
+const getCategoryIcon = (categoryName, theme) => {
+  const c = categoryName?.toLowerCase() || "";
+
+  if (c.includes("electric")) return CATEGORY_ICONS.ELECTRICITY;
+  if (c.includes("plumb")) return CATEGORY_ICONS.PLUMBING;
+  if (c.includes("hvac")) return CATEGORY_ICONS.HVAC;
+  if (c.includes("maintenance")) return CATEGORY_ICONS.MAINTENANCE;
+  if (c.includes("clean")) return CATEGORY_ICONS.CLEANING;
+
+  return {
+    ...CATEGORY_ICONS.DEFAULT,
+    color: theme.textSecondary
+  };
 };
 
 const formatDate = (dateString) => {
@@ -131,10 +168,29 @@ const AppIcon = ({ name, library, color, size = 16 }) => {
 const ServiceRequestDetailCard = ({ complaint, onPress }) => {
   const { nightMode } = usePermissions();
   const theme = nightMode ? COLORS.dark : COLORS.light;
+  let parsedData = {};
+  try {
+    parsedData = complaint?.data ? JSON.parse(complaint.data) : {};
+  } catch (e) { }
 
-  const statusConfig  = getStatusConfig(complaint?.status, nightMode);
-  const categoryIcon  = getCategoryIcon(complaint?.sub_category, theme);
-  const requestNumber = `#${complaint?.com_no ?? complaint?.id ?? '—'}`;
+  const otp = parsedData?.otp;
+  const status = complaint?.status?.toLowerCase();
+  const isActiveStatus = !['resolved', 'closed', 'completed'].includes(status);
+  const isClosed = ['resolved', 'closed', 'completed'].includes(status);
+
+
+  const shouldShowOtp =
+    otp && !['resolved', 'closed', 'completed'].includes(status);
+  const probableDate = complaint?.probable_date;
+
+
+
+  const statusConfig = getStatusConfig(complaint?.status, nightMode);
+  const categoryIcon = getCategoryIcon(
+    complaint?.complaint_type_name,
+    complaint?.sub_category,
+    theme
+  ); const requestNumber = `#${complaint?.com_no ?? complaint?.id ?? '—'}`;
 
   return (
     <TouchableOpacity
@@ -171,7 +227,13 @@ const ServiceRequestDetailCard = ({ complaint, onPress }) => {
           />
         </View>
         <View style={styles.textBlock}>
-          <Text style={[styles.categoryText, { color: categoryIcon.color }]} numberOfLines={1}>
+          <Text
+            style={[
+              styles.categoryText,
+              { color: theme.text }
+            ]}
+            numberOfLines={1}
+          >
             {complaint?.complaint_type_name || complaint?.sub_category || 'Service Request'}
           </Text>
           <Text style={[styles.descriptionText, { color: theme.description }]} numberOfLines={2}>
@@ -179,6 +241,33 @@ const ServiceRequestDetailCard = ({ complaint, onPress }) => {
           </Text>
         </View>
       </View>
+
+      {isActiveStatus && (
+        <View style={styles.serviceRow}>
+
+          <View style={styles.visitRow}>
+            <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
+            <Text style={[styles.probableDateText, { color: theme.textSecondary }]}>
+              {probableDate
+                ? `Expected Visit: ${formatDate(probableDate)}`
+                : "Visit not scheduled"}
+            </Text>
+          </View>
+
+          {shouldShowOtp && (
+            <View style={styles.otpRow}>
+              <Ionicons name="key-outline" size={14} color={COLORS.primary} />
+              <Text style={[styles.otpLabel, { color: theme.textSecondary }]}>
+                OTP:
+              </Text>
+              <Text style={[styles.otpValue, { color: "#13812c" }]}>
+                {otp}
+              </Text>
+            </View>
+          )}
+
+        </View>
+      )}
 
       {/* Divider */}
       <View style={[styles.divider, { backgroundColor: theme.border }]} />
@@ -196,9 +285,12 @@ const ServiceRequestDetailCard = ({ complaint, onPress }) => {
         <View style={[styles.verticalDivider, { backgroundColor: theme.border }]} />
         <View style={styles.dateItem}>
           <View style={styles.dateTexts}>
-            <Text style={[styles.dateLabel, { color: theme.textSecondary }]}>Updated</Text>
+            <Text style={[styles.dateLabel, { color: theme.textSecondary }]}>
+              {isClosed ? "Closed" : "Updated"}
+            </Text>
+
             <Text style={[styles.dateValue, { color: theme.text }]}>
-              {formatDate(complaint?.updated_at)}
+              {formatDate(isClosed ? complaint?.closed_at : complaint?.updated_at)}
             </Text>
           </View>
         </View>
@@ -270,6 +362,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
+  serviceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10
+  },
+
+  probableDateText: {
+    fontSize: 11,
+    fontWeight: "500"
+  },
+
+  visitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4
+  },
+  otpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4
+  },
+  otpValue: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 4,
+  },
   divider: {
     height: 1,
     marginBottom: 12,
@@ -305,6 +424,25 @@ const styles = StyleSheet.create({
     minHeight: 36,
     marginHorizontal: 12,
   },
+  otpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+    padding: 6,
+    borderRadius: 8
+  },
+
+  otpLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+
+  otpValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 4,
+  }
 });
 
 export default ServiceRequestDetailCard;

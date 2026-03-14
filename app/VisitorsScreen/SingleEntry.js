@@ -15,6 +15,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import BRAND from '../config'
+import EmptyState from '../components/EmptyState';
 
 const BASE_URL = "https://ism-vms.s3.amazonaws.com/company-logo/";
 const DEFAULT_GUEST_IMAGE =
@@ -79,49 +80,49 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
   const [failedImages, setFailedImages] = useState({});
 
 
- const getPassImage = (pass) => {
-  const purpose = pass.purpose?.toLowerCase();
-  const name =
-    pass.company_name?.toLowerCase() ||
-    pass.name?.toLowerCase();
+  const getPassImage = (pass) => {
+    const purpose = pass.purpose?.toLowerCase();
+    const name =
+      pass.company_name?.toLowerCase() ||
+      pass.name?.toLowerCase();
 
-  const key = `${purpose}-${name}`;
+    const key = `${purpose}-${name}`;
 
-  // If image previously failed → show fallback
-  if (failedImages[key]) {
-    if (purpose === "cab") return LOCAL_IMAGES.cab;
-    if (purpose === "delivery") return LOCAL_IMAGES.delivery;
-  }
+    // If image previously failed → show fallback
+    if (failedImages[key]) {
+      if (purpose === "cab") return LOCAL_IMAGES.cab;
+      if (purpose === "delivery") return LOCAL_IMAGES.delivery;
+    }
 
-  // Guest
-  if (purpose === "guest") {
+    // Guest
+    if (purpose === "guest") {
+      return { uri: DEFAULT_GUEST_IMAGE };
+    }
+
+    // Cab
+    if (purpose === "cab") {
+      if (!name || name === "any") {
+        return LOCAL_IMAGES.cab;
+      }
+
+      return {
+        uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
+      };
+    }
+
+    // Delivery
+    if (purpose === "delivery") {
+      if (!name || name === "any") {
+        return LOCAL_IMAGES.delivery;
+      }
+
+      return {
+        uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
+      };
+    }
+
     return { uri: DEFAULT_GUEST_IMAGE };
-  }
-
-  // Cab
-  if (purpose === "cab") {
-    if (!name || name === "any") {
-      return LOCAL_IMAGES.cab;
-    }
-
-    return {
-      uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
-    };
-  }
-
-  // Delivery
-  if (purpose === "delivery") {
-    if (!name || name === "any") {
-      return LOCAL_IMAGES.delivery;
-    }
-
-    return {
-      uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
-    };
-  }
-
-  return { uri: DEFAULT_GUEST_IMAGE };
-};
+  };
   const getPassStatus = (status) => {
     const statusStr = String(status);
 
@@ -331,17 +332,6 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      < Ionicons name="card-outline" size={64} color={theme.textSecondary} />
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>
-        No Passes Found
-      </Text>
-      <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-        Create a new pass to get started
-      </Text>
-    </View>
-  );
 
   const renderLoadingState = () => (
     <View style={[styles.loadingState, { backgroundColor: theme.background }]}>
@@ -460,8 +450,15 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
           renderItem={renderPassCard}
           keyExtractor={(item) => item.id.toString()}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
+          contentContainerStyle={
+            filteredData.length === 0
+              ? {
+                flexGrow: 1,
+                paddingTop: 120,   // 👈 pushes EmptyState downward
+                paddingHorizontal: 16,
+              }
+              : styles.listContent
+          } refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
@@ -469,7 +466,14 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
               tintColor={COLORS.primary}
             />
           }
-          ListEmptyComponent={renderEmptyState}
+          ListEmptyComponent={() => (
+            <EmptyState
+              icon="card-outline"
+              title="No Passes Found"
+              subtitle="Create a new pass to get started"
+              theme={theme}
+            />
+          )}
         />
 
       </View>
@@ -601,24 +605,6 @@ const createStyles = (theme, nightMode) =>
       gap: 6,
     },
 
-    emptyState: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingTop: 80,
-      paddingHorizontal: 32,
-    },
-    emptyTitle: {
-      fontSize: 20,
-      fontWeight: '600',
-      marginTop: 16,
-      marginBottom: 8,
-    },
-    emptySubtitle: {
-      fontSize: 15,
-      textAlign: 'center',
-      lineHeight: 22,
-    },
     fab: {
       position: 'absolute',
       bottom: 110,
