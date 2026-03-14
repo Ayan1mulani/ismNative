@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL2, APP_VERSION_CODE, APP_ID_ONE_SIGNAL } from '../app/config/env';
+import { API_URL2, APP_VERSION_CODE, APP_ID_ONE_SIGNAL, APP_NAME } from '../app/config/env';
 import { OneSignal } from 'react-native-onesignal';
 import { ApiCommon } from './ApiCommon';
+import { Common } from './Common';
+
 
 /* ================================
    REGISTER DEVICE
@@ -10,61 +12,83 @@ export const RegisterAppOneSignal = async () => {
 
   try {
 
+    console.log("🚀 RegisterAppOneSignal started");
+
     const userInfo = await AsyncStorage.getItem("userInfo");
 
+    console.log("📦 Raw userInfo from storage:", userInfo);
+
     if (!userInfo) {
-      console.log("No user session");
+      console.log("❌ No user session found");
       return false;
     }
 
     const parsedUser = JSON.parse(userInfo);
 
+    console.log("👤 Parsed user:", parsedUser);
+
     const userId = parsedUser?.id;
     const apiToken = parsedUser?.api_token;
     const societyId = parsedUser?.societyId || parsedUser?.s_id;
 
+    console.log("🔎 Extracted values");
+    console.log("userId:", userId);
+    console.log("apiToken:", apiToken);
+    console.log("societyId:", societyId);
+
     const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
 
+    console.log("📱 OneSignal Device ID:", deviceId);
+
     if (!deviceId) {
-      console.log("Device ID not ready");
+      console.log("❌ Device ID not ready yet");
       return false;
     }
 
-    console.log("OneSignal Device ID:", deviceId);
+
+    console.log("📨 Headers:", headers);
+
+    const payload = {
+      app_name: APP_NAME,
+      app_version_code: APP_VERSION_CODE,
+      app_device_id: deviceId,
+      userId: deviceId,
+      tenant: 0,
+    };
+    let user = await Common.getLoggedInUser()
+
+
+    console.log("📦 Payload being sent:", payload);
+
+    const url = `${API_URL2}/appRegistered?api-token=${user.api_token}&user-id=${JSON.stringify(user.id)}`;
+
+
+    console.log("🌐 Request URL:", url);
+    console.log(user, "++++++++++++user++++++++++++")
 
     const headers = {
       "Content-Type": "application/json",
-      "ism-auth": JSON.stringify({
-        "api-token": apiToken,
-        "user-id": userId,
-        "site-id": societyId
-      })
-    };
+      "Ism-Auth": `{"api-token":"${user.api_token}","user-id":${JSON.stringify(user.id)},"site-id":${user.societyId}}`
+    }
 
-    const payload = {
-      app_name: "enviro_vms",
-      app_version_code: APP_VERSION_CODE,
-      app_device_id: deviceId,
-      userId: userId,
-      tenant: 0
-    };
 
-    const url = `${API_URL2}/appRegistered?app_id=${APP_ID_ONE_SIGNAL}`;
+
+
 
     const response = await ApiCommon.postReq(url, payload, headers);
 
-    console.log("OneSignal Registered:", response);
+    console.log("✅ OneSignal Registered Response:", response);
 
     return true;
 
   } catch (error) {
 
-    console.error("OneSignal register error:", error);
+    console.error("❌ OneSignal register error:", error);
 
     return false;
 
   }
-}
+};
 
 /* ================================
    UNREGISTER DEVICE

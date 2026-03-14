@@ -63,7 +63,8 @@ const SettingsScreen = () => {
     const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
 
     console.log("Device ID:", deviceId);
-    console.log("Push Enabled:", OneSignal.User.pushSubscription.optedIn);
+    const isOptedIn = await OneSignal.User.pushSubscription.getOptedInAsync();
+    console.log("Push Enabled:", isOptedIn);
 
     const res = await otherServices.sendTestNotification();
 

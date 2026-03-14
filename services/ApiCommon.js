@@ -84,6 +84,7 @@ const ApiCommon = {
   if (method !== "GET" && data) {
     conf.body = JSON.stringify(data);
   }
+  console.log("conf",conf , url)
 
   const response = await fetch(url, conf);
 

@@ -44,7 +44,6 @@ const Util = {
     if(user){
       return {
       "Content-Type": "application/json",
-
       }
     }
   }

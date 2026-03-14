@@ -141,7 +141,7 @@ const ProfileScreen = () => {
             try {
 
               // 🔔 Disable push locally
-              await OneSignal.User.pushSubscription.optOut();
+               OneSignal.User.pushSubscription.optOut();
 
               // 🔔 Unregister device from backend
               await UnRegisterOneSignal();

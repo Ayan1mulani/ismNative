@@ -73,7 +73,7 @@ const NewLoginScreen = () => {
   const getUserDetails = async () => {
     try {
       const userInfo = await AsyncStorage.getItem('userInfo');
-      console.log(userInfo, "user info")
+
 
       if (!userInfo) return;
       const parsed = JSON.parse(userInfo);
@@ -83,6 +83,8 @@ const NewLoginScreen = () => {
       const updatedUserInfo = await AsyncStorage.getItem('userInfo');
       if (!updatedUserInfo) return;
       const updatedParsed = JSON.parse(updatedUserInfo);
+      RegisterAppOneSignal();
+
       if (!updatedParsed?.token && !updatedParsed?.id) return;
       navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'MainApp' }] }));
     } catch (error) {
@@ -92,7 +94,10 @@ const NewLoginScreen = () => {
   };
 
   useEffect(() => {
+
     getUserDetails();
+
+
 
   }, []);
 
@@ -135,13 +140,14 @@ const NewLoginScreen = () => {
 
         await AsyncStorage.setItem('userInfo', JSON.stringify(response.data));
 
-        console.log(response.data, "user info");
+
 
         await AsyncStorage.removeItem("permissions");
 
         await loadPermissions();
+        initializeOneSignal();
 
-        await RegisterAppOneSignal();
+        // await RegisterAppOneSignal();
 
         setTimeout(() => {
           navigation.dispatch(
@@ -246,7 +252,7 @@ const NewLoginScreen = () => {
                   </View>
                   <TextInput
                     style={styles.input}
-                   placeholder="Email or Mobile Number"
+                    placeholder="Email or Mobile Number"
                     placeholderTextColor="#9e9e9e"
                     keyboardType="email-address"
                     value={email}
@@ -420,7 +426,7 @@ const styles = StyleSheet.create({
   termsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent:'center',
+    justifyContent: 'center',
     marginTop: 20,
     marginBottom: 12,
   },

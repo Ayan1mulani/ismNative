@@ -14,7 +14,16 @@ export default function App() {
 
   useEffect(() => {
 
-    initializeOneSignal();
+    OneSignal.Notifications.addEventListener("foregroundWillDisplay", event => {
+      console.log("Notification received in foreground:");
+      console.log(event);
+    });
+
+  }, []);
+
+  useEffect(() => {
+
+
 
     // when push subscription becomes ready
     OneSignal.User.pushSubscription.addEventListener("change", async () => {
@@ -47,7 +56,7 @@ export default function App() {
           { backgroundColor: BRAND.COLORS.safeArea || BRAND.COLORS.background }
         ]}
       >
-        <StatusBar barStyle={"dark-content"}/>
+        <StatusBar barStyle={"dark-content"} />
         <NavigationPage />
       </SafeAreaView>
     </GestureHandlerRootView>

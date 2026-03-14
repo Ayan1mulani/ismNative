@@ -1,55 +1,148 @@
 import { OneSignal, LogLevel } from "react-native-onesignal";
 import { APP_ID_ONE_SIGNAL } from "../../app/config/env";
 
-const getOneSignalId = async () => {
-  try {
-    const id = await OneSignal.User.getOnesignalId();
-  } catch (error) {
-    console.error('Error getting OneSignal ID:', error);
-  }
-};
-
-// Example to get External ID
-const getExternalId = async () => {
-  try {
-    const id = await OneSignal.User.getExternalId();
-  } catch (error) {
-    console.error('Error getting External ID:', error);
-  }
-};
-
-// Example to get Push Subscription ID and Token
-const getPushId = async () => {
-  try {
-    const id = await OneSignal.User.pushSubscription.getIdAsync();
-    const token = await OneSignal.User.pushSubscription.getTokenAsync();
-  } catch (error) {
-    console.error('Error getting Push ID:', error);
-  }
-};
-
 const onesignalInitalize = async () => {
-  // Set log level for debugging strictly to NO so no debugging is enabled
-OneSignal.Debug.setLogLevel(LogLevel.None); 
-  // Initialize with your OneSignal App ID
-  OneSignal.initialize(APP_ID_ONE_SIGNAL);
-  OneSignal.InAppMessages.setPaused(true); 
-  // Request push notification permission
-  await OneSignal.Notifications.requestPermission(false);
-  
-  // Get Push ID and Token
-  await getPushId();
+  try {
 
-  // Log in with a user ID (example: "2165")
-  OneSignal.login("2165");
-  
+    console.log("🚀 Initializing OneSignal...");
 
-  // Get OneSignal ID and External ID
-  await getOneSignalId();
-  await getExternalId();
-// OneSignal.setLogLevel(LogLevel.Debug, LogLevel.Debug);
-  // Check notification permissions (optional)
-  const permissionStatus = await OneSignal.Notifications.getPermissionAsync();
+    /* ------------------------------
+       ENABLE DEBUG LOGS
+    ------------------------------ */
+    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+
+    /* ------------------------------
+       INITIALIZE ONESIGNAL
+    ------------------------------ */
+    OneSignal.initialize(APP_ID_ONE_SIGNAL);
+
+    console.log("✅ OneSignal initialized with App ID:", APP_ID_ONE_SIGNAL);
+
+    /* ------------------------------
+       PAUSE IN APP MESSAGES
+    ------------------------------ */
+    OneSignal.InAppMessages.setPaused(true);
+
+    /* ------------------------------
+       REQUEST PERMISSION
+    ------------------------------ */
+    console.log("📩 Requesting notification permission...");
+
+    const permission = await OneSignal.Notifications.requestPermission(true);
+
+    console.log("🔔 Permission granted:", permission);
+
+    const permissionStatus =
+      await OneSignal.Notifications.getPermissionAsync();
+
+    console.log("🔐 Current permission status:", permissionStatus);
+
+    /* ------------------------------
+       ENABLE PUSH SUBSCRIPTION
+    ------------------------------ */
+    OneSignal.User.pushSubscription.optIn();
+
+    /* ------------------------------
+       PUSH SUBSCRIPTION CHANGE
+    ------------------------------ */
+    OneSignal.User.pushSubscription.addEventListener("change", (event) => {
+
+      console.log("📲 Push subscription changed");
+
+      console.log("Previous ID:", event.previous?.id);
+      console.log("Current ID:", event.current?.id);
+
+      console.log("Previous Token:", event.previous?.token);
+      console.log("Current Token:", event.current?.token);
+
+      console.log("Full Event:", JSON.stringify(event, null, 2));
+
+    });
+
+    /* ------------------------------
+       FOREGROUND NOTIFICATION
+    ------------------------------ */
+    OneSignal.Notifications.addEventListener(
+      "foregroundWillDisplay",
+      (event) => {
+
+        const notification = event.getNotification();
+
+        event.preventDefault();
+
+        Alert.alert(
+          notification.title || "Notification",
+          notification.body || "You have a new message"
+        );
+
+      }
+    );
+
+    /* ------------------------------
+       BACKGROUND / CLICK NOTIFICATION
+    ------------------------------ */
+    OneSignal.Notifications.addEventListener("click", (event) => {
+
+      console.log("👆 Notification clicked");
+
+      const notification = event.notification;
+
+      console.log("📦 FULL NOTIFICATION OBJECT:");
+      console.log(JSON.stringify(notification, null, 2));
+
+      console.log("Title:", notification.title);
+      console.log("Body:", notification.body);
+      console.log("Additional Data:", notification.additionalData);
+
+      console.log("Raw Payload:", notification.rawPayload);
+
+    });
+
+    /* ------------------------------
+       FETCH DEVICE IDS
+    ------------------------------ */
+
+    setTimeout(async () => {
+
+      try {
+
+        const onesignalId = await OneSignal.User.getOnesignalId();
+
+        const pushId =
+          await OneSignal.User.pushSubscription.getIdAsync();
+
+        const pushToken =
+          await OneSignal.User.pushSubscription.getTokenAsync();
+
+        const optedIn =
+          await OneSignal.User.pushSubscription.getOptedInAsync();
+
+        console.log("🆔 OneSignal ID:", onesignalId);
+        console.log("📌 Push Subscription ID (deviceid):", pushId);
+        console.log("📌 Push Token:", pushToken);
+        console.log("🔔 Push Enabled:", optedIn);
+
+        if (!pushId) {
+          console.log("⚠️ Device ID not ready yet");
+        } else {
+          console.log("✅ Device ID ready for backend:", pushId);
+        }
+
+      } catch (err) {
+
+        console.log("❌ Error fetching OneSignal IDs:", err);
+
+      }
+
+    }, 3000);
+
+    console.log("🎉 OneSignal setup completed");
+
+  } catch (error) {
+
+    console.error("❌ OneSignal initialization error:", error);
+
+  }
 };
 
 export default onesignalInitalize;
