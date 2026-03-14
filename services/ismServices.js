@@ -7,29 +7,64 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 const ismServices = {
 
 
-getUserDetails: async () => {
-  try {
+  changePassword: async (payload) => {
+    try {
 
-    const url = await ismServices.appendParamsInUrl(
-      `${API_URL2}/userDetail`
-    );
+      const url = await ismServices.appendParamsInUrl(
+        `${API_URL2}/changePassword`
+      );
 
-    const response = await ApiCommon.getReq(url);
+      const headers = await Util.getCommonAuth();
 
-    console.log("USER DETAILS RESPONSE:", response);
+      console.log("CHANGE PASSWORD URL:", url);
+      console.log("CHANGE PASSWORD PAYLOAD:", payload);
 
-    await AsyncStorage.setItem(
-      "userDetails",
-      JSON.stringify(response)
-    );
+      const response = await ApiCommon.postReq(url, payload, headers);
 
-    return response;
+      console.log("CHANGE PASSWORD RESPONSE:", response);
 
-  } catch (error) {
-    console.log("User detail error:", error);
-    throw error;
-  }
-},
+      return response;
+
+    } catch (error) {
+
+      console.log("CHANGE PASSWORD ERROR:", error);
+
+      if (error?.response) {
+        console.log("BACKEND ERROR DATA:", error.response.data);
+        console.log("BACKEND ERROR STATUS:", error.response.status);
+      }
+
+      return {
+        status: "error",
+        message: "Password change failed"
+      };
+    }
+  },
+
+
+  getUserDetails: async () => {
+    try {
+
+      const url = await ismServices.appendParamsInUrl(
+        `${API_URL2}/userDetail`
+      );
+
+      const response = await ApiCommon.getReq(url);
+
+      console.log("USER DETAILS RESPONSE:", response);
+
+      await AsyncStorage.setItem(
+        "userDetails",
+        JSON.stringify(response)
+      );
+
+      return response;
+
+    } catch (error) {
+      console.log("User detail error:", error);
+      throw error;
+    }
+  },
 
   getMyNotifications: async () => {
     const url = await ismServices.appendParamsInUrl(
@@ -138,25 +173,25 @@ getUserDetails: async () => {
     }
   },
 
-  
+
   // ✅ FIXED
-logMeIn: async (token, account) => {
-  try {
+  logMeIn: async (token, account) => {
+    try {
 
-    // ✅ token in URL, account object in POST body
-    const url = `${API_URL2}/logmein?token=${token}`;
+      // ✅ token in URL, account object in POST body
+      const url = `${API_URL2}/logmein?token=${token}`;
 
-    console.log("LOGMEIN URL:", url);
-    console.log("LOGMEIN BODY:", JSON.stringify(account));
+      console.log("LOGMEIN URL:", url);
+      console.log("LOGMEIN BODY:", JSON.stringify(account));
 
-    const response = await ApiCommon.postReq(url, account);
-    return response;
+      const response = await ApiCommon.postReq(url, account);
+      return response;
 
-  } catch (error) {
-    console.error("logMeIn API Error:", error);
-    throw error;
-  }
-},
+    } catch (error) {
+      console.error("logMeIn API Error:", error);
+      throw error;
+    }
+  },
 
 
   getMyNotices: async (category = "COMMON") => {

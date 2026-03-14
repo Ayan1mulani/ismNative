@@ -21,6 +21,7 @@ import { CommonActions } from '@react-navigation/native';
 import { Modal } from 'react-native';
 import { TextInput } from 'react-native';
 import { ismServices } from '../../services/ismServices';
+import StatusModal from "../components/StatusModal";
 
 import BRAND from '../config'
 import { RegisterAppOneSignal } from '../../services/oneSignalService';
@@ -44,6 +45,16 @@ const ProfileScreen = () => {
   const hasMeterReading = permissions?.MTR_READING?.READ;
   const hasMeter = permissions?.METER?.READ;
   const hasMeterBalance = permissions?.METER_BALANCE?.READ;
+  const [changePassModal, setChangePassModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [statusModal, setStatusModal] = useState({
+    visible: false,
+    type: "loading",
+    title: "",
+    subtitle: ""
+  });
 
   const navigation = useNavigation();
 
@@ -155,34 +166,143 @@ const ProfileScreen = () => {
     );
   };
 
+  const handleChangePassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      setStatusModal({
+        visible: true,
+        type: "error",
+        title: "Missing Fields",
+        subtitle: "Please fill all password fields."
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setStatusModal({
+        visible: true,
+        type: "error",
+        title: "Password Mismatch",
+        subtitle: "New password and confirm password must match."
+      });
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      setChangePassModal(false);
+
+
+      // 🔵 Show loading modal
+      setStatusModal({
+        visible: true,
+        type: "loading",
+        title: "Updating Password",
+        subtitle: "Please wait..."
+      });
+
+      const payload = {
+        old_password: "",
+        new_password: newPassword,
+        cpassword: confirmPassword
+      };
+      console.log("CHANGE PASSWORD PAYLOAD:", payload);
+
+      const res = await ismServices.changePassword(payload);
+
+      const status = res?.status || res?.data?.status;
+      console.log("CHANGE PASSWORD RESPONSE:", res);
+
+      if (status === "success") {
+
+        setStatusModal({
+          visible: true,
+          type: "success",
+          title: "Password Updated",
+          subtitle: "Your password was changed successfully."
+        });
+
+        setNewPassword("");
+        setConfirmPassword("");
+        setChangePassModal(false);
+
+      } else {
+
+        setStatusModal({
+          visible: true,
+          type: "error",
+          title: "Failed",
+          subtitle: res?.message || res?.data?.message || "Unable to change password."
+        });
+        setChangingPassword(true);
+
+
+      }
+
+    }
+    catch (e) {
+
+      console.log("CHANGE PASSWORD ERROR:", e);
+
+      if (e?.response) {
+        console.log("BACKEND ERROR DATA:", e.response.data);
+        console.log("BACKEND ERROR STATUS:", e.response.status);
+      }
+
+      setStatusModal({
+        visible: true,
+        type: "error",
+        title: "Error",
+        subtitle: "Something went wrong. Please try again."
+      });
+
+
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const handleSwitchAccount = async () => {
-  try {
-    setIsSwitching(true);
+    try {
+      setIsSwitching(true);
 
-    const userInfo = await AsyncStorage.getItem('userInfo');
-    if (!userInfo) return;
+      const userInfo = await AsyncStorage.getItem('userInfo');
+      if (!userInfo) return;
 
-    const parsedUser = JSON.parse(userInfo);
+      const parsedUser = JSON.parse(userInfo);
 
-    const payload = {
-      identity: parsedUser.email,
-      password: '',
-      tenant: 0,
-      user_id: null,
-    };
+      const payload = {
+        identity: parsedUser.email,
+        password: '',
+        tenant: 0,
+        user_id: null,
+      };
 
-    const response = await LoginSrv.login(payload);
+      const response = await LoginSrv.login(payload);
 
-    // MULTIPLE ACCOUNTS
-    if (response.status === 'multipleLogin') {
+      // MULTIPLE ACCOUNTS
+      if (response.status === 'multipleLogin') {
 
-      const currentUser = parsedUser;
+        const currentUser = parsedUser;
 
-      const filteredAccounts = response.data.filter(
-        acc => acc.user_id !== currentUser.user_id
-      );
+        const filteredAccounts = response.data.filter(
+          acc => acc.user_id !== currentUser.user_id
+        );
 
-      if (filteredAccounts.length === 0) {
+        if (filteredAccounts.length === 0) {
+          Alert.alert(
+            "No Other Accounts",
+            "Your email is linked to only one account."
+          );
+          return;
+        }
+
+        setAccounts(filteredAccounts);
+        setModalVisible(true);
+        return;
+      }
+
+      // ONLY ONE ACCOUNT
+      if (response.status === 'success') {
         Alert.alert(
           "No Other Accounts",
           "Your email is linked to only one account."
@@ -190,33 +310,19 @@ const ProfileScreen = () => {
         return;
       }
 
-      setAccounts(filteredAccounts);
-      setModalVisible(true);
-      return;
-    }
-
-    // ONLY ONE ACCOUNT
-    if (response.status === 'success') {
+      // FALLBACK
       Alert.alert(
-        "No Other Accounts",
-        "Your email is linked to only one account."
+        "Switch Account",
+        "No other accounts available."
       );
-      return;
+
+    } catch (error) {
+      console.log('Switch error:', error);
+      Alert.alert("Error", "Unable to check accounts");
+    } finally {
+      setIsSwitching(false);
     }
-
-    // FALLBACK
-    Alert.alert(
-      "Switch Account",
-      "No other accounts available."
-    );
-
-  } catch (error) {
-    console.log('Switch error:', error);
-    Alert.alert("Error", "Unable to check accounts");
-  } finally {
-    setIsSwitching(false);
-  }
-};
+  };
 
   const handleAccountSelect = (selectedUser) => {
     setModalVisible(false);
@@ -362,44 +468,44 @@ const ProfileScreen = () => {
 
         {/* METER DETAILS */}
         {(hasMeter || hasMeterReading || hasMeterBalance) && (
-  <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
-    <TouchableOpacity
-      style={styles.dropdownHeader}
-      onPress={() => setMeterOpen(prev => !prev)}
-    >
-      <Text style={[styles.sectionTitle, { color: theme.textMain }]}>
-        Meter Details
-      </Text>
+          <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
+            <TouchableOpacity
+              style={styles.dropdownHeader}
+              onPress={() => setMeterOpen(prev => !prev)}
+            >
+              <Text style={[styles.sectionTitle, { color: theme.textMain }]}>
+                Meter Details
+              </Text>
 
-      <Ionicons
-        name={meterOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
-        size={20}
-        color={theme.textSub}
-      />
-    </TouchableOpacity>
+              <Ionicons
+                name={meterOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
+                size={20}
+                color={theme.textSub}
+              />
+            </TouchableOpacity>
 
-    {meterOpen && (
-      <View style={styles.dropdownContent}>
+            {meterOpen && (
+              <View style={styles.dropdownContent}>
 
-        {hasMeter && (
-          <>
-            <InfoRow label="Grid Meter No" value={userProfile.grid_meter_no} />
-            <InfoRow label="DG Meter No" value={userProfile.dg_meter_no} />
-          </>
+                {hasMeter && (
+                  <>
+                    <InfoRow label="Grid Meter No" value={userProfile.grid_meter_no} />
+                    <InfoRow label="DG Meter No" value={userProfile.dg_meter_no} />
+                  </>
+                )}
+
+                {hasMeterReading && (
+                  <InfoRow label="Gas Meter No" value={userProfile.gas_meter_no} />
+                )}
+
+                {hasMeterBalance && (
+                  <InfoRow label="Meter Balance" value={userProfile.meter_balance} />
+                )}
+
+              </View>
+            )}
+          </View>
         )}
-
-        {hasMeterReading && (
-          <InfoRow label="Gas Meter No" value={userProfile.gas_meter_no} />
-        )}
-
-        {hasMeterBalance && (
-          <InfoRow label="Meter Balance" value={userProfile.meter_balance} />
-        )}
-
-      </View>
-    )}
-  </View>
-)}
 
         {/* MY VEHICLES */}
         <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
@@ -447,6 +553,28 @@ const ProfileScreen = () => {
 
           <TouchableOpacity
             style={styles.actionRow}
+            onPress={() => setChangePassModal(true)}
+          >
+            <Ionicons name="lock-closed-outline" size={20} color={theme.textMain} />
+
+            <Text style={[styles.actionText, { color: theme.textMain }]}>
+              Change Password
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate("ResidentIdCard")}
+          >
+            <Ionicons name="card-outline" size={20} color={theme.textMain} />
+
+            <Text style={[styles.actionText, { color: theme.textMain }]}>
+              Virtual ID Card
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionRow}
             onPress={handleSwitchAccount}
             disabled={isSwitching}
           >
@@ -473,11 +601,78 @@ const ProfileScreen = () => {
         </View>
 
       </ScrollView>
+      <Modal visible={changePassModal} transparent animationType="fade">
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <View style={{
+            backgroundColor: '#fff',
+            width: '85%',
+            padding: 20,
+            borderRadius: 16
+          }}>
+
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 15 }}>
+              Change Password
+            </Text>
+            <TextInput
+              placeholder="New Password"
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholderTextColor="#000"
+              style={styles.passwordInput}
+            />
+
+            <TextInput
+              placeholder="Confirm Password"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholderTextColor="#000"
+              style={styles.passwordInput}
+            />
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: theme.primary,
+                padding: 14,
+                borderRadius: 10,
+                alignItems: 'center'
+              }}
+              onPress={handleChangePassword}
+              disabled={changingPassword}
+            >
+              <Text style={{ color: '#fff' }}>
+                {changingPassword ? "Updating..." : "Update Password"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{ marginTop: 10, alignItems: 'center' }}
+              onPress={() => setChangePassModal(false)}
+            >
+              <Text style={{ color: 'red' }}>Cancel</Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
       <AccountSelectorModal
         visible={modalVisible}
         accounts={accounts}
         onSelect={handleAccountSelect}
         onClose={() => setModalVisible(false)}
+      />
+      <StatusModal
+        visible={statusModal.visible}
+        type={statusModal.type}
+        title={statusModal.title}
+        subtitle={statusModal.subtitle}
+        onClose={() => setStatusModal(prev => ({ ...prev, visible: false }))}
       />
 
       <Modal visible={passwordModal} transparent animationType="fade">
@@ -606,6 +801,15 @@ const styles = StyleSheet.create({
 
   dropdownContent: {
     marginTop: 10,
+  },
+  passwordInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    fontSize: 14,
+    color: '#000'
   },
 
   actionRow: {
