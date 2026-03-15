@@ -25,7 +25,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -53,7 +53,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -176,7 +176,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -221,7 +221,7 @@ const otherServices = {
       {
         "api-token": user.api_token,
         "user-id": JSON.stringify({
-          user_id: user.unit_id,
+          user_id: user.id,
           group_id: user.role_id,
           flat_no: user.flat_no,
           unit_id: user.unit_id,
@@ -243,7 +243,7 @@ const otherServices = {
       {
         "api-token": user.api_token,
         "user-id": JSON.stringify({
-          user_id: user.unit_id,
+          user_id: user.id,
           group_id: user.role_id,
           flat_no: user.flat_no,
           unit_id: user.unit_id,
@@ -273,7 +273,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -300,7 +300,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -330,7 +330,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -390,7 +390,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -416,7 +416,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -443,7 +443,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -478,7 +478,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -509,7 +509,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -546,7 +546,7 @@ const otherServices = {
     const user = await Common.getLoggedInUser();
 
     const userObj = {
-      user_id: user.unit_id,
+      user_id: user.id,
       group_id: user.role_id,
       flat_no: user.flat_no,
       unit_id: user.unit_id,
@@ -564,7 +564,7 @@ const otherServices = {
     const user = await Common.getLoggedInUser();
 
     const userObj = {
-      user_id: user.unit_id,
+      user_id: user.id,
       group_id: user.role_id,
       flat_no: user.flat_no,
       unit_id: user.unit_id,
@@ -588,7 +588,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -626,7 +626,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -656,7 +656,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -680,7 +680,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -715,7 +715,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -748,7 +748,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -784,7 +784,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -809,7 +809,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -836,7 +836,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -871,7 +871,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -909,7 +909,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -943,7 +943,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
@@ -978,7 +978,7 @@ const otherServices = {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
+        user_id: user.id,
         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,

@@ -36,26 +36,35 @@ console.log("Can View Dashboard:", canViewDashboard);
     online: COLORS.success,
     border: COLORS.border,
   };
-  const loadData = async () => {
-    try {
-      const storedUser = await AsyncStorage.getItem("userInfo");
-      if (!storedUser) return;
+ const loadData = async () => {
+  try {
 
-      const detailsRes = await ismServices.getUserDetails();
-      setUserDetails(detailsRes || {});
+    const storedUser = await AsyncStorage.getItem("userInfo");
+    if (!storedUser) return;
 
-      // ✅ store flatNo globally
-      if (detailsRes?.flat_no) {
-        setFlatNo(detailsRes.flat_no);
-      }
+    const [detailsRes, billRes] = await Promise.all([
+      ismServices.getUserDetails(),
+      otherServices.getOutStandings()
+    ]);
 
-      const billRes = await otherServices.getOutStandings();
-      setOutstanding(billRes?.data || []);
-    } catch (err) {
-    } finally {
-      setLoading(false);
+    setUserDetails(detailsRes || {});
+
+    if (detailsRes?.flat_no) {
+      setFlatNo(detailsRes.flat_no);
     }
-  };
+
+    setOutstanding(billRes?.data || []);
+
+  } catch (err) {
+
+    console.log("Profile load error", err);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+};
 
   useEffect(() => {
     loadData();

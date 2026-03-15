@@ -5,21 +5,28 @@ import { API_URL2, API_URL4 } from "../app/config/env";
 
 const visitorServices = {
 
-  getMyVisitors: async () => {
-    const user = await Common.getLoggedInUser()
-    const params = {
-      "api-token": user.api_token,
-      "user-id": user.id,
-    };
-    const paylod = {
-      input: "",
-      residentId: user.id
-    }
-    const url = await visitorServices.appendParamsInUrl(`${API_URL4}/v1/society/${user.societyId}/getVisitsForResident`);
-    const headers = await Util.getCommonAuth()
-    const response = await ApiCommon.postReq(url, paylod, headers);
-    return response
-  },
+getMyVisitors: async () => {
+  const user = await Common.getLoggedInUser();
+
+  const payload = {
+    input: "",
+    residentId: user.unit_id || user.id
+  };
+
+  // ✅ Use appendParamsInUrl so all common params (including app_id) are added
+  const url = await visitorServices.appendParamsInUrl(
+    `${API_URL4}/v1/society/${user.societyId}/getVisitsForResident`
+  );
+
+  const headers = await Util.getCommonAuth();
+  console.log(headers)
+
+  console.log("FINAL URL:", url);
+
+  const response = await ApiCommon.postReq(url, payload, headers);
+
+  return response;
+},
 
   getParkingBookings: async () => {
     const user = await Common.getLoggedInUser();
@@ -41,7 +48,7 @@ const visitorServices = {
     };
     const paylod = {
       input: "",
-      residentId: user.id
+      residentId: user.unit_id || user.id
     }
     const url = await visitorServices.appendParamsInUrl(`${API_URL4}/v1/society/${user.societyId}/searchPass`);
     const headers = await Util.getCommonAuth()
@@ -93,109 +100,110 @@ const visitorServices = {
     return ApiCommon.getReq(url, headers);
   },
 
- getParkingFormFields: async () => {
+  getParkingFormFields: async () => {
+    const user = await Common.getLoggedInUser();
+
+    const url = await visitorServices.appendParamsInUrl(
+      `${API_URL4}/v1/society/${user.societyId}/getfields`,
+      {
+        form_type: "PARKING_FORM",
+        default: 1
+      }
+    );
+
+    const headers = await Util.getCommonAuth();
+
+    return ApiCommon.getReq(url, headers);
+  },
+
+  acceptVisitor: async (visitId) => {
+
   const user = await Common.getLoggedInUser();
 
   const url = await visitorServices.appendParamsInUrl(
-    `${API_URL4}/v1/society/${user.societyId}/getfields`,
-    {
-      form_type: "PARKING_FORM",
-      default: 1
-    }
+    `${API_URL4}/v1/society/${user.societyId}/allowVisit`
   );
 
   const headers = await Util.getCommonAuth();
 
-  return ApiCommon.getReq(url, headers);
-},
-
-acceptVisitor: async (visitId) => {
-  const user = await Common.getLoggedInUser();
-
-  const url = `${API_URL4}/v1/society/${user.societyId}/allow`;
-
-  const headers = await Util.getCommonAuth();
-
   const payload = {
-    visit_id: visitId
+    allow: 1,
+    visitId: visitId
   };
 
   return ApiCommon.postReq(url, payload, headers);
 },
-
 denyVisitor: async (visitId) => {
+
   const user = await Common.getLoggedInUser();
 
-  const url = `${API_URL4}/v1/society/${user.societyId}/deny`;
+  const url = await visitorServices.appendParamsInUrl(
+    `${API_URL4}/v1/society/${user.societyId}/allowVisit`
+  );
 
   const headers = await Util.getCommonAuth();
 
   const payload = {
-    visit_id: visitId
+    allow: 0,
+    visitId: visitId
   };
 
   return ApiCommon.postReq(url, payload, headers);
 },
+visitAttended: async (visitId) => {
 
+  const user = await Common.getLoggedInUser();
 
-  visitAttended: async (visitId, attendedValue) => {
-    const user = await Common.getLoggedInUser();
-    const uObj = {
-      user_id: user.unit_id,
+  const url = await visitorServices.appendParamsInUrl(
+    `${API_URL4}/v1/society/${user.societyId}/visitAttended`
+  );
+
+  const headers = await Util.getCommonAuth();
+
+  const payload = {
+    user_id: JSON.stringify({
+      user_id: user.id,
       group_id: user.role_id,
       flat_no: user.flat_no,
       unit_id: user.unit_id,
       society_id: user.societyId
-    };
+    }),
+    visit_id: visitId
+  };
 
-
-    
-
-
-    const url = await visitorServices.appendParamsInUrl(
-      `${API_URL4}/v1/society/${uObj.society_id}/visitAttended`
-    );
-
-    const payload = {
-      attended: attendedValue,
-      visit_id: visitId,
-    };
-
-    const headers = await Util.getCommonAuth();
-
-    return ApiCommon.postReq(url, payload, headers);
-  },
-
-
-  testIVRCall: async () => {
-  try {
-
-    const user = await Common.getLoggedInUser();
-
-    const url = await visitorServices.appendParamsInUrl(
-      `${API_URL4}/v1/society/${user.societyId}/resident/${user.unit_id}/testivrring`
-    );
-
-    const headers = await Util.getCommonAuth();
-
-    const payload = {
-      test: true
-    };
-
-    const response = await ApiCommon.postReq(url, payload, headers);
-
-    console.log("IVR Test Response:", response);
-
-    return response;
-
-  } catch (error) {
-
-    console.log("IVR Test Error:", error);
-
-    throw error;
-
-  }
+  return ApiCommon.postReq(url, payload, headers);
 },
+
+
+  // testIVRCall: async () => {
+  //   try {
+
+  //     const user = await Common.getLoggedInUser();
+
+  //     const url = await visitorServices.appendParamsInUrl(
+  //       `${API_URL4}/v1/society/${user.societyId}/resident/${user.unit_id}/testivrring`
+  //     );
+
+  //     const headers = await Util.getCommonAuth();
+
+  //     const payload = {
+  //       test: true
+  //     };
+
+  //     const response = await ApiCommon.postReq(url, payload, headers);
+
+  //     console.log("IVR Test Response:", response);
+
+  //     return response;
+
+  //   } catch (error) {
+
+  //     console.log("IVR Test Error:", error);
+
+  //     throw error;
+
+  //   }
+  // },
 
 
   bookParking: async (payload) => {
@@ -225,6 +233,21 @@ denyVisitor: async (visitId) => {
 
 
     return ApiCommon.postReq(url, data, headers)
+  },
+
+  getVisitById: async (visitId) => {
+
+    const user = await Common.getLoggedInUser();
+
+    const url = await visitorServices.appendParamsInUrl(
+      `${API_URL4}/v1/society/${user.societyId}/getVisitById`,
+      { id: visitId }
+    );
+
+    const headers = await Util.getCommonAuth();
+
+    return ApiCommon.getReq(url, headers);
+
   },
 
 
@@ -277,8 +300,8 @@ denyVisitor: async (visitId) => {
       const user = await Common.getLoggedInUser();
 
       const userObj = {
-        user_id: user.unit_id,
-        group_id: user.role_id,
+        user_id: user.id,
+         group_id: user.role_id,
         flat_no: user.flat_no,
         unit_id: user.unit_id,
         society_id: user.societyId,
@@ -374,46 +397,44 @@ denyVisitor: async (visitId) => {
       throw error;
     }
   },
-  appendParamsInUrl: async (url, extraParams = {}) => {
-    const user = await Common.getLoggedInUser()
 
-    const uObj = {
-      user_id: user.unit_id,
-      group_id: user.role_id,
-      flat_no: user.flat_no,
-      unit_id: user.unit_id,
-      society_id: user.societyId
-    };
+appendParamsInUrl: async (url, extraParams = {}) => {
+  const user = await Common.getLoggedInUser();
 
-    const u = JSON.stringify(uObj); // ✅ no encode
+  const uObj = {
+    user_id: user.id,
+    group_id: user.role_id,
+    flat_no: user.flat_no,
+    unit_id: user.unit_id,
+    society_id: user.societyId
+  };
 
-    const commonParams = {
-      "api-token": user.api_token,
-      "user-id": u,
-      "group-id":user.role_id,
-      "app_id": "ism_resident"
-    };
+  // Encode only quotes like backend expects
+  const u = JSON.stringify(uObj).replace(/"/g, "%22");
 
-    const finalParams = {
-      ...commonParams,
-      ...extraParams
-    };
+  const commonParams = {
+    "api-token": user.api_token,
+    "user-id": `{${u.slice(1, -1)}}`
+  };
 
-    const queryParams = Object.keys(finalParams)
-      .filter(key => finalParams[key] !== null && finalParams[key] !== undefined)
-      .map(
-        key =>
-          `${encodeURIComponent(key)}=${encodeURIComponent(finalParams[key])}`
-      )
-      .join("&");
+  const finalParams = {
+    ...commonParams,
+    ...extraParams
+  };
 
-    if (queryParams) {
-      url += url.includes("?") ? "&" : "?";
-      url += queryParams;
-    }
+  const queryParams = Object.keys(finalParams)
+    .filter(key => finalParams[key] !== null && finalParams[key] !== undefined)
+    .map(key => `${key}=${finalParams[key]}`)
+    .join("&");
 
-    return url;
+  if (queryParams) {
+    url += url.includes("?") ? "&" : "?";
+    url += queryParams;
   }
+
+  return url;
+}
+
 
 }
 

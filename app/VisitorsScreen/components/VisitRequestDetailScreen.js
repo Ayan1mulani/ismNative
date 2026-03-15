@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  ActivityIndicator,
+  ActivityIndicator
 } from "react-native";
+
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import AppHeader from "../../components/AppHeader";
@@ -17,76 +18,115 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { visitorServices } from "../../../services/visitorServices";
 
 const VisitDetailScreen = () => {
+
   const navigation = useNavigation();
   const route = useRoute();
   const { nightMode } = usePermissions();
 
   const visit = route.params?.visit;
 
-  const [allowTime, setAllowTime] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [modal, setModal] = useState({ visible: false, message: "", success: true });
 
-  // 👇 important — track attended locally
-  const [attendedStatus, setAttendedStatus] = useState(
-    visit?.attended ?? null
-  );
+  const [modal, setModal] = useState({
+    visible: false,
+    message: "",
+    success: true
+  });
+
+  const [allowStatus, setAllowStatus] = useState(visit?.allow ?? null);
+  const [attendedStatus, setAttendedStatus] = useState(visit?.attended ?? null);
 
   const theme = {
-    bg: nightMode ? "#121212" : "#ffffff",
-    card: nightMode ? "#1E1E1E" : "#FFFFFF",
-    text: nightMode ? "#FFFFFF" : "#111827",
-    sub: nightMode ? "#9CA3AF" : "#6B7280",
-    border: nightMode ? "#2C2C2C" : "#E5E7EB",
-    primary: "#2E8BC0",
+    bg:      nightMode ? "#121212" : "#F3F4F6",
+    card:    nightMode ? "#1E1E1E" : "#FFFFFF",
+    text:    nightMode ? "#FFFFFF" : "#111827",
+    sub:     nightMode ? "#9CA3AF" : "#6B7280",
+    border:  nightMode ? "#2C2C2C" : "#E5E7EB",
     success: "#10B981",
-    danger: "#EF4444",
-    grey: "#6B7280",
+    danger:  "#EF4444",
+    grey:    "#6B7280",
+    primary: "#2E8BC0"
   };
 
-  const markAttendance = async (value) => {
-    if (attendedStatus !== null) return; // already marked
+  // ─── Status Flags ────────────────────────────────────────────────────────────
+  const isPending   = allowStatus === null;
+  const isDenied    = allowStatus === 0;
+  const isAllowed   = allowStatus === 1 && attendedStatus === null;
+  const isCompleted = allowStatus === 1 && attendedStatus !== null;
 
+  // ─── Status Badge ─────────────────────────────────────────────────────────
+  // FIX: isCompleted check added so attended states are reachable
+  const getStatus = () => {
+    if (isDenied)                          return { text: "REJECTED",    color: theme.grey    };
+    if (isCompleted && attendedStatus===1) return { text: "ATTENDED",    color: theme.success };
+    if (isCompleted && attendedStatus===0) return { text: "NOT VISITED", color: theme.grey    };
+    if (isAllowed)                         return { text: "APPROVED",    color: theme.primary };
+    return                                        { text: "PENDING",     color: theme.danger  };
+  };
+
+  const status = getStatus();
+
+  // ─── Allow Visitor ────────────────────────────────────────────────────────
+  // FIX: flat_no is now parsed from whom_to_meet and passed to acceptVisitor
+  const allowVisitor = async () => {
     try {
       setLoading(true);
 
-      const response = await visitorServices.visitAttended(visit.id, value);
+      const whomToMeet = JSON.parse(visit.whom_to_meet);
+      const flat_no = whomToMeet[0].flat_no;
 
-      console.log("Attendance Response:", response);
+      await visitorServices.acceptVisitor(visit.id, flat_no);
 
-      if (response?.status === "success") {
-        setAttendedStatus(value);
-        setModal({
-          visible: true,
-          message: value === 1 ? "Marked as Attended" : "Marked as Not Visited",
-          success: true,
-        });
-      } else {
-        setModal({
-          visible: true,
-          message: response?.message || "Failed to update",
-          success: false,
-        });
-      }
-    } catch (error) {
-      setModal({
-        visible: true,
-        message: "Something went wrong",
-        success: false,
-      });
+      setAllowStatus(1);
+      setModal({ visible: true, message: "Visitor Approved", success: true });
+
+    } catch (e) {
+      setModal({ visible: true, message: "Failed to approve visitor", success: false });
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusLabel = () => {
-    if (attendedStatus === 1) return { text: "ATTENDED", color: theme.success };
-    if (attendedStatus === 0) return { text: "NOT VISITED", color: theme.grey };
-    return { text: "PENDING", color: theme.danger };
+  // ─── Deny Visitor ─────────────────────────────────────────────────────────
+  const denyVisitor = async () => {
+    try {
+      setLoading(true);
+
+      await visitorServices.denyVisitor(visit.id);
+
+      setAllowStatus(0);
+      setModal({ visible: true, message: "Visitor Denied", success: true });
+
+    } catch (e) {
+      setModal({ visible: true, message: "Failed to deny visitor", success: false });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const status = getStatusLabel();
+  // ─── Mark Attendance ──────────────────────────────────────────────────────
+  // FIX: now passes (visitId, value) instead of a payload object
+  const markAttendance = async (value) => {
+    try {
+      setLoading(true);
 
+      await visitorServices.visitAttended(visit.id, value);
+
+      setAttendedStatus(value);
+      setModal({
+        visible: true,
+        message: value === 1 ? "Visitor Attended" : "Visitor Not Visited",
+        success: true
+      });
+
+    } catch (e) {
+      setModal({ visible: true, message: "Attendance update failed", success: false });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
 
@@ -99,25 +139,26 @@ const VisitDetailScreen = () => {
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
 
-        {/* STATUS BADGE */}
+        {/* Status Badge */}
         <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
           <Text style={styles.statusText}>{status.text}</Text>
         </View>
 
-        {/* IMAGE */}
+        {/* Visitor Image */}
         <Image
           source={{ uri: visit?.image || "https://via.placeholder.com/400" }}
           style={styles.image}
         />
 
-        {/* INFO CARD */}
+        {/* Info Card */}
         <View style={[styles.card, { backgroundColor: theme.card }]}>
+
           <Text style={[styles.name, { color: theme.text }]}>
             {visit?.name}
           </Text>
 
           <View style={styles.row}>
-            < Ionicons name="call-outline" size={16} color={theme.sub} />
+            <Ionicons name="call-outline" size={16} color={theme.sub} />
             <Text style={[styles.subText, { color: theme.sub }]}>
               {visit?.mobile}
             </Text>
@@ -127,59 +168,102 @@ const VisitDetailScreen = () => {
 
           <View style={styles.rowBetween}>
             <Text style={[styles.label, { color: theme.sub }]}>Purpose</Text>
+            <Text style={[styles.value, { color: theme.text }]}>{visit?.purpose}</Text>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          <View style={styles.rowBetween}>
+            <Text style={[styles.label, { color: theme.sub }]}>Flat No</Text>
             <Text style={[styles.value, { color: theme.text }]}>
-              {visit?.purpose}
+              {(() => {
+                try {
+                  return JSON.parse(visit?.whom_to_meet)?.[0]?.flat_no ?? "—";
+                } catch {
+                  return "—";
+                }
+              })()}
             </Text>
           </View>
+
         </View>
 
-        {/* ATTENDANCE BUTTONS */}
+        {/* Action Buttons */}
         <View style={styles.buttonRow}>
+
+          {/* ALLOW */}
           <TouchableOpacity
-            disabled={attendedStatus !== null || loading}
+            disabled={!isPending || loading}
+            onPress={allowVisitor}
             style={[
-              styles.actionBtn,
-              {
-                backgroundColor:
-                  attendedStatus !== null ? "#ccc" : theme.success,
-              },
+              styles.button,
+              { backgroundColor: theme.success, opacity: isPending ? 1 : 0.3 }
             ]}
-            onPress={() => markAttendance(1)}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnText}>Attended</Text>
-            )}
+            {loading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.btnText}>Allow</Text>
+            }
           </TouchableOpacity>
 
+          {/* DENY */}
           <TouchableOpacity
-            disabled={attendedStatus !== null || loading}
+            disabled={!isPending || loading}
+            onPress={denyVisitor}
             style={[
-              styles.actionBtn,
-              {
-                backgroundColor:
-                  attendedStatus !== null ? "#ccc" : theme.grey,
-              },
+              styles.button,
+              { backgroundColor: theme.danger, opacity: isPending ? 1 : 0.3 }
             ]}
+          >
+            <Text style={styles.btnText}>Deny</Text>
+          </TouchableOpacity>
+
+          {/* ATTENDED */}
+          <TouchableOpacity
+            disabled={!isAllowed || loading}
+            onPress={() => markAttendance(1)}
+            style={[
+              styles.button,
+              { backgroundColor: theme.success, opacity: isAllowed ? 1 : 0.3 }
+            ]}
+          >
+            <Text style={styles.btnText}>Attended</Text>
+          </TouchableOpacity>
+
+          {/* NOT VISITED */}
+          <TouchableOpacity
+            disabled={!isAllowed || loading}
             onPress={() => markAttendance(0)}
+            style={[
+              styles.button,
+              { backgroundColor: theme.grey, opacity: isAllowed ? 1 : 0.3 }
+            ]}
           >
             <Text style={styles.btnText}>Not Visited</Text>
           </TouchableOpacity>
+
         </View>
+
       </ScrollView>
 
-      {/* SUCCESS / ERROR MODAL */}
+      {/* Result Modal */}
       <Modal transparent visible={modal.visible} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: modal.success ? theme.success : theme.danger,
-              }}
-            >
+
+            <Ionicons
+              name={modal.success ? "checkmark-circle-outline" : "close-circle-outline"}
+              size={40}
+              color={modal.success ? theme.success : theme.danger}
+              style={{ marginBottom: 10 }}
+            />
+
+            <Text style={{
+              fontSize: 16,
+              fontWeight: "600",
+              color: modal.success ? theme.success : theme.danger,
+              textAlign: "center"
+            }}>
               {modal.message}
             </Text>
 
@@ -192,9 +276,11 @@ const VisitDetailScreen = () => {
             >
               <Text style={{ color: "#fff", fontWeight: "600" }}>OK</Text>
             </TouchableOpacity>
+
           </View>
         </View>
       </Modal>
+
     </SafeAreaView>
   );
 };
@@ -202,90 +288,115 @@ const VisitDetailScreen = () => {
 export default VisitDetailScreen;
 
 const styles = StyleSheet.create({
+
   image: {
     width: "100%",
     height: 180,
     borderRadius: 12,
-    marginVertical: 12,
+    marginVertical: 12
   },
+
   card: {
     padding: 14,
     borderRadius: 12,
     marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2
   },
+
   name: {
     fontSize: 18,
     fontWeight: "700",
-    marginBottom: 6,
+    marginBottom: 6
   },
+
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 6
   },
+
   subText: {
-    fontSize: 14,
+    fontSize: 14
   },
+
   divider: {
     height: 1,
-    marginVertical: 10,
+    marginVertical: 10
   },
+
   rowBetween: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 6,
+    alignItems: "center"
   },
+
   label: {
-    fontSize: 13,
+    fontSize: 13
   },
+
   value: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "600"
   },
+
   buttonRow: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: 20,
+    flexWrap: "wrap"
   },
-  actionBtn: {
+
+  button: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
+    minWidth: "45%"
   },
+
   btnText: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "600"
   },
+
   statusBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    marginBottom: 4
   },
+
   statusText: {
     color: "#fff",
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "700"
   },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
-    alignItems: "center",
+    alignItems: "center"
   },
+
   modalBox: {
     backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 12,
+    padding: 24,
+    borderRadius: 16,
     width: "80%",
-    alignItems: "center",
+    alignItems: "center"
   },
+
   modalButton: {
     marginTop: 15,
     backgroundColor: "#2E8BC0",
-    paddingHorizontal: 20,
+    paddingHorizontal: 28,
     paddingVertical: 10,
-    borderRadius: 8,
-  },
+    borderRadius: 8
+  }
+
 });

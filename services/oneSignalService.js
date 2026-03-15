@@ -46,7 +46,6 @@ export const RegisterAppOneSignal = async () => {
     }
 
 
-    console.log("📨 Headers:", headers);
 
     const payload = {
       app_name: APP_NAME,
@@ -56,11 +55,16 @@ export const RegisterAppOneSignal = async () => {
       tenant: 0,
     };
     let user = await Common.getLoggedInUser()
+    let realUserId = user.id;
+
+    if (typeof realUserId === "string" && realUserId.includes("user_id")) {
+      const parsed = JSON.parse(realUserId);
+      realUserId = parsed.user_id;
+    }
 
 
     console.log("📦 Payload being sent:", payload);
-
-    const url = `${API_URL2}/appRegistered?api-token=${user.api_token}&user-id=${JSON.stringify(user.id)}`;
+    const url = `${API_URL2}/appRegistered?api-token=${user.api_token}&user-id=${realUserId}`;
 
 
     console.log("🌐 Request URL:", url);
@@ -68,8 +72,10 @@ export const RegisterAppOneSignal = async () => {
 
     const headers = {
       "Content-Type": "application/json",
-      "Ism-Auth": `{"api-token":"${user.api_token}","user-id":${JSON.stringify(user.id)},"site-id":${user.societyId}}`
+      "Ism-Auth": `{"api-token":"${user.api_token}","user-id":${realUserId},"site-id":${user.societyId}}`
     }
+
+    console.log("📨 Headers:", headers);
 
 
 
@@ -103,7 +109,12 @@ export const UnRegisterOneSignal = async () => {
 
     const parsedUser = JSON.parse(userInfo);
 
-    const userId = parsedUser?.id;
+    let realUserId = parsedUser?.id;
+
+    if (typeof realUserId === "string" && realUserId.includes("user_id")) {
+      const parsed = JSON.parse(realUserId);
+      realUserId = parsed.user_id;
+    }
     const apiToken = parsedUser?.api_token;
     const societyId = parsedUser?.societyId || parsedUser?.s_id;
 
@@ -116,12 +127,8 @@ export const UnRegisterOneSignal = async () => {
 
     const headers = {
       "Content-Type": "application/json",
-      "ism-auth": JSON.stringify({
-        "api-token": apiToken,
-        "user-id": userId,
-        "site-id": societyId
-      })
-    };
+      "Ism-Auth": `{"api-token":"${apiToken}","user-id":${realUserId},"site-id":${societyId}}`
+    }
 
     const payload = {
       userId: deviceId,

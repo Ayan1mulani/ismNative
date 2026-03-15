@@ -39,13 +39,31 @@ const Util = {
     }
     return moment(dateTime).format(format);
   },
-  getCommonAuth :async()=>{
-    let user = await Common.getLoggedInUser()
-    if(user){
-      return {
+
+  getCommonAuth: async () => {
+  const user = await Common.getLoggedInUser();
+
+  if (user) {
+    const userObj = {
+      user_id: user.id,
+      group_id: user.role_id,
+      flat_no: user.flat_no,
+      unit_id: user.unit_id,
+      society_id: user.societyId
+    };
+
+    // encode quotes only
+    const encodedUser = `{${JSON.stringify(userObj)
+      .slice(1, -1)
+      .replace(/"/g, "%22")}}`;
+
+    return {
       "Content-Type": "application/json",
-      }
-    }
+      "api-token": user.api_token,
+      "user-id": encodedUser
+    };
   }
+}
+
 }
 export {Util};

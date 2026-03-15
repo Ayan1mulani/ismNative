@@ -95,7 +95,7 @@ const VisitorSection = ({ refreshTrigger }) => {
         passRes?.data ||
         [];
 
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toLocaleDateString("en-CA");
 
       const isToday = (dateString) => {
         if (!dateString) return false;

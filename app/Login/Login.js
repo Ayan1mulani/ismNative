@@ -83,7 +83,6 @@ const NewLoginScreen = () => {
       const updatedUserInfo = await AsyncStorage.getItem('userInfo');
       if (!updatedUserInfo) return;
       const updatedParsed = JSON.parse(updatedUserInfo);
-      RegisterAppOneSignal();
 
       if (!updatedParsed?.token && !updatedParsed?.id) return;
       navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'MainApp' }] }));
@@ -138,16 +137,33 @@ const NewLoginScreen = () => {
           return;
         }
 
-        await AsyncStorage.setItem('userInfo', JSON.stringify(response.data));
+        let user = response.data;
 
+        // 🔧 FIX: parse id if backend sends JSON string
+        if (typeof user.id === "string" && user.id.includes("user_id")) {
 
+          const parsed = JSON.parse(user.id);
+
+          user = {
+            ...user,
+            id: parsed.user_id,
+            unit_id: parsed.unit_id,
+            role_id: parsed.group_id,
+            flat_no: parsed.flat_no,
+            societyId: parsed.society_id
+          };
+        }
+
+        // ✅ Save cleaned user
+        await AsyncStorage.setItem("userInfo", JSON.stringify(user));
 
         await AsyncStorage.removeItem("permissions");
 
         await loadPermissions();
-        initializeOneSignal();
 
-        // await RegisterAppOneSignal();
+        setTimeout(async () => {
+          await RegisterAppOneSignal();
+        });
 
         setTimeout(() => {
           navigation.dispatch(
@@ -157,7 +173,6 @@ const NewLoginScreen = () => {
             })
           );
         }, 100);
-
       }
 
 

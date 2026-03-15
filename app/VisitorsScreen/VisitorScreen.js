@@ -45,9 +45,9 @@ const VisitorScreen = () => {
   const theme = nightMode ? COLORS.dark : COLORS.light;
 
   // ── Permission flags ──────────────────────────────────────────────────────
-  const permissionsLoaded  = permissions !== null && permissions !== undefined;
-  const canViewVisitors    = permissionsLoaded && hasPermission(permissions, 'VMS', 'R');
-  const canCreateVisitor   = permissionsLoaded && hasPermission(permissions, 'VMS', 'C');
+  const permissionsLoaded = permissions !== null && permissions !== undefined;
+  const canViewVisitors = permissionsLoaded && hasPermission(permissions, 'VMS', 'R');
+  const canCreateVisitor = permissionsLoaded && hasPermission(permissions, 'VMS', 'C');
 
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [visits, setVisits] = useState([]);
@@ -55,6 +55,41 @@ const VisitorScreen = () => {
   const [parkingBookings, setParkingBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showPreApproveModal, setShowPreApproveModal] = useState(false);
+  const loadVisits = async () => {
+  try {
+    setIsLoading(true);
+    const res = await visitorServices.getMyVisitors();
+   setVisits(res?.data?.visits || []);
+  } catch (e) {
+    console.log("Visits load error", e);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const loadPasses = async () => {
+  try {
+    setIsLoading(true);
+    const res = await visitorServices.getMyPasses();
+    setPasses(res?.data || []);
+  } catch (e) {
+    console.log("Passes load error", e);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const loadParking = async () => {
+  try {
+    setIsLoading(true);
+    const res = await visitorServices.getParkingBookings();
+    setParkingBookings(res?.data || []);
+  } catch (e) {
+    console.log("Parking load error", e);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const scrollViewRef = useRef(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -74,25 +109,25 @@ const VisitorScreen = () => {
   }, [TABS]);
 
   useEffect(() => {
-    // Only fetch data if user has R permission
-    if (!canViewVisitors) return;
 
-    const loadData = async () => {
-      setIsLoading(true);
-      const [visitsRes, passesRes, parkingRes] = await Promise.all([
-        visitorServices.getMyVisitors(),
-        visitorServices.getMyPasses(),
-        visitorServices.getParkingBookings(),
-      ]);
-      setVisits(visitsRes.data || []);
-      setPasses(passesRes.data || []);
-      setParkingBookings(parkingRes.data || []);
-      setIsLoading(false);
-    };
-    
-    loadData();
-  }, [canViewVisitors]);
-  
+  if (!canViewVisitors) return;
+
+  const tab = TABS[activeTabIndex];
+
+  if (tab === "Visit Requests" && visits.length === 0) {
+    loadVisits();
+  }
+
+  if (tab === "Entry Passes" && passes.length === 0) {
+    loadPasses();
+  }
+
+  if (tab === "Parking" && parkingBookings.length === 0) {
+    loadParking();
+  }
+
+}, [activeTabIndex, canViewVisitors]);
+ 
 
   // ── Permissions still loading ─────────────────────────────────────────────
   if (!permissionsLoaded) {
@@ -122,12 +157,10 @@ const VisitorScreen = () => {
       return (
         <VisitRequest
           nightMode={nightMode}
-          visitorData={visits}
+          visitorData={{ visits }}
           loading={isLoading}
-          onRefresh={async () => {
-            const res = await visitorServices.getMyVisitors();
-            setVisits(res.data || []);
-          }}
+          onRefresh={loadVisits}
+          
         />
       );
     }
@@ -138,10 +171,7 @@ const VisitorScreen = () => {
           nightMode={nightMode}
           passData={passes}
           loading={isLoading}
-          onRefresh={async () => {
-            const res = await visitorServices.getMyPasses();
-            setPasses(res.data || []);
-          }}
+         onRefresh={loadPasses}
         />
       );
     }
@@ -151,10 +181,8 @@ const VisitorScreen = () => {
         nightMode={nightMode}
         parkingBookings={parkingBookings}
         loading={isLoading}
-        onRefresh={async () => {
-          const res = await visitorServices.getParkingBookings();
-          setParkingBookings(res.data || []);
-        }}
+        onRefresh={loadParking}
+       
       />
     );
   };

@@ -141,7 +141,7 @@ const ProfileScreen = () => {
             try {
 
               // 🔔 Disable push locally
-               OneSignal.User.pushSubscription.optOut();
+              OneSignal.User.pushSubscription.optOut();
 
               // 🔔 Unregister device from backend
               await UnRegisterOneSignal();
@@ -358,10 +358,23 @@ const ProfileScreen = () => {
 
       if (response.status === 'success') {
 
-        await AsyncStorage.setItem(
-          'userInfo',
-          JSON.stringify(response.data)
-        );
+        let user = response.data;
+
+        if (typeof user.id === "string" && user.id.includes("user_id")) {
+
+          const parsed = JSON.parse(user.id);
+
+          user = {
+            ...user,
+            id: parsed.user_id,
+            unit_id: parsed.unit_id,
+            role_id: parsed.group_id,
+            flat_no: parsed.flat_no,
+            societyId: parsed.society_id
+          };
+        }
+
+        await AsyncStorage.setItem("userInfo", JSON.stringify(user));
 
         await AsyncStorage.removeItem("permissions");
 

@@ -78,10 +78,11 @@ const ismServices = {
   // ✅ KEPT: original function used by other pages
   getUserDetails: async () => {
     const user = await Common.getLoggedInUser();
+    console.log(user,"++++++++++=user+++++")
     if (!user) throw new Error("User not logged in");
 
     const uObj = {
-      user_id: user.unit_id,
+      user_id: user.id,
       group_id: user.role_id,
       flat_no: user.flat_no,
       unit_id: user.unit_id,
@@ -198,7 +199,7 @@ const ismServices = {
     const user = await Common.getLoggedInUser();
 
     const uObj = {
-      user_id: user.unit_id,
+      user_id: user.id,
       group_id: user.role_id,
       flat_no: user.flat_no,
       unit_id: user.unit_id,
@@ -233,7 +234,7 @@ const ismServices = {
     const user = await Common.getLoggedInUser();
 
     const uObj = {
-      user_id: user.unit_id,
+      user_id: user.id,
       group_id: user.role_id,
       flat_no: user.flat_no,
       unit_id: user.unit_id,

@@ -28,10 +28,10 @@ const CalendarSelector = ({
     modalBg: nightMode ? "#1A1A1A" : "#FFFFFF",
   };
 
-  const getTodayDate = () => {
-    return new Date().toISOString().split("T")[0];
-  };
-
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toLocaleDateString("en-CA");
+};
   // Set today default
   useEffect(() => {
     if (!selectedDate) {

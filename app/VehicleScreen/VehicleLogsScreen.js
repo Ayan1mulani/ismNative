@@ -64,7 +64,7 @@ const formatDate = (date) => {
   };
 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA");
     setSelectedDate(today);
     fetchLogs(today);
   }, []);

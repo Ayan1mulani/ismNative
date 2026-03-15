@@ -8,6 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { navigationRef, flushPendingNavigation } from "./NavigationService";
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -62,6 +63,7 @@ import myNoticeDetailScreen from './app/MyComplex/MyNoticeDetailScreen';
 import MembersScreen from './app/AllServicesScreen/MembersScreen';
 import OtpVerifyScreen from './app/Login/OtpVerifyScreen';
 import ResidentIdCardScreen from './app/HomeScreen/VirtualIdcard';
+import VisitorApprovalScreen from './app/VisitorsScreen/VisitorRequestScreen';
 
 
 
@@ -293,7 +295,7 @@ const NavigationPage = () => {
 
   return (
     <PermissionsProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
         <Stack.Navigator screenOptions={{
           cardStyle: { backgroundColor: "#ffffff" },
           cardOverlayEnabled: false,
@@ -344,6 +346,10 @@ const NavigationPage = () => {
             name="ResidentIdCard"
             component={ResidentIdCardScreen}
             options={{ title: "Resident ID Card" }}
+          />
+          <Stack.Screen
+            name="VisitorApproval"
+            component={VisitorApprovalScreen}
           />
 
 

@@ -44,7 +44,7 @@ const VehicleDetailScreen = ({ route, navigation }) => {
   try {
     setLoadingLog(true);
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA");
 
     const res = await otherServices.getVehicleLogs({
       vehicleId: vehicle.id,

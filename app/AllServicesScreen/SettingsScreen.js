@@ -17,9 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import SubmitButton from "../components/SubmitButton";
 
 import { otherServices } from "../../services/otherServices";
-import { visitorServices } from "../../services/visitorServices";
 import { ismServices } from "../../services/ismServices";
-import { OneSignal } from "react-native-onesignal";
 
 const SettingsScreen = () => {
 
@@ -91,7 +89,7 @@ const SettingsScreen = () => {
   const handleSave = async () => {
     try {
 
-      const resUser = await ismServices.getUserDetail(); // use /userDetail
+      const resUser = await ismServices.getUserDetails(); // use /userDetail
       const user = resUser?.data || resUser;
 
       // modify only the fields we want to update
