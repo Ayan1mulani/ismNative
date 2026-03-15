@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   Switch,
   TouchableOpacity,
   ScrollView,
-  Platform
+  Platform,
+  TextInput
 } from "react-native";
 
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -17,6 +18,7 @@ import SubmitButton from "../components/SubmitButton";
 
 import { otherServices } from "../../services/otherServices";
 import { visitorServices } from "../../services/visitorServices";
+import { ismServices } from "../../services/ismServices";
 import { OneSignal } from "react-native-onesignal";
 
 const SettingsScreen = () => {
@@ -27,28 +29,84 @@ const SettingsScreen = () => {
   const [visitSound, setVisitSound] = useState(true);
   const [staffNotification, setStaffNotification] = useState(true);
   const [ivrEnabled, setIvrEnabled] = useState(true);
-  const [ivrType, setIvrType] = useState("Enabled");
+
+  const [primaryNumber, setPrimaryNumber] = useState("");
+  const [secondaryNumber, setSecondaryNumber] = useState("");
 
   /* ------------------------------
-      SAVE SETTINGS
+      LOAD USER SETTINGS
   ------------------------------ */
+
+  const loadUserSettings = async () => {
+    try {
+
+      /* USER DATA */
+      const res = await ismServices.getUserDetails()
+      const user = res?.data || res;
+
+      if (user) {
+
+        setIsAway(user.home_away === 1);
+        setIvrEnabled(user.ivr_enable === 1);
+
+        setPrimaryNumber(user.ivr_p || "");
+        setSecondaryNumber(user.ivr_s || "");
+
+      }
+
+      /* NOTIFICATION SOUND */
+      const soundRes = await otherServices.getNotificationSound();
+
+      if (soundRes?.data) {
+
+        soundRes.data.forEach(item => {
+
+          if (item.name === "VISIT") {
+            setVisitSound(item.switch === 1);
+          }
+
+          if (item.name === "STAFF") {
+            setStaffNotification(item.switch === 1);
+          }
+
+        });
+
+      }
+
+    } catch (error) {
+
+      console.log("User detail error:", error);
+
+    }
+  };
+
+  useEffect(() => {
+    loadUserSettings();
+  }, []);
+
+  /* ------------------------------
+      SAVE IVR + AWAY SETTINGS
+  ------------------------------ */
+
   const handleSave = async () => {
     try {
 
-      const payload = {
-        home_away: isAway ? 1 : 0,
-        ivr_enable: ivrEnabled ? 1 : 0,
-        ivr_p: "8668361520",
-        ivr_s: null,
-        notification_sound: JSON.stringify({
-          VISIT: { switch: visitSound ? 1 : 0 },
-          STAFF: { switch: staffNotification ? 1 : 0 }
-        })
-      };
+      const resUser = await ismServices.getUserDetail(); // use /userDetail
+      const user = resUser?.data || resUser;
 
-      const res = await otherServices.updateUserSettings(payload);
+      // modify only the fields we want to update
+      user.home_away = isAway ? 1 : 0;
+      user.ivr_enable = ivrEnabled ? 1 : 0;
+      user.ivr_p = primaryNumber || null;
+      user.ivr_s = secondaryNumber || null;
+
+      console.log("FINAL UPDATE PAYLOAD:", user);
+
+      const res = await otherServices.updateUserSettings(user);
 
       console.log("Settings saved:", res);
+
+      await loadUserSettings();
 
     } catch (err) {
       console.log("Save error:", err);
@@ -56,36 +114,73 @@ const SettingsScreen = () => {
   };
 
   /* ------------------------------
-      TEST NOTIFICATION
+      VISIT SOUND TOGGLE
   ------------------------------ */
-  const testNotification = async () => {
 
-    const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
+  const toggleVisitSound = async (value) => {
 
-    console.log("Device ID:", deviceId);
-    const isOptedIn = await OneSignal.User.pushSubscription.getOptedInAsync();
-    console.log("Push Enabled:", isOptedIn);
+    setVisitSound(value);
 
-    const res = await otherServices.sendTestNotification();
-
-    console.log("API Response:", res);
+    try {
+      await otherServices.setNotificationSound("VISIT", value);
+    } catch (e) {
+      console.log("Visit sound error:", e);
+    }
 
   };
 
   /* ------------------------------
+      STAFF SOUND TOGGLE
+  ------------------------------ */
+
+  const toggleStaffSound = async (value) => {
+
+    setStaffNotification(value);
+
+    try {
+      await otherServices.setNotificationSound("STAFF", value);
+    } catch (e) {
+      console.log("Staff sound error:", e);
+    }
+
+  };
+
+  /* ------------------------------
+      TEST PUSH NOTIFICATION
+  ------------------------------ */
+
+  // const testNotification = async () => {
+
+  //   const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
+
+  //   console.log("Device ID:", deviceId);
+
+  //   const isOptedIn =
+  //     await OneSignal.User.pushSubscription.getOptedInAsync();
+
+  //   console.log("Push Enabled:", isOptedIn);
+
+  //   const res = await otherServices.sendTestNotification();
+
+  //   console.log("API Response:", res);
+
+  // };
+
+  /* ------------------------------
       TEST IVR CALL
   ------------------------------ */
-  const testIVRCall = async () => {
-    try {
 
-      const res = await visitorServices.testIVRCall();
+  // const testIVRCall = async () => {
+  //   try {
 
-      console.log("IVR Test Response:", res);
+  //     const res = await visitorServices.testIVRCall();
 
-    } catch (error) {
-      console.log("IVR Test Error:", error);
-    }
-  };
+  //     console.log("IVR Test Response:", res);
+
+  //   } catch (error) {
+  //     console.log("IVR Test Error:", error);
+  //   }
+  // };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -118,7 +213,7 @@ const SettingsScreen = () => {
             <Text style={styles.label}>Visit Sound</Text>
             <Switch
               value={visitSound}
-              onValueChange={setVisitSound}
+              onValueChange={toggleVisitSound}
               trackColor={{ false: "#ddd", true: "#1996D3" }}
             />
           </View>
@@ -129,7 +224,7 @@ const SettingsScreen = () => {
             <Text style={styles.label}>Staff</Text>
             <Switch
               value={staffNotification}
-              onValueChange={setStaffNotification}
+              onValueChange={toggleStaffSound}
               trackColor={{ false: "#ddd", true: "#1996D3" }}
             />
           </View>
@@ -154,34 +249,41 @@ const SettingsScreen = () => {
             <>
               <View style={styles.divider} />
 
-              {["Enabled", "Primary", "Secondary"].map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  style={styles.optionRow}
-                  onPress={() => setIvrType(item)}
-                >
-                  <Text style={styles.optionText}>{item}</Text>
+              {/* PRIMARY NUMBER */}
+              <View style={styles.phoneRow}>
+                <Text style={styles.phoneLabel}>Primary</Text>
 
-                  {ivrType === item && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={22}
-                      color="#22C55E"
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="Set Primary Number"
+                  keyboardType="phone-pad"
+                  value={primaryNumber}
+                  onChangeText={setPrimaryNumber}
+                />
+              </View>
+
+              {/* SECONDARY NUMBER */}
+              <View style={styles.phoneRow}>
+                <Text style={styles.phoneLabel}>Secondary</Text>
+
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="Set Secondary Number"
+                  keyboardType="phone-pad"
+                  value={secondaryNumber}
+                  onChangeText={setSecondaryNumber}
+                />
+              </View>
+
+              <SubmitButton
+                title="Save IVR Settings"
+                style={{ marginHorizontal: 15, marginBottom: 15 }}
+                onPress={handleSave}
+              />
             </>
           )}
 
         </View>
-
-        {/* SAVE BUTTON */}
-        <SubmitButton
-          title="Save Changes"
-          style={{ marginHorizontal: 15, marginTop: 16 }}
-          onPress={handleSave}
-        />
 
         {/* NOTE */}
         <Text style={styles.noteTitle}>Important Note</Text>
@@ -207,13 +309,13 @@ const SettingsScreen = () => {
 
         {/* TEST BUTTONS */}
 
-        <TouchableOpacity style={styles.testBtn} onPress={testNotification}>
+        {/* <TouchableOpacity style={styles.testBtn} onPress={testNotification}>
           <Text style={styles.testBtnText}>Test Notification</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.testBtn} onPress={testIVRCall}>
           <Text style={styles.testBtnText}>Test IVR Call</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <View style={{ height: 40 }} />
 
@@ -223,11 +325,6 @@ const SettingsScreen = () => {
 };
 
 export default SettingsScreen;
-
-/* ================================
-   STYLES
-================================ */
-
 const styles = StyleSheet.create({
 
   container: {
@@ -331,6 +428,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingLeft: 20,
     paddingVertical: 18
-  }
+  },
+  phoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12
+  },
+
+  phoneLabel: {
+    fontSize: 15,
+    color: "#111827"
+  },
+
+  phoneInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 6,
+    height: 36,
+    width: 150,
+    paddingHorizontal: 10,
+    textAlign: "right"
+  },
+
 
 });
