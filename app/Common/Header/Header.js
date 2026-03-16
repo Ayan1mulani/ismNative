@@ -10,16 +10,18 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { usePermissions } from '../../../Utils/ConetextApi';
 import { Common } from '../../../services/Common';
 import { useNavigation } from '@react-navigation/native';
-import { hasPermission } from '../../../Utils/PermissionHelper';
+// import { hasPermission } from '../../../Utils/PermissionHelper';
 import BRAND from '../../config';
 
 const ResidentHeader = () => {
   const navigation = useNavigation();
   const { nightMode, permissions } = usePermissions();
+
   const [userDetails, setUserDetails] = useState();
-  const [societyInfo, setSocietyInfo] = useState(null);
-  const canViewNotifications =
-    permissions && hasPermission(permissions, "NOTF", "R");
+  const [societyLogo, setSocietyLogo] = useState(null);
+
+  // const canViewNotifications =
+  //   permissions && hasPermission(permissions, "NOTF", "R");
 
   const theme = {
     background: nightMode ? '#1f2937' : '#ffffff',
@@ -30,13 +32,26 @@ const ResidentHeader = () => {
 
   useEffect(() => {
     const load = async () => {
-      const details = await Common.getUserDetails();
-      const user = await Common.getLoggedInUser();
-      setUserDetails(details);
-      setSocietyInfo(user?.society);
+      try {
+        const details = await Common.getUserDetails();
+        const user = await Common.getLoggedInUser();
+
+        setUserDetails(details);
+
+        // Parse society logo
+        if (user?.society?.data) {
+          const parsed = JSON.parse(user.society.data);
+          setSocietyLogo(parsed.logo);
+        }
+
+      } catch (err) {
+        console.log("Header load error", err);
+      }
     };
+
     load();
   }, []);
+
   return (
     <View style={{ backgroundColor: theme.background }}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
@@ -44,13 +59,24 @@ const ResidentHeader = () => {
         {/* LEFT SECTION */}
         <View style={styles.leftSection}>
           <View style={styles.iconContainer}>
-            <Image source={BRAND.LOGO} style={styles.logoImage} resizeMode="contain" />
+
+            <Image
+              source={
+                societyLogo
+                  ? { uri: societyLogo }
+                  : BRAND.LOGO
+              }
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+
           </View>
 
           <View>
             <Text style={[styles.greetingText, { color: theme.text }]}>
               {BRAND.APP_NAME}
             </Text>
+
             <Text style={[styles.locationText, { color: theme.subText }]}>
               {userDetails?.society_name}
             </Text>
@@ -65,11 +91,11 @@ const ResidentHeader = () => {
             onPress={() => navigation.navigate('AllServicesScreen')}
             style={styles.iconBtn}
           >
-            < Ionicons name="search-outline" size={22} color={theme.text} />
+            <Ionicons name="search-outline" size={22} color={theme.text} />
           </TouchableOpacity>
 
           {/* Notification */}
-          {canViewNotifications && (
+          {/* {canViewNotifications && ( */}
             <TouchableOpacity
               onPress={() => navigation.navigate('NotificationsScreen')}
               style={styles.iconBtn}
@@ -80,7 +106,7 @@ const ResidentHeader = () => {
                 color={theme.text}
               />
             </TouchableOpacity>
-          )}
+          {/* )} */}
 
         </View>
 
@@ -97,13 +123,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,   // tighter height
+    paddingVertical: 8,
     borderBottomWidth: 1,
   },
+
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -112,6 +140,7 @@ const styles = StyleSheet.create({
   iconBtn: {
     marginLeft: 16,
   },
+
   iconContainer: {
     width: 44,
     height: 44,
@@ -120,15 +149,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   logoImage: {
     width: '100%',
     height: '100%',
-
   },
+
   greetingText: {
     fontSize: 16,
     fontWeight: '700',
   },
+
   locationText: {
     fontSize: 13,
   },

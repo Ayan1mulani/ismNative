@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   ScrollView,
   Dimensions,
-  SafeAreaView,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import Animated, {
@@ -48,6 +47,7 @@ const ResidentIdCardScreen = () => {
   const loadUser = async () => {
     try {
       const details = await ismServices.getUserDetails();
+      console.log(details,"details")
       setUser(details);
     } catch (err) {
       console.log("ID CARD ERROR:", err);
@@ -123,134 +123,135 @@ const ResidentIdCardScreen = () => {
     return { transform: [{ translateX }, { translateY }], opacity };
   });
 
-  if (loading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#1996D3" />
-      </View>
-    );
-  }
 
-  if (!user) return null;
 
-  const residentType = user.tenant === 0 ? "OWNER" : "TENANT";
+
+const residentType = user?.tenant === 0 ? "OWNER" : "TENANT";
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#F0F4F8" }}>
-        <AppHeader title={"Digital ID"} />
+      <AppHeader title={"Digital ID"} />
+
+      <View style={{ flex: 1, backgroundColor: "#F0F4F8" }}>
 
         <ScrollView
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
         >
           {/* 3D Card Wrapper */}
-          <GestureDetector gesture={panGesture}>
-            <Animated.View style={[styles.cardWrapper, cardAnimatedStyle]}>
-              
-              {/* The Card */}
-              <View style={styles.card}>
+          {loading ? (
+            <View style={styles.loaderCard}>
+              <ActivityIndicator size="large" color="#1996D3" />
+            </View>
 
-                {/* TOP HEADER BAR */}
-                <View style={styles.cardHeader}>
-                  <Text style={styles.headerText}>OFFICIAL RESIDENT ID</Text>
-                  <View style={styles.statusBadge}>
-                    <View style={styles.activeDot} />
-                    <Text style={styles.statusText}>
-                      {user.activated ? "ACTIVE" : "INACTIVE"}
-                    </Text>
-                  </View>
-                </View>
+          ) : (
+            <GestureDetector gesture={panGesture}>
+              <Animated.View style={[styles.cardWrapper, cardAnimatedStyle]}>
 
-                {/* MAIN INFO */}
-                <View style={styles.mainInfo}>
-                  <View style={styles.avatarRing}>
-                    <View style={styles.avatarContainer}>
-                      <Image source={getAvatarUri()} style={styles.avatar} />
-                    </View>
-                  </View>
+                {/* The Card */}
+                <View style={styles.card}>
 
-                  <Text style={styles.name}>{user.name}</Text>
-                  <Text style={styles.orangeUserId}>#{user.user_id}</Text>
-
-                  <View style={styles.tagsRow}>
-                    <View style={styles.tagContainer}>
-                      <Ionicons name="home-outline" size={11} color="#475569" />
-                      <Text style={styles.unitTag}>
-                        {user.tower} • {user.display_unit_no || user.flat_no}
+                  {/* TOP HEADER BAR */}
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.headerText}>OFFICIAL RESIDENT ID</Text>
+                    <View style={styles.statusBadge}>
+                      <View style={styles.activeDot} />
+                      <Text style={styles.statusText}>
+                        {user.activated ? "ACTIVE" : "INACTIVE"}
                       </Text>
                     </View>
-                    <View style={[styles.tagContainer, styles.typeTagContainer]}>
-                      <Text style={styles.typeTagText}>{residentType}</Text>
+                  </View>
+
+                  {/* MAIN INFO */}
+                  <View style={styles.mainInfo}>
+                    <View style={styles.avatarRing}>
+                      <View style={styles.avatarContainer}>
+                        <Image source={getAvatarUri()} style={styles.avatar} />
+                      </View>
+                    </View>
+
+                    <Text style={styles.name}>{user.name}</Text>
+                    <Text style={styles.orangeUserId}>#{user.user_id}</Text>
+
+                    <View style={styles.tagsRow}>
+                      <View style={styles.tagContainer}>
+                        <Ionicons name="home-outline" size={11} color="#475569" />
+                        <Text style={styles.unitTag}>
+                          {user.tower} • {user.display_unit_no || user.flat_no}
+                        </Text>
+                      </View>
+                      <View style={[styles.tagContainer, styles.typeTagContainer]}>
+                        <Text style={styles.typeTagText}>{residentType}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                {/* QR CODE */}
-                <View style={styles.qrSection}>
-                  <View style={styles.qrFrame}>
-                    {qrUrl ? (
-                      <Image
-                        source={{ uri: qrUrl }}
-                        style={styles.qr}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <View style={[styles.qr, styles.qrPlaceholder]}>
-                        <Ionicons
-                          name="qr-code-outline"
-                          size={50}
-                          color="#CBD5E1"
+                  {/* QR CODE */}
+                  <View style={styles.qrSection}>
+                    <View style={styles.qrFrame}>
+                      {qrUrl ? (
+                        <Image
+                          source={{ uri: qrUrl }}
+                          style={styles.qr}
+                          resizeMode="contain"
                         />
-                      </View>
-                    )}
+                      ) : (
+                        <View style={[styles.qr, styles.qrPlaceholder]}>
+                          <Ionicons
+                            name="qr-code-outline"
+                            size={50}
+                            color="#CBD5E1"
+                          />
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.scanText}>Scan for Verification</Text>
                   </View>
-                  <Text style={styles.scanText}>Scan for Verification</Text>
-                </View>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-                {/* DETAILS GRID */}
-                <View style={styles.detailsGrid}>
-                  <Detail
-                    icon="call-outline"
-                    label="Phone"
-                    value={user.phone_no}
-                    half
+                  {/* DETAILS GRID */}
+                  <View style={styles.detailsGrid}>
+                    <Detail
+                      icon="call-outline"
+                      label="Phone"
+                      value={user.phone_no}
+                      half
+                    />
+                    <Detail
+                      icon="business-outline"
+                      label="Block"
+                      value={user.block}
+                      half
+                    />
+                    <Detail
+                      icon="mail-outline"
+                      label="Email"
+                      value={user.email}
+                      multiline
+                    />
+                  </View>
+
+                  {/* FOOTER */}
+                  <View style={styles.footer}>
+                    <Ionicons name="shield-checkmark" size={12} color="#94A3B8" />
+                    <Text style={styles.footerText}>
+                      {" "}iSocietyManager Digital ID
+                    </Text>
+                  </View>
+
+                  {/* GLOSS OVERLAY */}
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[styles.gloss, glossAnimatedStyle]}
                   />
-                  <Detail
-                    icon="business-outline"
-                    label="Block"
-                    value={user.block}
-                    half
-                  />
-                  <Detail
-                    icon="mail-outline"
-                    label="Email"
-                    value={user.email}
-                    multiline
-                  />
                 </View>
-
-                {/* FOOTER */}
-                <View style={styles.footer}>
-                  <Ionicons name="shield-checkmark" size={12} color="#94A3B8" />
-                  <Text style={styles.footerText}>
-                    {" "}iSocietyManager Digital ID
-                  </Text>
-                </View>
-
-                {/* GLOSS OVERLAY */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[styles.gloss, glossAnimatedStyle]}
-                />
-              </View>
-            </Animated.View>
-          </GestureDetector>
+              </Animated.View>
+            </GestureDetector>
+          )}
 
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </GestureHandlerRootView>
   );
 };

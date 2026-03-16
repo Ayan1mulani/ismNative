@@ -437,20 +437,43 @@ const ProfileScreen = () => {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
 
         {/* PROFILE HEADER */}
-        <View style={[styles.profileCard, { backgroundColor: theme.cardBg }]}>
-          <Image source={getAvatarUri()} style={styles.avatar} />
-          <View style={{ marginLeft: 14, flex: 1 }}>
-            <Text style={[styles.userName, { color: theme.textMain }]}>
-              {userProfile.name}
-            </Text>
-            <Text style={[styles.userSub, { color: theme.textSub }]}>
-              {userProfile.phone_no}
-            </Text>
-            <Text style={[styles.userSub, { color: theme.textSub }]}>
-              {userProfile.email}
-            </Text>
-          </View>
-        </View>
+      {/* PROFILE HEADER */}
+<View style={[styles.profileCard, { backgroundColor: theme.cardBg }]}>
+  <Image source={getAvatarUri()} style={styles.avatar} />
+  <View style={{ marginLeft: 14, flex: 1 }}>
+    <Text style={[styles.userName, { color: theme.textMain }]}>
+      {userProfile.name}
+    </Text>
+    <Text style={[styles.userSub, { color: theme.textSub }]}>
+      {userProfile.phone_no}
+    </Text>
+    <Text style={[styles.userSub, { color: theme.textSub }]}>
+      {userProfile.email}
+    </Text>
+  </View>
+</View>
+
+{/* VIRTUAL ID CARD BANNER */}
+<TouchableOpacity
+  style={[styles.virtualIdCard, { backgroundColor: theme.cardBg }]}
+  onPress={() => navigation.navigate("ResidentIdCard")}
+  activeOpacity={0.8}
+>
+  <View style={styles.virtualIdLeft}>
+    <View style={[styles.virtualIdIcon, { backgroundColor: theme.primary + "18" }]}>
+      <Ionicons name="card-outline" size={22} color={theme.primary} />
+    </View>
+    <View>
+      <Text style={[styles.virtualIdTitle, { color: theme.textMain }]}>
+        Virtual ID Card
+      </Text>
+      <Text style={[styles.virtualIdSub, { color: theme.textSub }]}>
+        View your resident identity card
+      </Text>
+    </View>
+  </View>
+  <Ionicons name="chevron-forward" size={20} color={theme.textSub} />
+</TouchableOpacity>
 
         {/* UNIT DETAILS (OPEN BY DEFAULT) */}
         <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
@@ -575,16 +598,7 @@ const ProfileScreen = () => {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionRow}
-            onPress={() => navigation.navigate("ResidentIdCard")}
-          >
-            <Ionicons name="card-outline" size={20} color={theme.textMain} />
-
-            <Text style={[styles.actionText, { color: theme.textMain }]}>
-              Virtual ID Card
-            </Text>
-          </TouchableOpacity>
+        
 
           <TouchableOpacity
             style={styles.actionRow}
@@ -836,4 +850,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginLeft: 10,
   },
+  virtualIdCard: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: 16,
+  borderRadius: 16,
+  marginBottom: 16,
+},
+
+virtualIdLeft: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 12,
+},
+
+virtualIdIcon: {
+  width: 44,
+  height: 44,
+  borderRadius: 12,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+virtualIdTitle: {
+  fontSize: 15,
+  fontWeight: '600',
+},
+
+virtualIdSub: {
+  fontSize: 12,
+  marginTop: 2,
+},
 });

@@ -16,6 +16,7 @@ import AppHeader from "../../components/AppHeader";
 import { usePermissions } from "../../../Utils/ConetextApi";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { visitorServices } from "../../../services/visitorServices";
+import { cancelVisitorNotification } from "../../../Utils/VisitorNotification";
 
 const VisitDetailScreen = () => {
 
@@ -48,14 +49,11 @@ const VisitDetailScreen = () => {
     primary: "#2E8BC0"
   };
 
-  // ─── Status Flags ────────────────────────────────────────────────────────────
   const isPending   = allowStatus === null;
   const isDenied    = allowStatus === 0;
   const isAllowed   = allowStatus === 1 && attendedStatus === null;
   const isCompleted = allowStatus === 1 && attendedStatus !== null;
 
-  // ─── Status Badge ─────────────────────────────────────────────────────────
-  // FIX: isCompleted check added so attended states are reachable
   const getStatus = () => {
     if (isDenied)                          return { text: "REJECTED",    color: theme.grey    };
     if (isCompleted && attendedStatus===1) return { text: "ATTENDED",    color: theme.success };
@@ -67,7 +65,6 @@ const VisitDetailScreen = () => {
   const status = getStatus();
 
   // ─── Allow Visitor ────────────────────────────────────────────────────────
-  // FIX: flat_no is now parsed from whom_to_meet and passed to acceptVisitor
   const allowVisitor = async () => {
     try {
       setLoading(true);
@@ -76,6 +73,9 @@ const VisitDetailScreen = () => {
       const flat_no = whomToMeet[0].flat_no;
 
       await visitorServices.acceptVisitor(visit.id, flat_no);
+
+      // Cancel the persistent notification now that action is taken
+      await cancelVisitorNotification();
 
       setAllowStatus(1);
       setModal({ visible: true, message: "Visitor Approved", success: true });
@@ -94,6 +94,9 @@ const VisitDetailScreen = () => {
 
       await visitorServices.denyVisitor(visit.id);
 
+      // Cancel the persistent notification now that action is taken
+      await cancelVisitorNotification();
+
       setAllowStatus(0);
       setModal({ visible: true, message: "Visitor Denied", success: true });
 
@@ -105,7 +108,6 @@ const VisitDetailScreen = () => {
   };
 
   // ─── Mark Attendance ──────────────────────────────────────────────────────
-  // FIX: now passes (visitId, value) instead of a payload object
   const markAttendance = async (value) => {
     try {
       setLoading(true);
@@ -126,7 +128,6 @@ const VisitDetailScreen = () => {
     }
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
 
@@ -139,18 +140,15 @@ const VisitDetailScreen = () => {
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
 
-        {/* Status Badge */}
         <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
           <Text style={styles.statusText}>{status.text}</Text>
         </View>
 
-        {/* Visitor Image */}
         <Image
           source={{ uri: visit?.image || "https://via.placeholder.com/400" }}
           style={styles.image}
         />
 
-        {/* Info Card */}
         <View style={[styles.card, { backgroundColor: theme.card }]}>
 
           <Text style={[styles.name, { color: theme.text }]}>
@@ -188,17 +186,12 @@ const VisitDetailScreen = () => {
 
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.buttonRow}>
 
-          {/* ALLOW */}
           <TouchableOpacity
             disabled={!isPending || loading}
             onPress={allowVisitor}
-            style={[
-              styles.button,
-              { backgroundColor: theme.success, opacity: isPending ? 1 : 0.3 }
-            ]}
+            style={[styles.button, { backgroundColor: theme.success, opacity: isPending ? 1 : 0.3 }]}
           >
             {loading
               ? <ActivityIndicator color="#fff" />
@@ -206,38 +199,26 @@ const VisitDetailScreen = () => {
             }
           </TouchableOpacity>
 
-          {/* DENY */}
           <TouchableOpacity
             disabled={!isPending || loading}
             onPress={denyVisitor}
-            style={[
-              styles.button,
-              { backgroundColor: theme.danger, opacity: isPending ? 1 : 0.3 }
-            ]}
+            style={[styles.button, { backgroundColor: theme.danger, opacity: isPending ? 1 : 0.3 }]}
           >
             <Text style={styles.btnText}>Deny</Text>
           </TouchableOpacity>
 
-          {/* ATTENDED */}
           <TouchableOpacity
             disabled={!isAllowed || loading}
             onPress={() => markAttendance(1)}
-            style={[
-              styles.button,
-              { backgroundColor: theme.success, opacity: isAllowed ? 1 : 0.3 }
-            ]}
+            style={[styles.button, { backgroundColor: theme.success, opacity: isAllowed ? 1 : 0.3 }]}
           >
             <Text style={styles.btnText}>Attended</Text>
           </TouchableOpacity>
 
-          {/* NOT VISITED */}
           <TouchableOpacity
             disabled={!isAllowed || loading}
             onPress={() => markAttendance(0)}
-            style={[
-              styles.button,
-              { backgroundColor: theme.grey, opacity: isAllowed ? 1 : 0.3 }
-            ]}
+            style={[styles.button, { backgroundColor: theme.grey, opacity: isAllowed ? 1 : 0.3 }]}
           >
             <Text style={styles.btnText}>Not Visited</Text>
           </TouchableOpacity>
@@ -246,7 +227,6 @@ const VisitDetailScreen = () => {
 
       </ScrollView>
 
-      {/* Result Modal */}
       <Modal transparent visible={modal.visible} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -288,14 +268,12 @@ const VisitDetailScreen = () => {
 export default VisitDetailScreen;
 
 const styles = StyleSheet.create({
-
   image: {
     width: "100%",
     height: 180,
     borderRadius: 12,
     marginVertical: 12
   },
-
   card: {
     padding: 14,
     borderRadius: 12,
@@ -306,49 +284,40 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2
   },
-
   name: {
     fontSize: 18,
     fontWeight: "700",
     marginBottom: 6
   },
-
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6
   },
-
   subText: {
     fontSize: 14
   },
-
   divider: {
     height: 1,
     marginVertical: 10
   },
-
   rowBetween: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center"
   },
-
   label: {
     fontSize: 13
   },
-
   value: {
     fontSize: 13,
     fontWeight: "600"
   },
-
   buttonRow: {
     flexDirection: "row",
     gap: 10,
     flexWrap: "wrap"
   },
-
   button: {
     flex: 1,
     paddingVertical: 12,
@@ -356,12 +325,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minWidth: "45%"
   },
-
   btnText: {
     color: "#fff",
     fontWeight: "600"
   },
-
   statusBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
@@ -369,20 +336,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 4
   },
-
   statusText: {
     color: "#fff",
     fontSize: 12,
     fontWeight: "700"
   },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center"
   },
-
   modalBox: {
     backgroundColor: "#fff",
     padding: 24,
@@ -390,7 +354,6 @@ const styles = StyleSheet.create({
     width: "80%",
     alignItems: "center"
   },
-
   modalButton: {
     marginTop: 15,
     backgroundColor: "#2E8BC0",
@@ -398,5 +361,4 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8
   }
-
 });

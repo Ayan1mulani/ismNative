@@ -19,6 +19,75 @@ const otherServices = {
     const response = await ApiCommon.getReq(url, headers);
     return response
   },
+  getNotificationSound: async () => {
+  try {
+    const user = await Common.getLoggedInUser();
+
+    const userObj = {
+      user_id: user.id,
+      group_id: user.role_id,
+      flat_no: user.flat_no,
+      unit_id: user.unit_id,
+      society_id: user.societyId,
+    };
+
+    const params = {
+      "api-token": user.api_token,
+      "user-id": JSON.stringify(userObj),
+    };
+
+    const url = otherServices.appendParamsInUrl(
+      `${API_URL2}/getNotificationSound`,
+      params
+    );
+
+    const headers = await Util.getCommonAuth();
+
+    return await ApiCommon.getReq(url, headers);
+
+  } catch (error) {
+    console.log("Get Notification Sound Error:", error);
+    throw error;
+  }
+},
+
+setNotificationSound: async (type, value) => {
+  try {
+    const user = await Common.getLoggedInUser();
+
+    const userObj = {
+      user_id: user.id,
+      group_id: user.role_id,
+      flat_no: user.flat_no,
+      unit_id: user.unit_id,
+      society_id: user.societyId,
+    };
+
+    const params = {
+      "api-token": user.api_token,
+      "user-id": JSON.stringify(userObj),
+    };
+
+    const url = otherServices.appendParamsInUrl(
+      `${API_URL2}/setNotificationSound`,
+      params
+    );
+
+    const headers = await Util.getCommonAuth();
+
+    // Matches exact payload from network log: {type: "VISIT", switch: 0}
+    const payload = {
+      type: type,       // "VISIT" or "STAFF"
+      switch: value ? 1 : 0,
+    };
+
+    return await ApiCommon.postReq(url, payload, headers);
+
+  } catch (error) {
+    console.log("Set Notification Sound Error:", error);
+    throw error;
+  }
+},
 
   getAmenityBookingsById: async (amenityId) => {
     try {

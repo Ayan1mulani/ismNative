@@ -1,5 +1,5 @@
 // VisitsPage.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -69,18 +69,16 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
     setRefreshing(false);
   };
 
-  // ✅ Backend-driven status logic
+  // ✅ Status logic — matches VisitDetailScreen
   const getStatus = (visit) => {
-    if (visit.attended === 1) {
-      return { label: "ATTENDED", color: theme.success };
-    }
-    if (visit.attended === 0) {
-      return { label: "NOT VISITED", color: theme.grey };
-    }
-    if (visit.end_time) {
-      return { label: "COMPLETED", color: theme.warning };
-    }
-    return { label: "PENDING", color: theme.danger };
+    const allow    = visit.allow;
+    const attended = visit.attended;
+
+    if (allow === 0)                          return { label: "REJECTED",    color: theme.grey    };
+    if (allow === 1 && attended === 1)        return { label: "ATTENDED",    color: theme.success };
+    if (allow === 1 && attended === 0)        return { label: "NOT VISITED", color: theme.grey    };
+    if (allow === 1 && attended === null)     return { label: "APPROVED",    color: theme.primary };
+    return                                           { label: "PENDING",     color: theme.danger  };
   };
 
   const renderCard = ({ item }) => {
@@ -90,9 +88,7 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
       <TouchableOpacity
         style={[styles.card, { backgroundColor: theme.card }]}
         activeOpacity={0.85}
-        onPress={() =>
-          navigation.navigate("VisitDetailScreen", { visit: item })
-        }
+        onPress={() => navigation.navigate("VisitDetailScreen", { visit: item })}
       >
         <View style={styles.cardHeader}>
           <Image
@@ -116,7 +112,6 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
             <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
               <Text style={styles.statusText}>{status.label}</Text>
             </View>
-
             <Text style={[styles.ticketId, { color: theme.primary }]}>
               #{item.id}
             </Text>
@@ -125,18 +120,13 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
 
         <View style={[styles.footer, { borderTopColor: theme.border }]}>
           <View style={styles.dateRow}>
-            < Ionicons name="time-outline" size={16} color={theme.textSecondary} />
+            <Ionicons name="time-outline" size={16} color={theme.textSecondary} />
             <Text style={[styles.dateText, { color: theme.textSecondary }]}>
-              {item.start_time
-                ? new Date(item.start_time).toDateString()
-                : "—"}
+              {item.start_time ? new Date(item.start_time).toDateString() : "—"}
             </Text>
           </View>
-
           <Text style={[styles.createdText, { color: theme.textSecondary }]}>
-            Created: {item.start_time
-              ? new Date(item.start_time).toDateString()
-              : "—"}
+            Created: {item.start_time ? new Date(item.start_time).toDateString() : "—"}
           </Text>
         </View>
       </TouchableOpacity>
@@ -153,10 +143,11 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+
       {/* SEARCH BAR */}
       <View style={styles.searchContainer}>
         <View style={[styles.searchBar, { backgroundColor: theme.surface }]}>
-          < Ionicons name="search-outline" size={20} color={theme.textSecondary} />
+          <Ionicons name="search-outline" size={20} color={theme.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
             placeholder="Search name, purpose or phone"
@@ -173,7 +164,7 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
           ]}
           onPress={() => setShowFilters(!showFilters)}
         >
-          < Ionicons
+          <Ionicons
             name="filter"
             size={20}
             color={showFilters ? '#fff' : theme.textSecondary}
@@ -181,39 +172,32 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
         </TouchableOpacity>
       </View>
 
-   <FlatList
-  data={filteredVisits}
-  renderItem={renderCard}
-  keyExtractor={(item) => item.id.toString()}
-contentContainerStyle={
-  filteredVisits.length === 0
-    ? {
-        flexGrow: 1,
-        paddingTop: 120,   // 👈 move empty state down
-        paddingHorizontal: 16,
-      }
-    : {
-        padding: 16,
-        paddingBottom: 180,
-      }
-}
-  showsVerticalScrollIndicator={false}
-  refreshControl={
-    <RefreshControl
-      refreshing={refreshing}
-      onRefresh={handleRefresh}
-      tintColor={theme.primary}
-    />
-  }s
- ListEmptyComponent={() => (
-  <EmptyState
-    icon="people-outline"
-    title="No Visit Request Yet"
-    subtitle=""
-    theme={theme}
-  />
-)}
-/>
+      <FlatList
+        data={filteredVisits}
+        renderItem={renderCard}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={
+          filteredVisits.length === 0
+            ? { flexGrow: 1, paddingTop: 120, paddingHorizontal: 16 }
+            : { padding: 16, paddingBottom: 180 }
+        }
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.primary}
+          />
+        }
+        ListEmptyComponent={() => (
+          <EmptyState
+            icon="people-outline"
+            title="No Visit Request Yet"
+            subtitle=""
+            theme={theme}
+          />
+        )}
+      />
     </View>
   );
 };
@@ -221,124 +205,24 @@ contentContainerStyle={
 export default VisitsPage;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  searchContainer: {
-    flexDirection: 'row',
-      paddingHorizontal: 16,
-      paddingTop: 10,
-      gap: 10,
-  },
-
-  searchBar: {
-        flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      height: 45,
-  },
-
-  searchInput: {
-   flex: 1,
-      marginLeft: 8,
-      fontSize: 14,
-  },
-
-  filterButton: {
-    width: 45,
-      height: 45,
-      borderRadius: 10,
-      justifyContent: 'center',
-      alignItems: 'center',
-  },
-
-  card: {
-    padding: 15,
-  borderRadius: 14,
-  marginBottom: 5,
-  borderWidth: 1,
-  borderColor: 'rgba(3, 65, 109, 0.04)',
-  overflow: 'hidden', // 👈 important
-  },
-  
-
-
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#E5E7EB',
-  },
-
-  infoSection: {
-    flex: 1,
-    marginLeft: 14,
-  },
-
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-
-  subText: {
-    fontSize: 14,
-  },
-
-  rightSection: {
-    alignItems: 'flex-end',
-  },
-
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginBottom: 6,
-  },
-
-  statusText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-
-  ticketId: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  footer: {
-    paddingTop: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  dateText: {
-    marginLeft: 6,
-    fontSize: 11,
-  },
-
-  createdText: {
-    fontSize: 11,
-  },
+  container: { flex: 1 },
+  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  searchContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, gap: 10 },
+  searchBar: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, height: 45 },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 14 },
+  filterButton: { width: 45, height: 45, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  card: { padding: 15, borderRadius: 14, marginBottom: 5, borderWidth: 1, borderColor: 'rgba(3, 65, 109, 0.04)', overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center' },
+  avatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#E5E7EB' },
+  infoSection: { flex: 1, marginLeft: 14 },
+  title: { fontSize: 17, fontWeight: '700', marginBottom: 4 },
+  subText: { fontSize: 14 },
+  rightSection: { alignItems: 'flex-end' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginBottom: 6 },
+  statusText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  ticketId: { fontSize: 14, fontWeight: '600' },
+  footer: { paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dateRow: { flexDirection: 'row', alignItems: 'center' },
+  dateText: { marginLeft: 6, fontSize: 11 },
+  createdText: { fontSize: 11 },
 });
