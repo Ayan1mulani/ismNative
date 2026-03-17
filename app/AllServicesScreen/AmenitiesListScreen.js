@@ -34,7 +34,6 @@ const AmenitiesListScreen = () => {
   const [todayBookings, setTodayBookings] = useState({});
   const [loading, setLoading] = useState(true);
   const [amenities, setAmenities] = useState([]);
-  const [expandedId, setExpandedId] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState({});
 
   const theme = {

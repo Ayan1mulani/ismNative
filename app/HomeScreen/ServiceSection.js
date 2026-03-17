@@ -44,14 +44,16 @@ const ServicesSection = () => {
     { id: '2', title: 'Staff', icon: 'checkmark-circle-outline', route: 'StaffScreen' },
     { id: '3', title: 'Visitors', icon: 'people-outline', route: 'Visitors' },
     { id: '4', title: 'SOS', icon: 'alert-circle', isPanic: true },
-    { id: '5', title: 'Add member', icon: 'person-add-outline', route: 'AddMember' },
+    { id: '5', title: 'Family', icon: 'person-outline', route: 'FamilyMember' },
     { id: '6', title: 'Contact Us', icon: 'mail-outline', route: 'ContactUsScreen' },
     { id: '7', title: 'Setting', icon: 'settings-outline', route: 'Settings' },
-    { id: '8', title: 'Bookings', icon: 'bookmark-outline', route: 'MyBookings' },
+   {  id : '8',title: "My Complex", icon: "notifications-outline", route: "Service Request" },
     { id: '9', title: 'Bills', icon: 'receipt-outline', route: 'bills' },
     { id: '10', title: 'Add vehicle', icon: 'car-outline', route: 'AddVehicleScreen' },
-    { id: '11', title: 'Amenities', icon: 'bookmarks-outline', route: 'AmenitiesListScreen' },
+    { id: '11', title: 'Energy', icon: 'speedometer-outline', route: 'Energy' },
     { id: '12', title: 'More', icon: 'ellipsis-horizontal-outline', route: 'AllServicesScreen' },
+    
+  
   ];
 
   const panicReasons = [

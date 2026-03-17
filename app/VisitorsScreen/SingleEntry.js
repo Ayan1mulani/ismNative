@@ -215,7 +215,12 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
         style={[styles.card, {
           backgroundColor: '#ffff',
         }]}
-        onPress={() => navigation.navigate('PassDetails', { pass })}
+        onPress={() =>
+          navigation.navigate('PassDetails', {
+            pass,
+            onGoBack: handleRefresh, // ✅ ADD THIS
+          })
+        }
 
         activeOpacity={0.7}
       >

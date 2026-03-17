@@ -1,5 +1,5 @@
 // ServiceRequestTabs.js
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { usePermissions } from '../../Utils/ConetextApi';
 import { hasPermission } from '../../Utils/PermissionHelper';
 import ComplaintListScreen from './ServiceRequestPage';
@@ -19,6 +19,7 @@ import SlidingTabs from '../components/SlidingTabs';
 import BRAND from '../config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 
 const TABS = ['Open', 'Closed', 'All'];
 
@@ -48,6 +49,7 @@ const ServiceRequestTabs = () => {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [requests, setRequests] = useState({ open: [], closed: [], all: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const [statsVisible, setStatsVisible] = useState(false);
 
   const scrollViewRef = useRef(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -58,8 +60,20 @@ const ServiceRequestTabs = () => {
 
   // ── Permission flags ──────────────────────────────────────────────────────
   const permissionsLoaded = permissions !== null && permissions !== undefined;
-  const canViewComplaints  = permissionsLoaded && hasPermission(permissions, 'COM', 'R');
+  const canViewComplaints = permissionsLoaded && hasPermission(permissions, 'COM', 'R');
   const canCreateComplaint = permissionsLoaded && hasPermission(permissions, 'COM', 'C');
+
+
+  const complaintStats = {
+    open: requests.open.length,
+    closed: requests.closed.length,
+    pending: requests.all.filter(item =>
+      ['Pending', 'WIP', 'In Progress'].includes(item.status)
+    ).length,
+    reopen: requests.all.filter(item =>
+      ['Reopen', 'Reopened'].includes(item.status)
+    ).length,
+  };
 
   // ── Loading state: permissions not yet fetched ────────────────────────────
   if (!permissionsLoaded) {
@@ -84,21 +98,22 @@ const ServiceRequestTabs = () => {
     );
   }
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchServiceRequests();
-    }, [])
-  );
+  // ✅ UPDATED: Initial load only (when screen first mounts)
 
+
+  // ✅ UPDATED: Conditional refresh - only when needsRefresh flag is set
+  useEffect(() => {
+    fetchServiceRequests();
+  }, []);
   const fetchServiceRequests = async () => {
     try {
       setIsLoading(true);
       const res = await complaintService.getMyComplaints();
       const allData = res.data || [];
-      console.log("res data ", allData)
+      console.log("res data ", allData);
 
       const openData = allData.filter((item) =>
-        ['Open', 'WIP', 'In Progress', 'Pending'].includes(item.status)
+        ['Open', 'WIP', 'In Progress', 'Pending', 'Reopen', 'Reopened'].includes(item.status)
       );
       const closedData = allData.filter((item) =>
         ['Closed', 'Resolved', 'Completed'].includes(item.status)
@@ -114,10 +129,10 @@ const ServiceRequestTabs = () => {
 
   const getCurrentRequests = (tabName) => {
     switch (tabName) {
-      case REQUEST_STATUS.OPEN:   return requests.open;
+      case REQUEST_STATUS.OPEN: return requests.open;
       case REQUEST_STATUS.CLOSED: return requests.closed;
-      case REQUEST_STATUS.ALL:    return requests.all;
-      default:                    return [];
+      case REQUEST_STATUS.ALL: return requests.all;
+      default: return [];
     }
   };
 
@@ -133,6 +148,8 @@ const ServiceRequestTabs = () => {
         complaints={getCurrentRequests(tabName)}
         isLoading={isLoading}
         onRefresh={fetchServiceRequests}
+        complaintStats={complaintStats}
+        showStats={tabName === REQUEST_STATUS.ALL}
       />
     </View>
   );

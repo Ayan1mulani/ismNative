@@ -19,6 +19,7 @@ import { hasPermission } from "../../../Utils/PermissionHelper";
 const SingleVisitorForm = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const onGoBack = route.params?.onGoBack;
 
   const theme = {
     cardBg: "#FFFFFF",
@@ -53,7 +54,7 @@ const SingleVisitorForm = () => {
   const canUseGuestParking =
     permissionsLoaded && hasPermission(permissions, "GSTPRK", "C");
 
-    console.log(canAddVehicle,"add")
+  console.log(canAddVehicle, "add")
 
   /* ===============================
      RECEIVE PARKING SLOT
@@ -103,104 +104,108 @@ const SingleVisitorForm = () => {
 
   const handleSubmit = async () => {
 
-  if (!visitorName || !mobileNumber || !visitDate) {
-    alert("Please fill all required fields");
-    return;
-  }
-
-  try {
-
-    setModalConfig({
-      visible: true,
-      type: "loading",
-      title: "Adding Visitor",
-      subtitle: "Please wait..."
-    });
-
-    const formattedDate =
-      visitDate instanceof Date
-        ? visitDate.toISOString().split("T")[0]
-        : visitDate;
-
-    console.log("Visitor Payload:", {
-      name: visitorName,
-      mobile: mobileNumber,
-      date_time: formattedDate,
-      vehicle_no: vehicleNo
-    });
-
-    /* ===============================
-       ADD VISITOR
-    =============================== */
-
-const visitorRes = await visitorServices.addMyVisitor({
-  name: visitorName,
-  mobile: mobileNumber,
-  date_time: formattedDate,
-  vehicle_no: vehicleNo || null,
-  type: "guest"
-});
-    console.log("Visitor Response:", visitorRes);
-
-    if (visitorRes?.status !== "success") {
-      throw new Error(visitorRes?.message || "Visitor creation failed");
+    if (!visitorName || !mobileNumber || !visitDate) {
+      alert("Please fill all required fields");
+      return;
     }
 
-    const visitorId = visitorRes?.data?.id;
+    try {
 
-    /* ===============================
-       BOOK PARKING (OPTIONAL)
-    =============================== */
+      setModalConfig({
+        visible: true,
+        type: "loading",
+        title: "Adding Visitor",
+        subtitle: "Please wait..."
+      });
 
-    if (visitorId && selectedParking) {
+      const formattedDate =
+        visitDate instanceof Date
+          ? visitDate.toISOString().split("T")[0]
+          : visitDate;
 
-      try {
+      console.log("Visitor Payload:", {
+        name: visitorName,
+        mobile: mobileNumber,
+        date_time: formattedDate,
+        vehicle_no: vehicleNo
+      });
 
-        await visitorServices.bookParking({
-          visitor_id: visitorId,
-          slot: selectedParking.slot,
-          booking_from: selectedParking.booking_from,
-          booking_to: selectedParking.booking_to,
-        });
+      /* ===============================
+         ADD VISITOR
+      =============================== */
 
-      } catch (parkingError) {
+      const visitorRes = await visitorServices.addMyVisitor({
+        name: visitorName,
+        mobile: mobileNumber,
+        date_time: formattedDate,
+        vehicle_no: vehicleNo || null,
+        type: "guest"
+      });
+      console.log("Visitor Response:", visitorRes);
 
-        console.log("Parking booking failed:", parkingError);
-
-        // parking failure should not stop visitor creation
+      if (visitorRes?.status !== "success") {
+        throw new Error(visitorRes?.message || "Visitor creation failed");
       }
+
+      const visitorId = visitorRes?.data?.id;
+
+      /* ===============================
+         BOOK PARKING (OPTIONAL)
+      =============================== */
+
+      if (visitorId && selectedParking) {
+
+        try {
+
+          await visitorServices.bookParking({
+            visitor_id: visitorId,
+            slot: selectedParking.slot,
+            booking_from: selectedParking.booking_from,
+            booking_to: selectedParking.booking_to,
+          });
+
+        } catch (parkingError) {
+
+          console.log("Parking booking failed:", parkingError);
+
+          // parking failure should not stop visitor creation
+        }
+      }
+
+      /* ===============================
+         SUCCESS
+      =============================== */
+
+      setModalConfig({
+        visible: true,
+        type: "success",
+        title: "Success!",
+        subtitle: "Visitor added successfully."
+      });
+
+      setTimeout(() => {
+        setModalConfig(prev => ({ ...prev, visible: false }));
+
+        if (onGoBack) {
+          onGoBack(); // ✅ refresh VisitorSection
+        }
+
+        navigation.goBack();
+      }, 1500);
+    } catch (err) {
+
+      console.log("Visitor Error:", err);
+
+      setModalConfig({
+        visible: true,
+        type: "error",
+        title: "Failed to add",
+        subtitle: err?.message || "Something went wrong. Please try again."
+      });
+
     }
 
-    /* ===============================
-       SUCCESS
-    =============================== */
-
-    setModalConfig({
-      visible: true,
-      type: "success",
-      title: "Success!",
-      subtitle: "Visitor added successfully."
-    });
-
-    setTimeout(() => {
-      setModalConfig(prev => ({ ...prev, visible: false }));
-      navigation.goBack();
-    }, 1500);
-
-  } catch (err) {
-
-    console.log("Visitor Error:", err);
-
-    setModalConfig({
-      visible: true,
-      type: "error",
-      title: "Failed to add",
-      subtitle: err?.message || "Something went wrong. Please try again."
-    });
-
-  }
-
-};
+  };
 
   return (
     <>

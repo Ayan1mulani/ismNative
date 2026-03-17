@@ -11,11 +11,13 @@ import ProviderSelector from "../components/ProviderSelector";
 import CalendarSelector from "../components/Calender";
 import StatusModal from "../../components/StatusModal";
 import { visitorServices } from "../../../services/visitorServices";
-import { useNavigation } from "@react-navigation/native";
 import SubmitButton from "../../components/SubmitButton";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
 const SingleCabForm = ({ theme }) => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const onGoBack = route.params?.onGoBack;
 
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [visitDate, setVisitDate] = useState(null);
@@ -47,9 +49,9 @@ const SingleCabForm = ({ theme }) => {
       newErrors.date = "Please select visit date";
     }
 
-   if (!vehicleNo || vehicleNo.length !== 4) {
-  newErrors.vehicle = "Enter 4-digit cab number";
-}
+    if (!vehicleNo || vehicleNo.length !== 4) {
+      newErrors.vehicle = "Enter 4-digit cab number";
+    }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -77,9 +79,13 @@ const SingleCabForm = ({ theme }) => {
 
       if (res) {
         setModalType("success");
-
         setTimeout(() => {
           setModalType(null);
+
+          if (onGoBack) {
+            onGoBack(); // ✅ refresh VisitorSection
+          }
+
           navigation.goBack();
         }, 1400);
       } else {
@@ -137,8 +143,8 @@ const SingleCabForm = ({ theme }) => {
         {/* Vehicle */}
         <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
           <Text style={[styles.label, { color: theme.text }]}>
-  Vehicle Number (Last 4 Digits) <Text style={{ color: "#EF4444" }}>*</Text>
-</Text>
+            Vehicle Number (Last 4 Digits) <Text style={{ color: "#EF4444" }}>*</Text>
+          </Text>
 
           <TextInput
             value={vehicleNo}

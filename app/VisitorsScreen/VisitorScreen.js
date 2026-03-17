@@ -1,5 +1,5 @@
 // VisitorScreen.js
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { usePermissions } from '../../Utils/ConetextApi';
 import { hasPermission } from '../../Utils/PermissionHelper';
 import VisitRequest from './VisitRequest';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AddPreVisitorModal from './components/AddPreVisitorModal';
 import SingleEntry from './SingleEntry';
 import { visitorServices } from '../../services/visitorServices';
@@ -50,49 +50,60 @@ const VisitorScreen = () => {
   const canCreateVisitor = permissionsLoaded && hasPermission(permissions, 'VMS', 'C');
 
   const [activeTabIndex, setActiveTabIndex] = useState(0);
+
+  // ── Independent data + loading state per tab ──────────────────────────────
   const [visits, setVisits] = useState([]);
+  const [visitsLoading, setVisitsLoading] = useState(false);  // ← own loader
+
   const [passes, setPasses] = useState([]);
+  const [passesLoading, setPassesLoading] = useState(false);  // ← own loader
+
   const [parkingBookings, setParkingBookings] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [parkingLoading, setParkingLoading] = useState(false); // ← own loader
+  // ─────────────────────────────────────────────────────────────────────────
+
   const [showPreApproveModal, setShowPreApproveModal] = useState(false);
-  const loadVisits = async () => {
-  try {
-    setIsLoading(true);
-    const res = await visitorServices.getMyVisitors();
-   setVisits(res?.data?.visits || []);
-  } catch (e) {
-    console.log("Visits load error", e);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-const loadPasses = async () => {
-  try {
-    setIsLoading(true);
-    const res = await visitorServices.getMyPasses();
-    setPasses(res?.data || []);
-  } catch (e) {
-    console.log("Passes load error", e);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-const loadParking = async () => {
-  try {
-    setIsLoading(true);
-    const res = await visitorServices.getParkingBookings();
-    setParkingBookings(res?.data || []);
-  } catch (e) {
-    console.log("Parking load error", e);
-  } finally {
-    setIsLoading(false);
-  }
-};
 
   const scrollViewRef = useRef(null);
   const scrollX = useRef(new Animated.Value(0)).current;
+
+  // ── Loaders (each manages its own loading flag) ───────────────────────────
+  const loadVisits = async () => {
+    try {
+      setVisitsLoading(true);
+      const res = await visitorServices.getMyVisitors();
+      setVisits(res?.data?.visits || []);
+    } catch (e) {
+      console.log("Visits load error", e);
+    } finally {
+      setVisitsLoading(false);
+    }
+  };
+
+  const loadPasses = async () => {
+    try {
+      setPassesLoading(true);
+      const res = await visitorServices.getMyPasses();
+      setPasses(res?.data || []);
+    } catch (e) {
+      console.log("Passes load error", e);
+    } finally {
+      setPassesLoading(false);
+    }
+  };
+
+  const loadParking = async () => {
+    try {
+      setParkingLoading(true);
+      const res = await visitorServices.getParkingBookings();
+      setParkingBookings(res?.data || []);
+    } catch (e) {
+      console.log("Parking load error", e);
+    } finally {
+      setParkingLoading(false);
+    }
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   const TABS = useMemo(() => {
     return [
@@ -108,25 +119,18 @@ const loadParking = async () => {
     }
   }, [TABS]);
 
+  // ── Load data for active tab on first visit ───────────────────────────────
   useEffect(() => {
+    if (!canViewVisitors) return;
 
-  if (!canViewVisitors) return;
+    const tab = TABS[activeTabIndex];
 
-  const tab = TABS[activeTabIndex];
+    if (tab === 'Visit Requests' && visits.length === 0) loadVisits();
+    if (tab === 'Entry Passes'   && passes.length === 0) loadPasses();
+    if (tab === 'Parking'        && parkingBookings.length === 0) loadParking();
 
-  if (tab === "Visit Requests" && visits.length === 0) {
-    loadVisits();
-  }
+  }, [activeTabIndex, canViewVisitors]);
 
-  if (tab === "Entry Passes" && passes.length === 0) {
-    loadPasses();
-  }
-
-  if (tab === "Parking" && parkingBookings.length === 0) {
-    loadParking();
-  }
-
-}, [activeTabIndex, canViewVisitors]);
  
 
   // ── Permissions still loading ─────────────────────────────────────────────
@@ -158,9 +162,8 @@ const loadParking = async () => {
         <VisitRequest
           nightMode={nightMode}
           visitorData={{ visits }}
-          loading={isLoading}
+          loading={visitsLoading}   // ← own loader
           onRefresh={loadVisits}
-          
         />
       );
     }
@@ -170,8 +173,8 @@ const loadParking = async () => {
         <SingleEntry
           nightMode={nightMode}
           passData={passes}
-          loading={isLoading}
-         onRefresh={loadPasses}
+          loading={passesLoading}   // ← own loader
+          onRefresh={loadPasses}
         />
       );
     }
@@ -180,9 +183,8 @@ const loadParking = async () => {
       <MyParkingPage
         nightMode={nightMode}
         parkingBookings={parkingBookings}
-        loading={isLoading}
+        loading={parkingLoading}    // ← own loader
         onRefresh={loadParking}
-       
       />
     );
   };

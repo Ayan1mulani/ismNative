@@ -66,6 +66,17 @@ const AmenityBookingScreen = ({ route, navigation }) => {
     }
   }, [selectedDate]);
 
+  useEffect(() => {
+  if (!selectedDate && calendarDays.length > 0 && !screenLoading) {
+    const firstAvailable = findFirstAvailableDate();
+
+    if (firstAvailable) {
+      console.log("✅ Auto selecting date:", firstAvailable);
+      setSelectedDate(firstAvailable);
+    }
+  }
+}, [calendarDays, screenLoading]);
+
   // ─── API CALLS ───────────────────────────────────────────────────────────────
 
   const fetchBookings = async () => {
@@ -121,6 +132,32 @@ const AmenityBookingScreen = ({ route, navigation }) => {
   }, [amenity]);
 
   // ─── DATE HELPERS ────────────────────────────────────────────────────────────
+
+const findFirstAvailableDate = () => {
+  let tempMonth = new Date(calendarMonth);
+
+  for (let i = 0; i < 6; i++) { // check next 6 months max
+    const year = tempMonth.getFullYear();
+    const month = tempMonth.getMonth();
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+      if (isDateSelectable(date)) {
+        // 🔥 also update calendar to that month
+        setCalendarMonth(new Date(year, month, 1));
+        return date;
+      }
+    }
+
+    // move to next month
+    tempMonth.setMonth(tempMonth.getMonth() + 1);
+  }
+
+  return null;
+};
 
   // Always uses local time — avoids UTC midnight shift in UTC+ and UTC- timezones
   const formatDate = (dateObj) => dateObj.toLocaleDateString("en-CA");

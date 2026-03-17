@@ -24,15 +24,20 @@ const buildHtml = (bodyContent = "") => `
           box-sizing: border-box;
           margin: 0;
           padding: 0;
+          max-width: 100%;
         }
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 15px;
-          line-height: 1.7;
-          color: #374151;
-          padding: 4px 2px 24px 2px;
-          word-wrap: break-word;
-        }
+      body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #374151;
+  padding: 4px 2px 24px 2px;
+
+  /* 🔥 FIX START */
+  overflow-x: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
         h1, h2, h3, h4, h5, h6 {
           color: #111827;
           margin-top: 16px;
@@ -62,6 +67,8 @@ const buildHtml = (bodyContent = "") => `
           width: 100%;
           border-collapse: collapse;
           margin-bottom: 12px;
+           table-layout: fixed;
+  word-break: break-word;
         }
         th, td {
           border: 1px solid #E5E7EB;
@@ -90,6 +97,10 @@ const buildHtml = (bodyContent = "") => `
           border-top: 1px solid #E5E7EB;
           margin: 16px 0;
         }
+          p, div, span, td, th {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
       </style>
     </head>
     <body>
@@ -104,10 +115,10 @@ const NoticeDetailScreen = ({ route }) => {
 
   const formattedDate = notice.published_at
     ? new Date(notice.published_at).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })
     : "";
 
   return (
@@ -140,11 +151,34 @@ const NoticeDetailScreen = ({ route }) => {
           source={{ html: buildHtml(notice.notice) }}
           style={styles.webView}
           onLoadEnd={() => setLoading(false)}
-          showsVerticalScrollIndicator={false}
           scrollEnabled
-          javaScriptEnabled={false}   // notices are static, no JS needed
+          javaScriptEnabled={false}
           domStorageEnabled={false}
           mixedContentMode="never"
+
+          onShouldStartLoadWithRequest={(request) => {
+            const url = request.url;
+
+            // ✅ Allow safe links only
+            if (
+              url.startsWith("http://") ||
+              url.startsWith("https://") ||
+              url.startsWith("about:blank")
+            ) {
+              return true;
+            }
+
+            // ❌ Block dangerous protocols
+            if (
+              url.startsWith("javascript:") ||
+              url.startsWith("data:")
+            ) {
+              console.log("Blocked malicious URL:", url);
+              return false;
+            }
+
+            return false;
+          }}
         />
       </View>
     </SafeAreaView>
@@ -186,16 +220,16 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   loaderOverlay: {
-  position: "absolute",
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  justifyContent: "center",
-  alignItems: "center",
-  backgroundColor: "#FFFFFF",
-  zIndex: 10,
-},
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    zIndex: 10,
+  },
   webView: {
     flex: 1,
     backgroundColor: "transparent",

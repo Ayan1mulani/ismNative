@@ -15,6 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import AppHeader from "../components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SubmitButton from "../components/SubmitButton";
+import StatusModal from "../../app/components/StatusModal";
 
 import { otherServices } from "../../services/otherServices";
 import { ismServices } from "../../services/ismServices";
@@ -31,6 +32,23 @@ const SettingsScreen = () => {
   const [primaryNumber, setPrimaryNumber] = useState("");
   const [secondaryNumber, setSecondaryNumber] = useState("");
 
+  const [initialData, setInitialData] = useState({});
+
+  const [statusModal, setStatusModal] = useState({
+    visible: false,
+    type: "success",
+    title: "",
+    subtitle: ""
+  });
+
+  /* ------------------------------
+      VALIDATION
+  ------------------------------ */
+  const isValidPhone = (num) => {
+    if (!num) return true;
+    return /^[6-9]\d{9}$/.test(num);
+  };
+
   /* ------------------------------
       LOAD USER SETTINGS
   ------------------------------ */
@@ -38,43 +56,41 @@ const SettingsScreen = () => {
   const loadUserSettings = async () => {
     try {
 
-      /* USER DATA */
       const res = await ismServices.getUserDetails()
       const user = res?.data || res;
 
       if (user) {
 
-        setIsAway(user.home_away === 1);
-        setIvrEnabled(user.ivr_enable === 1);
+        const away = user.home_away === 1;
+        const ivr = user.ivr_enable === 1;
+        const p = user.ivr_p || "";
+        const s = user.ivr_s || "";
 
-        setPrimaryNumber(user.ivr_p || "");
-        setSecondaryNumber(user.ivr_s || "");
+        setIsAway(away);
+        setIvrEnabled(ivr);
+        setPrimaryNumber(p);
+        setSecondaryNumber(s);
 
+        // ✅ store initial
+        setInitialData({
+          isAway: away,
+          ivrEnabled: ivr,
+          primaryNumber: p,
+          secondaryNumber: s
+        });
       }
 
-      /* NOTIFICATION SOUND */
       const soundRes = await otherServices.getNotificationSound();
 
       if (soundRes?.data) {
-
         soundRes.data.forEach(item => {
-
-          if (item.name === "VISIT") {
-            setVisitSound(item.switch === 1);
-          }
-
-          if (item.name === "STAFF") {
-            setStaffNotification(item.switch === 1);
-          }
-
+          if (item.name === "VISIT") setVisitSound(item.switch === 1);
+          if (item.name === "STAFF") setStaffNotification(item.switch === 1);
         });
-
       }
 
     } catch (error) {
-
       console.log("User detail error:", error);
-
     }
   };
 
@@ -89,96 +105,106 @@ const SettingsScreen = () => {
   const handleSave = async () => {
     try {
 
-      const resUser = await ismServices.getUserDetails(); // use /userDetail
-      const user = resUser?.data || resUser;
+      // ❌ VALIDATION
+      if (!isValidPhone(primaryNumber)) {
+        setStatusModal({
+          visible: true,
+          type: "error",
+          title: "Invalid Number",
+          subtitle: "Enter valid 10-digit primary number"
+        });
+        return;
+      }
 
-      // modify only the fields we want to update
-      user.home_away = isAway ? 1 : 0;
-      user.ivr_enable = ivrEnabled ? 1 : 0;
-      user.ivr_p = primaryNumber || null;
-      user.ivr_s = secondaryNumber || null;
+      if (secondaryNumber && !isValidPhone(secondaryNumber)) {
+        setStatusModal({
+          visible: true,
+          type: "error",
+          title: "Invalid Number",
+          subtitle: "Enter valid 10-digit secondary number"
+        });
+        return;
+      }
 
-      console.log("FINAL UPDATE PAYLOAD:", user);
+      // ❌ NO CHANGE CHECK
+      if (
+        initialData.isAway === isAway &&
+        initialData.ivrEnabled === ivrEnabled &&
+        initialData.primaryNumber === primaryNumber &&
+        initialData.secondaryNumber === secondaryNumber
+      ) {
+        setStatusModal({
+          visible: true,
+          type: "info",
+          title: "No Changes",
+          subtitle: "Nothing to update"
+        });
+        return;
+      }
 
-      const res = await otherServices.updateUserSettings(user);
+      // ⏳ LOADING
+      setStatusModal({
+        visible: true,
+        type: "loading",
+        title: "Saving Settings",
+        subtitle: "Please wait..."
+      });
+
+      const payload = {
+        home_away: isAway ? 1 : 0,
+        ivr_enable: ivrEnabled ? 1 : 0,
+        ivr_p: primaryNumber || null,
+        ivr_s: secondaryNumber || null
+      };
+
+
+      const res = await otherServices.updateUserSettings(payload);
 
       console.log("Settings saved:", res);
+
+      // ✅ SUCCESS
+      setStatusModal({
+        visible: true,
+        type: "success",
+        title: "Saved Successfully",
+        subtitle: "Your IVR settings have been updated"
+      });
 
       await loadUserSettings();
 
     } catch (err) {
       console.log("Save error:", err);
+
+      setStatusModal({
+        visible: true,
+        type: "error",
+        title: "Save Failed",
+        subtitle: "Unable to update settings"
+      });
     }
   };
 
   /* ------------------------------
-      VISIT SOUND TOGGLE
+      TOGGLES
   ------------------------------ */
 
   const toggleVisitSound = async (value) => {
-
     setVisitSound(value);
-
     try {
       await otherServices.setNotificationSound("VISIT", value);
     } catch (e) {
       console.log("Visit sound error:", e);
     }
-
   };
 
-  /* ------------------------------
-      STAFF SOUND TOGGLE
-  ------------------------------ */
-
   const toggleStaffSound = async (value) => {
-
     setStaffNotification(value);
-
     try {
       await otherServices.setNotificationSound("STAFF", value);
     } catch (e) {
       console.log("Staff sound error:", e);
     }
-
   };
-
-  /* ------------------------------
-      TEST PUSH NOTIFICATION
-  ------------------------------ */
-
-  // const testNotification = async () => {
-
-  //   const deviceId = await OneSignal.User.pushSubscription.getIdAsync();
-
-  //   console.log("Device ID:", deviceId);
-
-  //   const isOptedIn =
-  //     await OneSignal.User.pushSubscription.getOptedInAsync();
-
-  //   console.log("Push Enabled:", isOptedIn);
-
-  //   const res = await otherServices.sendTestNotification();
-
-  //   console.log("API Response:", res);
-
-  // };
-
-  /* ------------------------------
-      TEST IVR CALL
-  ------------------------------ */
-
-  // const testIVRCall = async () => {
-  //   try {
-
-  //     const res = await visitorServices.testIVRCall();
-
-  //     console.log("IVR Test Response:", res);
-
-  //   } catch (error) {
-  //     console.log("IVR Test Error:", error);
-  //   }
-  // };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -187,70 +213,46 @@ const SettingsScreen = () => {
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* PERSONAL */}
         <Text style={styles.sectionTitle}>Personal</Text>
 
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.label}>I am Away</Text>
-            <Switch
-              value={isAway}
-              onValueChange={setIsAway}
-              trackColor={{ false: "#ddd", true: "#1996D3" }}
-              thumbColor="#fff"
-            />
+            <Switch value={isAway} onValueChange={setIsAway} trackColor={{ false: "#ddd", true: "#1996D3" }} thumbColor="#fff" />
           </View>
         </View>
 
-        {/* NOTIFICATIONS */}
         <Text style={styles.sectionTitle}>Notifications</Text>
 
         <View style={styles.card}>
-
           <View style={styles.row}>
             <Text style={styles.label}>Visit Sound</Text>
-            <Switch
-              value={visitSound}
-              onValueChange={toggleVisitSound}
-              trackColor={{ false: "#ddd", true: "#1996D3" }}
-            />
+            <Switch value={visitSound} onValueChange={toggleVisitSound} trackColor={{ false: "#ddd", true: "#1996D3" }} />
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.row}>
             <Text style={styles.label}>Staff</Text>
-            <Switch
-              value={staffNotification}
-              onValueChange={toggleStaffSound}
-              trackColor={{ false: "#ddd", true: "#1996D3" }}
-            />
+            <Switch value={staffNotification} onValueChange={toggleStaffSound} trackColor={{ false: "#ddd", true: "#1996D3" }} />
           </View>
-
         </View>
 
-        {/* IVR SETTINGS */}
         <Text style={styles.sectionTitle}>IVR Settings</Text>
 
         <View style={styles.card}>
 
           <View style={styles.row}>
             <Text style={styles.label}>Enable IVR</Text>
-            <Switch
-              value={ivrEnabled}
-              onValueChange={setIvrEnabled}
-              trackColor={{ false: "#ddd", true: "#1996D3" }}
-            />
+            <Switch value={ivrEnabled} onValueChange={setIvrEnabled} trackColor={{ false: "#ddd", true: "#1996D3" }} />
           </View>
 
           {ivrEnabled && (
             <>
               <View style={styles.divider} />
 
-              {/* PRIMARY NUMBER */}
               <View style={styles.phoneRow}>
                 <Text style={styles.phoneLabel}>Primary</Text>
-
                 <TextInput
                   style={styles.phoneInput}
                   placeholder="Set Primary Number"
@@ -260,10 +262,8 @@ const SettingsScreen = () => {
                 />
               </View>
 
-              {/* SECONDARY NUMBER */}
               <View style={styles.phoneRow}>
                 <Text style={styles.phoneLabel}>Secondary</Text>
-
                 <TextInput
                   style={styles.phoneInput}
                   placeholder="Set Secondary Number"
@@ -277,47 +277,30 @@ const SettingsScreen = () => {
                 title="Save IVR Settings"
                 style={{ marginHorizontal: 15, marginBottom: 15 }}
                 onPress={handleSave}
+                disabled={
+                  !ivrEnabled ||
+                  !primaryNumber ||
+                  !isValidPhone(primaryNumber) ||
+                  (secondaryNumber && !isValidPhone(secondaryNumber))
+                }
               />
             </>
           )}
-
         </View>
-
-        {/* NOTE */}
-        <Text style={styles.noteTitle}>Important Note</Text>
-
-        <Text style={styles.noteText}>
-          You will receive a confirmation call when your visitor arrives.
-        </Text>
-
-        <Text style={styles.smallNote}>
-          By providing your contact details, you authorize Factech Automation
-          Solutions Pvt Ltd to contact you via calls, email, or SMS.
-        </Text>
-
-        {/* LANGUAGE */}
-        <Text style={styles.sectionTitle}>Language</Text>
-
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.row2}>
-            <Text style={styles.label}>English</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </TouchableOpacity>
-        </View>
-
-        {/* TEST BUTTONS */}
-
-        {/* <TouchableOpacity style={styles.testBtn} onPress={testNotification}>
-          <Text style={styles.testBtnText}>Test Notification</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.testBtn} onPress={testIVRCall}>
-          <Text style={styles.testBtnText}>Test IVR Call</Text>
-        </TouchableOpacity> */}
 
         <View style={{ height: 40 }} />
 
       </ScrollView>
+
+      {/* ✅ MODAL */}
+      <StatusModal
+        visible={statusModal.visible}
+        type={statusModal.type}
+        title={statusModal.title}
+        subtitle={statusModal.subtitle}
+        onClose={() => setStatusModal(prev => ({ ...prev, visible: false }))}
+      />
+
     </SafeAreaView>
   );
 };

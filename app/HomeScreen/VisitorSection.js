@@ -147,6 +147,10 @@ const VisitorSection = ({ refreshTrigger }) => {
 
   useEffect(() => {
     fetchTodayArrivals();
+  }, []);
+
+  useEffect(() => {
+    fetchTodayArrivals();
   }, [refreshTrigger]);
 
   const getRoleColor = (role) => {
@@ -245,7 +249,9 @@ const VisitorSection = ({ refreshTrigger }) => {
               onPress={() =>
                 navigation.navigate('PassDetails', {
                   pass: visitor.originalData,
+                  onGoBack: fetchTodayArrivals, // ✅ ADD THIS
                 })
+
               }
             >
 
@@ -304,27 +310,40 @@ const VisitorSection = ({ refreshTrigger }) => {
 
         onDelivery={() => {
           setShowPreApproveModal(false);
-          setTimeout(() => navigation.navigate('AddVisitor', { type: 'delivery' }));
+          navigation.navigate('AddVisitor', {
+            type: 'delivery',
+            onGoBack: fetchTodayArrivals, // ✅ ADD THIS
+          });
         }}
-
         onGuest={() => {
           setShowPreApproveModal(false);
-          setTimeout(() => navigation.navigate('AddVisitor', { type: 'guest' }));
+          setTimeout(() =>
+            navigation.navigate('AddVisitor', {
+              type: 'guest',
+              onGoBack: fetchTodayArrivals, // ✅
+            })
+          );
         }}
 
         onCab={() => {
           setShowPreApproveModal(false);
-          setTimeout(() => navigation.navigate('AddVisitor', { type: 'cab' }));
+          setTimeout(() =>
+            navigation.navigate('AddVisitor', {
+              type: 'cab',
+              onGoBack: fetchTodayArrivals, // ✅
+            })
+          );
         }}
 
-        onOthers={
-          canCreatePass
-            ? () => {
-                setShowPreApproveModal(false);
-                setTimeout(() => navigation.navigate('AddVisitor', { type: 'others' }));
-              }
-            : null
-        }
+      // onOthers={() => {
+      //   setShowPreApproveModal(false);
+      //   setTimeout(() =>
+      //     navigation.navigate('AddVisitor', {
+      //       type: 'others',
+      //       onGoBack: fetchTodayArrivals, // ✅
+      //     })
+      //   );
+      // }}
       />
 
     </View>
@@ -367,8 +386,8 @@ const styles = StyleSheet.create({
 
 
   emptyContainer: {
-    paddingTop:10,
-    paddingBottom:15,
+    paddingTop: 10,
+    paddingBottom: 15,
     alignItems: 'center',
   },
 

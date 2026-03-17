@@ -74,7 +74,9 @@ const humanizeMessage = (raw) => {
 const formatDateTime = (dateString) => {
   if (!dateString) return "";
 
-  const date = new Date(dateString);
+  // Treat backend time as UTC
+  const date = new Date(dateString.replace(" ", "T") + "Z");
+
   const now = new Date();
 
   const isToday =

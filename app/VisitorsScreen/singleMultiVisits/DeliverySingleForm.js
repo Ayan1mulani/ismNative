@@ -13,6 +13,8 @@ import { visitorServices } from "../../../services/visitorServices";
 import { useNavigation } from "@react-navigation/native";
 import BRAND from "../../config";
 import SubmitButton from "../../components/SubmitButton";
+import { useRoute } from "@react-navigation/native";
+
 
 const SingleDeliveryForm = ({ theme }) => {
   const [selectedProvider, setSelectedProvider] = useState(null);
@@ -20,6 +22,9 @@ const SingleDeliveryForm = ({ theme }) => {
   const [modalType, setModalType] = useState(null);
   const [errors, setErrors] = useState({});
   const navigation = useNavigation();
+
+  const route = useRoute();
+  const onGoBack = route.params?.onGoBack;
 
   const handleSubmit = async () => {
     let newErrors = {};
@@ -54,8 +59,14 @@ const SingleDeliveryForm = ({ theme }) => {
       const res = await visitorServices.addMyVisitor(payload);
       if (res) {
         setModalType("success");
+
         setTimeout(() => {
           setModalType(null);
+
+          if (onGoBack) {
+            onGoBack(); // ✅ refresh VisitorSection
+          }
+
           navigation.goBack();
         }, 1400);
       } else {

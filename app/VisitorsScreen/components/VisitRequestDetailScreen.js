@@ -25,6 +25,7 @@ const VisitDetailScreen = () => {
   const { nightMode } = usePermissions();
 
   const visit = route.params?.visit;
+  const onGoBack = route.params?.onGoBack; // ✅ ADDED
 
   const [loading, setLoading] = useState(false);
 
@@ -64,6 +65,13 @@ const VisitDetailScreen = () => {
 
   const status = getStatus();
 
+  // ✅ ADDED helper
+  const formatDateTime = (date) => {
+    if (!date) return "—";
+    const d = new Date(date.replace(" ", "T"));
+    return d.toLocaleString();
+  };
+
   // ─── Allow Visitor ────────────────────────────────────────────────────────
   const allowVisitor = async () => {
     try {
@@ -73,12 +81,18 @@ const VisitDetailScreen = () => {
       const flat_no = whomToMeet[0].flat_no;
 
       await visitorServices.acceptVisitor(visit.id, flat_no);
-
-      // Cancel the persistent notification now that action is taken
       await cancelVisitorNotification();
 
       setAllowStatus(1);
+
+      // ✅ UPDATED
       setModal({ visible: true, message: "Visitor Approved", success: true });
+
+      setTimeout(() => {
+        setModal(prev => ({ ...prev, visible: false })); // ✅ CLOSE MODAL
+        if (onGoBack) onGoBack();
+        navigation.goBack();
+      }, 1200);
 
     } catch (e) {
       setModal({ visible: true, message: "Failed to approve visitor", success: false });
@@ -93,12 +107,18 @@ const VisitDetailScreen = () => {
       setLoading(true);
 
       await visitorServices.denyVisitor(visit.id);
-
-      // Cancel the persistent notification now that action is taken
       await cancelVisitorNotification();
 
       setAllowStatus(0);
+
+      // ✅ UPDATED
       setModal({ visible: true, message: "Visitor Denied", success: true });
+
+      setTimeout(() => {
+      setModal(prev => ({ ...prev, visible: false })); // ✅ CLOSE MODAL
+        if (onGoBack) onGoBack();
+        navigation.goBack();
+      }, 1200);
 
     } catch (e) {
       setModal({ visible: true, message: "Failed to deny visitor", success: false });
@@ -184,10 +204,38 @@ const VisitDetailScreen = () => {
             </Text>
           </View>
 
+          {/* ✅ ADDED FIELDS */}
+
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          <View style={styles.rowBetween}>
+            <Text style={[styles.label, { color: theme.sub }]}>Extra Visitors</Text>
+            <Text style={[styles.value, { color: theme.text }]}>
+              {visit?.extra_visitors ?? 0}
+            </Text>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          <View style={styles.rowBetween}>
+            <Text style={[styles.label, { color: theme.sub }]}>Entry Time</Text>
+            <Text style={[styles.value, { color: theme.text }]}>
+              {formatDateTime(visit?.start_time)}
+            </Text>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          <View style={styles.rowBetween}>
+            <Text style={[styles.label, { color: theme.sub }]}>Exit Time</Text>
+            <Text style={[styles.value, { color: theme.text }]}>
+              {formatDateTime(visit?.end_time)}
+            </Text>
+          </View>
+
         </View>
 
         <View style={styles.buttonRow}>
-
           <TouchableOpacity
             disabled={!isPending || loading}
             onPress={allowVisitor}
@@ -207,22 +255,21 @@ const VisitDetailScreen = () => {
             <Text style={styles.btnText}>Deny</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             disabled={!isAllowed || loading}
             onPress={() => markAttendance(1)}
             style={[styles.button, { backgroundColor: theme.success, opacity: isAllowed ? 1 : 0.3 }]}
           >
             <Text style={styles.btnText}>Attended</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             disabled={!isAllowed || loading}
             onPress={() => markAttendance(0)}
             style={[styles.button, { backgroundColor: theme.grey, opacity: isAllowed ? 1 : 0.3 }]}
           >
             <Text style={styles.btnText}>Not Visited</Text>
-          </TouchableOpacity>
-
+          </TouchableOpacity> */}
         </View>
 
       </ScrollView>
@@ -230,7 +277,6 @@ const VisitDetailScreen = () => {
       <Modal transparent visible={modal.visible} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-
             <Ionicons
               name={modal.success ? "checkmark-circle-outline" : "close-circle-outline"}
               size={40}
@@ -246,17 +292,6 @@ const VisitDetailScreen = () => {
             }}>
               {modal.message}
             </Text>
-
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => {
-                setModal({ ...modal, visible: false });
-                navigation.goBack();
-              }}
-            >
-              <Text style={{ color: "#fff", fontWeight: "600" }}>OK</Text>
-            </TouchableOpacity>
-
           </View>
         </View>
       </Modal>

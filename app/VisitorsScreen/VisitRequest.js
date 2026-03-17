@@ -71,14 +71,14 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
 
   // ✅ Status logic — matches VisitDetailScreen
   const getStatus = (visit) => {
-    const allow    = visit.allow;
+    const allow = visit.allow;
     const attended = visit.attended;
 
-    if (allow === 0)                          return { label: "REJECTED",    color: theme.grey    };
-    if (allow === 1 && attended === 1)        return { label: "ATTENDED",    color: theme.success };
-    if (allow === 1 && attended === 0)        return { label: "NOT VISITED", color: theme.grey    };
-    if (allow === 1 && attended === null)     return { label: "APPROVED",    color: theme.primary };
-    return                                           { label: "PENDING",     color: theme.danger  };
+    if (allow === 0) return { label: "REJECTED", color: theme.grey };
+    if (allow === 1 && attended === 1) return { label: "ATTENDED", color: theme.success };
+    if (allow === 1 && attended === 0) return { label: "NOT VISITED", color: theme.grey };
+    if (allow === 1 && attended === null) return { label: "APPROVED", color: theme.primary };
+    return { label: "PENDING", color: theme.danger };
   };
 
   const renderCard = ({ item }) => {
@@ -88,7 +88,12 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
       <TouchableOpacity
         style={[styles.card, { backgroundColor: theme.card }]}
         activeOpacity={0.85}
-        onPress={() => navigation.navigate("VisitDetailScreen", { visit: item })}
+        onPress={() =>
+          navigation.navigate("VisitDetailScreen", {
+            visit: item,
+            onGoBack: handleRefresh, // 👈 pass refresh function
+          })
+        }
       >
         <View style={styles.cardHeader}>
           <Image
@@ -150,7 +155,7 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
           <Ionicons name="search-outline" size={20} color={theme.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
-            placeholder="Search name, purpose or phone"
+            placeholder="Search name, purpose or phonee"
             placeholderTextColor={theme.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}

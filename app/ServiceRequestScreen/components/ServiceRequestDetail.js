@@ -9,9 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-  Alert,
+
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import useAlert from "../../components/UseAlert";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { complaintService } from "../../../services/complaintService";
@@ -22,6 +23,7 @@ import StatusModal from "../../components/StatusModal";
 const BRAND_BLUE = "#1996D3";
 const KAV_OFFSET = Platform.OS === "ios" ? 90 : 30;
 
+
 const STATUS_CONFIG = {
   Open: { label: "Open", color: BRAND_BLUE, bg: "#CCE7FF", icon: "radio-button-on" },
   WIP: { label: "In Progress", color: "#E67E00", bg: "#FFF3CD", icon: "sync" },
@@ -30,6 +32,8 @@ const STATUS_CONFIG = {
   Closed: { label: "Closed", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
   Resolved: { label: "Resolved", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
   Completed: { label: "Completed", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
+  Reopen: { label: "Reopened", color: "#9333EA", bg: "#F3E8FF", icon: "refresh-circle" },
+  Reopened: { label: "Reopened", color: "#9333EA", bg: "#F3E8FF", icon: "refresh-circle" },
 };
 
 const getStatusConfig = (status) =>
@@ -64,10 +68,16 @@ const InfoRow = ({ label, value, theme }) => {
 const ServiceRequestDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
+  const onGoBack = route.params?.onGoBack;
+  
   const { nightMode } = usePermissions();
   const complaint = route.params?.complaint || {};
+  const { showAlert, AlertComponent } = useAlert(nightMode);
 
   const scrollRef = useRef(null);
+
+  // ✅ Track if any activity was performed
+  const hasChanges = useRef(false);
 
   const [comments, setComments] = useState([]);
   const [message, setMessage] = useState("");
@@ -75,7 +85,7 @@ const ServiceRequestDetailScreen = () => {
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
 
-  // ✅ New Modal State for UI Box
+  // ✅ Modal State for UI Box
   const [modalState, setModalState] = useState({
     visible: false,
     type: 'loading',
@@ -137,6 +147,7 @@ const ServiceRequestDetailScreen = () => {
       await complaintService.addComment(complaint.id, message);
       setMessage("");
       loadComments();
+      hasChanges.current = true; // ✅ Mark that changes were made
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) { console.log(e); }
   };
@@ -144,7 +155,11 @@ const ServiceRequestDetailScreen = () => {
   // ✅ Updated submitRating with StatusModal
   const submitRating = async () => {
     if (!rating) {
-      Alert.alert("Rating Required", "Please select a star rating before submitting.");
+      showAlert({
+        title: "Rating Required",
+        message: "Please select a star rating before submitting.",
+        buttons: [{ text: "OK" }],
+      });
       return;
     }
 
@@ -167,6 +182,8 @@ const ServiceRequestDetailScreen = () => {
       };
       await complaintService.updateComplaintStatus(payload, "Closed");
 
+      hasChanges.current = true; // ✅ Mark that changes were made
+
       // Show Success
       setModalState({
         visible: true,
@@ -185,6 +202,58 @@ const ServiceRequestDetailScreen = () => {
         subtitle: 'Something went wrong. Please try again later.',
       });
     }
+  };
+
+  // ✅ NEW: Reopen Request Handler
+  const handleReopenRequest = async () => {
+    showAlert({
+      title: "Reopen Request",
+      message: "Are you sure you want to reopen this service request?",
+      buttons: [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reopen",
+          onPress: async () => {
+            // Show Loading
+            setModalState({
+              visible: true,
+              type: 'loading',
+              title: 'Reopening...',
+              subtitle: 'Processing your request.',
+            });
+
+            try {
+              const payload = {
+                ...complaint,
+                status: "Reopen",
+              };
+              await complaintService.updateComplaintStatus(payload, "Reopen");
+
+              console.log('🔄 Complaint reopened successfully, setting hasChanges = true');
+              hasChanges.current = true; // ✅ Mark that changes were made
+
+              // Show Success
+              setModalState({
+                visible: true,
+                type: 'success',
+                title: 'Request Reopened!',
+                subtitle: 'Your service request has been reopened successfully.',
+              });
+
+            } catch (e) {
+              console.log('❌ Reopen error:', e);
+              // Show Error
+              setModalState({
+                visible: true,
+                type: 'error',
+                title: 'Failed to Reopen',
+                subtitle: 'Something went wrong. Please try again later.',
+              });
+            }
+          }
+        }
+      ]
+    });
   };
 
   return (
@@ -269,14 +338,39 @@ const ServiceRequestDetailScreen = () => {
           )}
 
           {/* Action Buttons */}
-          {(!isClosed || (isClosed && !hasRating)) && (
+          {!isClosed && (
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: isClosed ? "#F59E0B" : "#22C55E" }]}
+              style={[styles.actionBtn, { backgroundColor: "#22C55E" }]}
               onPress={() => setRatingModal(true)}
             >
-              <Ionicons name={isClosed ? "star-outline" : "checkmark-circle-outline"} size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.actionBtnText}>{isClosed ? "Rate this Service" : "Mark as Closed"}</Text>
+              <Ionicons name="checkmark-circle-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.actionBtnText}>Mark as Closed</Text>
             </TouchableOpacity>
+          )}
+
+          {/* ✅ NEW: Action Buttons for Closed Complaints */}
+          {isClosed && (
+            <View style={{ gap: 10 }}>
+              {/* Reopen Button - Always visible for closed complaints */}
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: "#9333EA" }]}
+                onPress={handleReopenRequest}
+              >
+                <Ionicons name="refresh-circle-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.actionBtnText}>Reopen Request</Text>
+              </TouchableOpacity>
+
+              {/* Rating Button - Only if not rated yet */}
+              {!hasRating && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: "#F59E0B" }]}
+                  onPress={() => setRatingModal(true)}
+                >
+                  <Ionicons name="star-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.actionBtnText}>Rate this Service</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           )}
 
           {/* Card 3: Status History */}
@@ -376,6 +470,7 @@ const ServiceRequestDetailScreen = () => {
       </Modal>
 
       {/* ✅ The UI Box Status Modal */}
+      <AlertComponent />
       <StatusModal
         visible={modalState.visible}
         type={modalState.type}
@@ -383,7 +478,12 @@ const ServiceRequestDetailScreen = () => {
         subtitle={modalState.subtitle}
         onClose={() => {
           setModalState(prev => ({ ...prev, visible: false }));
-          if (modalState.type === 'success') navigation.goBack();
+          if (modalState.type === 'success') {
+            if (hasChanges.current && onGoBack) {
+              onGoBack(); // ✅ refresh list
+            }
+            navigation.goBack(); // ✅ go back
+          }
         }}
       />
     </SafeAreaView>
@@ -430,16 +530,15 @@ const styles = StyleSheet.create({
   modalBtns: { flexDirection: "row", gap: 10, marginTop: 16 },
   modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: "center" },
   otpRow: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "center",
-  paddingVertical: 6
-},
-
-otpValue: {
-  fontSize: 18,
-  fontWeight: "800",
-  letterSpacing: 4,
-  color: "#16A34A"
-},
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6
+  },
+  otpValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 4,
+    color: "#16A34A"
+  },
 });

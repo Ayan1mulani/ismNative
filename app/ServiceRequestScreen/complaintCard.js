@@ -52,6 +52,13 @@ const REQUEST_STATUS = {
     label: 'Pending',
     icon: 'time-outline',
   },
+
+  REOPEN: {
+  light: { bg: '#E9D5FF', color: '#9333EA' },
+  dark: { bg: '#2D1B3D', color: '#A855F7' },
+  label: 'Reopened',
+  icon: 'reload-circle',
+},
   // ✅ Resolved / Closed — green
   RESOLVED: {
     light: { bg: '#D4EDDA', color: COLORS.success },
@@ -117,6 +124,7 @@ const getStatusConfig = (status, nightMode) => {
   else if (s === 'open') key = 'OPEN';
   else if (['wip', 'in progress', 'inprogress'].includes(s)) key = 'IN_PROGRESS';
   else if (s === 'pending') key = 'PENDING';
+  else if (['reopen', 'reopened'].includes(s)) key = 'REOPEN';
 
   const config = REQUEST_STATUS[key];
   const themeStyle = nightMode ? config.dark : config.light;

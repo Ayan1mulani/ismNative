@@ -152,6 +152,36 @@ const complaintService = {
   }
 },
 
+getComplaintStatusCount: async () => {
+  try {
+    const user = await Common.getLoggedInUser();
+
+    const userObj = {
+      user_id: user.id,
+      group_id: user.role_id,
+      flat_no: user.flat_no,
+      unit_id: user.unit_id,
+      society_id: user.societyId,
+    };
+
+    const encodedUser = encodeURIComponent(JSON.stringify(userObj));
+
+    const url = `${API_URL2}/my/complaintstatuscount?api-token=${user.api_token}&user-id=${encodedUser}`;
+
+    const headers = await Util.getCommonAuth();
+
+    const response = await ApiCommon.getReq(url, headers);
+
+    console.log("Complaint Status Count:", response);
+
+    return response;
+
+  } catch (error) {
+    console.log("Complaint Status Count Error:", error);
+    throw error;
+  }
+},
+
 
   getCategories: async () => {
     const user = await Common.getLoggedInUser()

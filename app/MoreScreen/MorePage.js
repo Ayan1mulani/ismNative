@@ -5,10 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import useAlert from "../components/UseAlert";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UnRegisterOneSignal } from '../../services/oneSignalService';
@@ -36,15 +36,13 @@ const ProfileScreen = () => {
   const [meterOpen, setMeterOpen] = useState(false);
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const [accounts, setAccounts] = useState([]);
+  const { showAlert, AlertComponent } = useAlert(nightMode);
   const [modalVisible, setModalVisible] = useState(false);
 
   const [passwordModal, setPasswordModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [password, setPassword] = useState('');
   const [isSwitching, setIsSwitching] = useState(false);
-  const hasMeterReading = permissions?.MTR_READING?.READ;
-  const hasMeter = permissions?.METER?.READ;
-  const hasMeterBalance = permissions?.METER_BALANCE?.READ;
   const [changePassModal, setChangePassModal] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -126,27 +124,18 @@ const ProfileScreen = () => {
     }
   };
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+    showAlert({
+      title: "Logout",
+      message: "Are you sure you want to logout?",
+      buttons: [
+        { text: "Cancel", style: "cancel" },
         {
           text: "Logout",
           style: "destructive",
           onPress: async () => {
             try {
-
-              // 🔔 Disable push locally
               OneSignal.User.pushSubscription.optOut();
-
-              // 🔔 Unregister device from backend
               await UnRegisterOneSignal();
-
-              // 🧹 Clear stored data
               await AsyncStorage.clear();
 
               navigation.dispatch(
@@ -155,15 +144,13 @@ const ProfileScreen = () => {
                   routes: [{ name: "Login" }],
                 })
               );
-
             } catch (error) {
               console.log("Logout error:", error);
             }
           },
         },
       ],
-      { cancelable: true }
-    );
+    });
   };
 
   const handleChangePassword = async () => {
@@ -289,10 +276,11 @@ const ProfileScreen = () => {
         );
 
         if (filteredAccounts.length === 0) {
-          Alert.alert(
-            "No Other Accounts",
-            "Your email is linked to only one account."
-          );
+          showAlert({
+            title: "No Other Accounts",
+            message: "Your email is linked to only one account.",
+            buttons: [{ text: "OK" }],
+          });
           return;
         }
 
@@ -318,7 +306,11 @@ const ProfileScreen = () => {
 
     } catch (error) {
       console.log('Switch error:', error);
-      Alert.alert("Error", "Unable to check accounts");
+      showAlert({
+        title: "Error",
+        message: "Unable to check accounts.",
+        buttons: [{ text: "OK" }],
+      });
     } finally {
       setIsSwitching(false);
     }
@@ -333,7 +325,11 @@ const ProfileScreen = () => {
 
   const confirmSwitchLogin = async () => {
     if (!password.trim()) {
-      Alert.alert('Enter Password');
+      showAlert({
+        title: "Password Required",
+        message: "Please enter your password.",
+        buttons: [{ text: "OK" }],
+      });
       return;
     }
 
@@ -394,7 +390,11 @@ const ProfileScreen = () => {
         );
 
       } else {
-        Alert.alert('Wrong Password');
+        showAlert({
+          title: "Wrong Password",
+          message: "Please check your password and try again.",
+          buttons: [{ text: "OK" }],
+        });
       }
 
     } catch (error) {
@@ -437,43 +437,43 @@ const ProfileScreen = () => {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
 
         {/* PROFILE HEADER */}
-      {/* PROFILE HEADER */}
-<View style={[styles.profileCard, { backgroundColor: theme.cardBg }]}>
-  <Image source={getAvatarUri()} style={styles.avatar} />
-  <View style={{ marginLeft: 14, flex: 1 }}>
-    <Text style={[styles.userName, { color: theme.textMain }]}>
-      {userProfile.name}
-    </Text>
-    <Text style={[styles.userSub, { color: theme.textSub }]}>
-      {userProfile.phone_no}
-    </Text>
-    <Text style={[styles.userSub, { color: theme.textSub }]}>
-      {userProfile.email}
-    </Text>
-  </View>
-</View>
+        {/* PROFILE HEADER */}
+        <View style={[styles.profileCard, { backgroundColor: theme.cardBg }]}>
+          <Image source={getAvatarUri()} style={styles.avatar} />
+          <View style={{ marginLeft: 14, flex: 1 }}>
+            <Text style={[styles.userName, { color: theme.textMain }]}>
+              {userProfile.name}
+            </Text>
+            <Text style={[styles.userSub, { color: theme.textSub }]}>
+              {userProfile.phone_no}
+            </Text>
+            <Text style={[styles.userSub, { color: theme.textSub }]}>
+              {userProfile.email}
+            </Text>
+          </View>
+        </View>
 
-{/* VIRTUAL ID CARD BANNER */}
-<TouchableOpacity
-  style={[styles.virtualIdCard, { backgroundColor: theme.cardBg }]}
-  onPress={() => navigation.navigate("ResidentIdCard")}
-  activeOpacity={0.8}
->
-  <View style={styles.virtualIdLeft}>
-    <View style={[styles.virtualIdIcon, { backgroundColor: theme.primary + "18" }]}>
-      <Ionicons name="card-outline" size={22} color={theme.primary} />
-    </View>
-    <View>
-      <Text style={[styles.virtualIdTitle, { color: theme.textMain }]}>
-        Virtual ID Card
-      </Text>
-      <Text style={[styles.virtualIdSub, { color: theme.textSub }]}>
-        View your resident identity card
-      </Text>
-    </View>
-  </View>
-  <Ionicons name="chevron-forward" size={20} color={theme.textSub} />
-</TouchableOpacity>
+        {/* VIRTUAL ID CARD BANNER */}
+        <TouchableOpacity
+          style={[styles.virtualIdCard, { backgroundColor: theme.cardBg }]}
+          onPress={() => navigation.navigate("ResidentIdCard")}
+          activeOpacity={0.8}
+        >
+          <View style={styles.virtualIdLeft}>
+            <View style={[styles.virtualIdIcon, { backgroundColor: theme.primary + "18" }]}>
+              <Ionicons name="card-outline" size={22} color={theme.primary} />
+            </View>
+            <View>
+              <Text style={[styles.virtualIdTitle, { color: theme.textMain }]}>
+                Virtual ID Card
+              </Text>
+              <Text style={[styles.virtualIdSub, { color: theme.textSub }]}>
+                View your resident identity card
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={theme.textSub} />
+        </TouchableOpacity>
 
         {/* UNIT DETAILS (OPEN BY DEFAULT) */}
         <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
@@ -503,45 +503,42 @@ const ProfileScreen = () => {
 
 
         {/* METER DETAILS */}
-        {(hasMeter || hasMeterReading || hasMeterBalance) && (
-          <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
-            <TouchableOpacity
-              style={styles.dropdownHeader}
-              onPress={() => setMeterOpen(prev => !prev)}
-            >
-              <Text style={[styles.sectionTitle, { color: theme.textMain }]}>
-                Meter Details
-              </Text>
 
-              <Ionicons
-                name={meterOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
-                size={20}
-                color={theme.textSub}
-              />
-            </TouchableOpacity>
+        <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
+          <TouchableOpacity
+            style={styles.dropdownHeader}
+            onPress={() => setMeterOpen(prev => !prev)}
+          >
+            <Text style={[styles.sectionTitle, { color: theme.textMain }]}>
+              Meter Details
+            </Text>
 
-            {meterOpen && (
-              <View style={styles.dropdownContent}>
+            <Ionicons
+              name={meterOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
+              size={20}
+              color={theme.textSub}
+            />
+          </TouchableOpacity>
 
-                {hasMeter && (
-                  <>
-                    <InfoRow label="Grid Meter No" value={userProfile.grid_meter_no} />
-                    <InfoRow label="DG Meter No" value={userProfile.dg_meter_no} />
-                  </>
-                )}
+          {meterOpen && (
+            <View style={styles.dropdownContent}>
 
-                {hasMeterReading && (
-                  <InfoRow label="Gas Meter No" value={userProfile.gas_meter_no} />
-                )}
 
-                {hasMeterBalance && (
-                  <InfoRow label="Meter Balance" value={userProfile.meter_balance} />
-                )}
+              <InfoRow label="Grid Meter No" value={userProfile.grid_meter_no} />
+              <InfoRow label="DG Meter No" value={userProfile.dg_meter_no} />
 
-              </View>
-            )}
-          </View>
-        )}
+
+
+              <InfoRow label="Gas Meter No" value={userProfile.gas_meter_no} />
+
+
+              <InfoRow label="Meter Balance" value={userProfile.meter_balance} />
+
+
+            </View>
+          )}
+        </View>
+
 
         {/* MY VEHICLES */}
         <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
@@ -598,7 +595,7 @@ const ProfileScreen = () => {
             </Text>
           </TouchableOpacity>
 
-        
+
 
           <TouchableOpacity
             style={styles.actionRow}
@@ -701,6 +698,7 @@ const ProfileScreen = () => {
         subtitle={statusModal.subtitle}
         onClose={() => setStatusModal(prev => ({ ...prev, visible: false }))}
       />
+      <AlertComponent />
 
       <Modal visible={passwordModal} transparent animationType="fade">
         <View style={{
@@ -851,35 +849,35 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   virtualIdCard: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: 16,
-  borderRadius: 16,
-  marginBottom: 16,
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
 
-virtualIdLeft: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 12,
-},
+  virtualIdLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
 
-virtualIdIcon: {
-  width: 44,
-  height: 44,
-  borderRadius: 12,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
+  virtualIdIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-virtualIdTitle: {
-  fontSize: 15,
-  fontWeight: '600',
-},
+  virtualIdTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
 
-virtualIdSub: {
-  fontSize: 12,
-  marginTop: 2,
-},
+  virtualIdSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
 });
