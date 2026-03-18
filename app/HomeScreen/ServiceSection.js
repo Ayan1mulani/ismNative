@@ -40,14 +40,14 @@ const ServicesSection = () => {
   const canSendPanic = permissionsLoaded && hasPermission(permissions, 'PNC', 'C');
 
   const allServices = [
-    { id: '1', title: 'Accounts', icon: 'card', route: 'Accounts' },
+    { id: '1', title: 'Accounts', icon: 'card-outline', route: 'Accounts' },
     { id: '2', title: 'Staff', icon: 'checkmark-circle-outline', route: 'StaffScreen' },
-    { id: '3', title: 'Visitors', icon: 'people-outline', route: 'Visitors' },
+    { id: '3', title: 'Visitors', icon: 'person-outline', route: 'Visitors' },
     { id: '4', title: 'SOS', icon: 'alert-circle', isPanic: true },
-    { id: '5', title: 'Family', icon: 'person-outline', route: 'FamilyMember' },
+    { id: '5', title: 'Family', icon: 'people-outline', route: 'FamilyMember' },
     { id: '6', title: 'Contact Us', icon: 'mail-outline', route: 'ContactUsScreen' },
     { id: '7', title: 'Setting', icon: 'settings-outline', route: 'Settings' },
-   {  id : '8',title: "My Complex", icon: "notifications-outline", route: "Service Request" },
+   {  id : '8',title: "My Complex", icon: "accessibility-outline", route: "Notices" },
     { id: '9', title: 'Bills', icon: 'receipt-outline', route: 'bills' },
     { id: '10', title: 'Add vehicle', icon: 'car-outline', route: 'AddVehicleScreen' },
     { id: '11', title: 'Energy', icon: 'speedometer-outline', route: 'Energy' },

@@ -15,6 +15,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import BRAND from '../config'
 import EmptyState from '../components/EmptyState';
+import { useFocusEffect } from '@react-navigation/native';
 
 const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
   const navigation = useNavigation();
@@ -81,6 +82,16 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
     return { label: "PENDING", color: theme.danger };
   };
 
+useFocusEffect(
+  React.useCallback(() => {
+    console.log("🔄 Screen focused → refreshing visits");
+
+    onRefresh?.();
+
+  }, [])
+);
+
+
   const renderCard = ({ item }) => {
     const status = getStatus(item);
 
@@ -97,7 +108,7 @@ const VisitsPage = ({ visitorData, loading, onRefresh, nightMode }) => {
       >
         <View style={styles.cardHeader}>
           <Image
-            source={{ uri: item.image || 'https://via.placeholder.com/100' }}
+            source={{ uri: item.image}}
             style={styles.avatar}
           />
 

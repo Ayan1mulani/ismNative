@@ -21,10 +21,10 @@ const ComplaintStats = ({ theme, nightMode, onSegmentPress, selectedSegment }) =
 
   // 🔥 FETCH DATA FROM API
   useFocusEffect(
-  useCallback(() => {
-    fetchStats();
-  }, [])
-);
+    useCallback(() => {
+      fetchStats();
+    }, [])
+  );
 
   const fetchStats = async () => {
     try {
@@ -151,13 +151,19 @@ const ComplaintStats = ({ theme, nightMode, onSegmentPress, selectedSegment }) =
       <TouchableOpacity
         key={item.key}
         style={styles.legendItem}
-        onPress={() => onSegmentPress?.(item.key)}
+        onPress={() => {
+          if (selectedSegment === item.key) {
+            onSegmentPress?.(null); // 🔥 reset → show all
+          } else {
+            onSegmentPress?.(item.key);
+          }
+        }}
         activeOpacity={0.7}
       >
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.dot, 
-            { 
+            styles.dot,
+            {
               backgroundColor: item.color,
               transform: [{ scale: dotScale }],
               shadowColor: item.color,
@@ -166,12 +172,12 @@ const ComplaintStats = ({ theme, nightMode, onSegmentPress, selectedSegment }) =
               shadowRadius: isSelected ? 4 : 0,
               elevation: isSelected ? 3 : 0,
             }
-          ]} 
+          ]}
         />
 
         <View style={{ flex: 1 }}>
-          <Animated.Text 
-            style={{ 
+          <Animated.Text
+            style={{
               color: theme?.textColor || "#000",
               fontWeight: isSelected ? "700" : "400",
               opacity: textOpacity,
@@ -181,9 +187,9 @@ const ComplaintStats = ({ theme, nightMode, onSegmentPress, selectedSegment }) =
             {item.name}
           </Animated.Text>
           <View style={styles.countContainer}>
-            <Animated.Text 
-              style={{ 
-                color: isSelected ? item.color : "#666", 
+            <Animated.Text
+              style={{
+                color: isSelected ? item.color : "#666",
                 fontSize: 10,
                 fontWeight: isSelected ? "700" : "500",
                 opacity: textOpacity,
@@ -191,14 +197,14 @@ const ComplaintStats = ({ theme, nightMode, onSegmentPress, selectedSegment }) =
             >
               {item.count} ({item.percentage}%)
             </Animated.Text>
-            <Animated.View 
+            <Animated.View
               style={[
                 styles.underline,
-                { 
+                {
                   backgroundColor: item.color,
                   transform: [{ scaleX: underlineWidth }]
                 }
-              ]} 
+              ]}
             />
           </View>
         </View>
@@ -217,13 +223,17 @@ const ComplaintStats = ({ theme, nightMode, onSegmentPress, selectedSegment }) =
             ) : (
               segments.map((s, i) => {
                 const isSelected = selectedSegment === s.key;
-                
+
                 return (
                   <Path
                     key={i}
                     d={createArc(s.startAngle, s.endAngle, radius, innerRadius)}
                     fill={s.color}
-                    opacity={isSelected ? 1 : selectedSegment ? 0.4 : 1}
+                    opacity={
+                      selectedSegment
+                        ? isSelected ? 1 : 0.4
+                        : 1
+                    }
                   />
                 );
               })
@@ -231,15 +241,15 @@ const ComplaintStats = ({ theme, nightMode, onSegmentPress, selectedSegment }) =
           </Svg>
 
           <View style={styles.centerLabel}>
-            <Text style={{ 
-              fontSize: 20, 
+            <Text style={{
+              fontSize: 20,
               fontWeight: "700",
               color: theme?.textColor || "#000"
             }}>
               {total}
             </Text>
-            <Text style={{ 
-              fontSize: 9, 
+            <Text style={{
+              fontSize: 9,
               color: theme?.inactiveTextColor || "#666",
               marginTop: 2
             }}>

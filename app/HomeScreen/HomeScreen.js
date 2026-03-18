@@ -17,6 +17,8 @@ import BRAND from '../../app/config';
 import NoticeTickerScreen from './NoticeTickerScreen';
 import { ismServices } from '../../services/ismServices'; // 👈 import service
 import { hasPermission } from '../../Utils/PermissionHelper';
+import Sound from 'react-native-sound';
+import { TouchableOpacity } from 'react-native';
 
 const theme = BRAND.COLORS;
 
@@ -39,6 +41,9 @@ const commonStyles = {
     fontSize: 16,
   },
 };
+
+
+
 
 const HomeScreen = () => {
   const { nightMode, permissions } = usePermissions();
@@ -94,6 +99,8 @@ const HomeScreen = () => {
     }
   };
 
+
+
   return (
     <View style={commonStyles.container}>
 
@@ -110,6 +117,7 @@ const HomeScreen = () => {
           />
         }
         ListHeaderComponent={
+
           <View>
             <ProfileRentCard refreshTrigger={refreshTrigger} />
             <VisitorSection refreshTrigger={refreshTrigger} />

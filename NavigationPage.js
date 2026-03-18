@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef ,useState} from 'react';
 import {
   View,
   TouchableOpacity,
@@ -14,6 +14,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import BRAND from "./app/config";
 
+import VisitorPopup from "./app/components/VisitorPopup";
+import { setPopupHandler } from "./services/VisitorPopupService";
 
 
 
@@ -63,7 +65,8 @@ import myNoticeDetailScreen from './app/MyComplex/MyNoticeDetailScreen';
 import MembersScreen from './app/AllServicesScreen/MembersScreen';
 import OtpVerifyScreen from './app/Login/OtpVerifyScreen';
 import ResidentIdCardScreen from './app/HomeScreen/VirtualIdcard';
-import VisitorApprovalScreen from './app/VisitorsScreen/VisitorRequestScreen';
+import VisitorApprovalScreen from './app/VisitorsScreen/VisitorApprovalScreen';
+import VisitorNotificationMessage from './app/VisitorsScreen/VisitorNotificationMessage';
 
 
 
@@ -73,12 +76,12 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const { width } = Dimensions.get('window');
 
+
 // --- Home Stack ---
 const HomeStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="HomeMain" component={HomeScreen} />
-      <Stack.Screen name="Notices" component={NoticesScreen} />
       <Stack.Screen name="StaffDetailsScreen" component={StaffScreen} />
     </Stack.Navigator>
   );
@@ -289,10 +292,18 @@ const NavigationPage = () => {
     await ismServices.getUserDetails();
   };
 
+  const [popupVisible, setPopupVisible] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
   useEffect(() => {
     getUserDetails();
   }, []);
 
+  useEffect(() => {
+    setPopupHandler((message) => {
+      setPopupMessage(message);
+      setPopupVisible(true);
+    });
+  }, []);
   return (
     <PermissionsProvider>
       <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
@@ -343,6 +354,10 @@ const NavigationPage = () => {
           <Stack.Screen name="OtpLogin" component={OtpLoginScreen} />
           <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />
           <Stack.Screen
+            name="VisitorNotificationMessage"
+            component={VisitorNotificationMessage}
+          />
+          <Stack.Screen
             name="ResidentIdCard"
             component={ResidentIdCardScreen}
             options={{ title: "Resident ID Card" }}
@@ -357,6 +372,11 @@ const NavigationPage = () => {
 
 
         </Stack.Navigator>
+        <VisitorPopup
+          visible={popupVisible}
+          message={popupMessage}
+          onClose={() => setPopupVisible(false)}
+        />
       </NavigationContainer>
     </PermissionsProvider>
   );
