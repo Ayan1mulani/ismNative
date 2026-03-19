@@ -1,5 +1,5 @@
 // PassPage.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -69,6 +69,38 @@ const PURPOSE_ICONS = {
   default: 'card-outline',
 };
 
+// --- NEW: Sub-component to handle broken S3 links automatically ---
+const PassAvatar = ({ source, purpose, style }) => {
+  const [imgSource, setImgSource] = useState(source);
+
+  // Update image if the source prop changes
+  useEffect(() => {
+    setImgSource(source);
+  }, [source]);
+
+  const handleError = () => {
+    // If the AWS URL image doesn't exist, fallback to local images based on purpose
+    const purposeLower = purpose?.toLowerCase();
+    if (purposeLower === 'cab') {
+      setImgSource(LOCAL_IMAGES.cab);
+    } else if (purposeLower === 'delivery') {
+      setImgSource(LOCAL_IMAGES.delivery);
+    } else {
+      setImgSource({ uri: DEFAULT_GUEST_IMAGE });
+    }
+  };
+
+  return (
+    <Image
+      source={imgSource}
+      style={style}
+      resizeMode="cover"
+      onError={handleError}
+      alt="pass-image"
+    />
+  );
+};
+
 const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, onRefresh }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const navigation = useNavigation();
@@ -77,22 +109,10 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
   const [showFilters, setShowFilters] = useState(false);
 
   const theme = nightMode ? COLORS.dark : COLORS.light;
-  const [failedImages, setFailedImages] = useState({});
-
 
   const getPassImage = (pass) => {
     const purpose = pass.purpose?.toLowerCase();
-    const name =
-      pass.company_name?.toLowerCase() ||
-      pass.name?.toLowerCase();
-
-    const key = `${purpose}-${name}`;
-
-    // If image previously failed → show fallback
-    if (failedImages[key]) {
-      if (purpose === "cab") return LOCAL_IMAGES.cab;
-      if (purpose === "delivery") return LOCAL_IMAGES.delivery;
-    }
+    const name = pass.company_name?.toLowerCase() || pass.name?.toLowerCase();
 
     // Guest
     if (purpose === "guest") {
@@ -101,28 +121,23 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
 
     // Cab
     if (purpose === "cab") {
-      if (!name || name === "any") {
+      if (!name) {
         return LOCAL_IMAGES.cab;
       }
-
-      return {
-        uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
-      };
+      return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
     }
 
     // Delivery
     if (purpose === "delivery") {
-      if (!name || name === "any") {
+      if (!name) {
         return LOCAL_IMAGES.delivery;
       }
-
-      return {
-        uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
-      };
+      return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
     }
 
     return { uri: DEFAULT_GUEST_IMAGE };
   };
+
   const getPassStatus = (status) => {
     const statusStr = String(status);
 
@@ -144,7 +159,6 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
     }
   };
 
-
   const formatDate = (dateString) => {
     try {
       return new Date(dateString).toLocaleDateString('en-US', {
@@ -157,8 +171,6 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
     }
   };
 
-
-
   const handleRefresh = async () => {
     setIsRefreshing(true);
     if (onRefresh) {
@@ -166,7 +178,6 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
     }
     setIsRefreshing(false);
   };
-
 
   const getSmartDateLabel = (dateString) => {
     if (!dateString) return null;
@@ -204,12 +215,11 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
         String(booking.reference_id) === String(pass.id)
     );
   };
+
   const renderPassCard = ({ item: pass }) => {
     const parkingBooking = getParkingBooking(pass);
-
     const status = getPassStatus(pass.status);
 
-    // console.log("PASS:", pass.id, "Parking Match:", parkingBooking);
     return (
       <TouchableOpacity
         style={[styles.card, {
@@ -221,19 +231,17 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
             onGoBack: handleRefresh, // ✅ ADD THIS
           })
         }
-
         activeOpacity={0.7}
       >
         {/* Card Header */}
         <View style={styles.cardHeader}>
           <View style={styles.leftSection}>
             <View style={[styles.iconContainer]}>
-              <Image
-                source={getPassImage(pass)}
-                style={styles.passImage}
-                resizeMode="cover"
-                onError={() => console.log("Image load failed")}
-                alt='images'
+              {/* Replaced standard Image with our PassAvatar component */}
+              <PassAvatar 
+                source={getPassImage(pass)} 
+                purpose={pass.purpose} 
+                style={styles.passImage} 
               />
             </View>
             <View style={styles.passInfo}>
@@ -278,17 +286,12 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
               </Text>
             )}
 
-
-
             {/* Parking Indicator */}
             {parkingBooking && (
               <View style={styles.parkingIndicator}>
                 < Ionicons name="car" size={18} color={COLORS.primary} />
               </View>
             )}
-
-
-
           </View>
         </View>
 
@@ -322,8 +325,6 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
           </Text>
         </View>
 
-
-
         {/* Remarks Section */}
         {pass.remarks && (
           <View style={[styles.remarksSection, { borderTopColor: theme.border }]}>
@@ -336,7 +337,6 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
       </TouchableOpacity>
     );
   };
-
 
   const renderLoadingState = () => (
     <View style={[styles.loadingState, { backgroundColor: theme.background }]}>
@@ -378,8 +378,6 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
     .sort((a, b) => {
       return new Date(b.created_at) - new Date(a.created_at);
     });
-
-
 
   return (
     <View
@@ -480,10 +478,8 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
             />
           )}
         />
-
       </View>
     </View>
-
   );
 };
 
@@ -514,7 +510,6 @@ const createStyles = (theme, nightMode) =>
       borderWidth: 1,
       borderColor: 'rgba(3, 65, 109, 0.04)',
       overflow: 'hidden', // 👈 important
-
     },
     cardHeader: {
       flexDirection: 'row',
@@ -540,6 +535,7 @@ const createStyles = (theme, nightMode) =>
     passImage: {
       width: 40,
       height: 40,
+      borderRadius: 20, // Added to keep it circular if it isn't already inside iconContainer
     },
     passTitle: {
       fontSize: 16,
@@ -609,7 +605,6 @@ const createStyles = (theme, nightMode) =>
       marginTop: 8,
       gap: 6,
     },
-
     fab: {
       position: 'absolute',
       bottom: 110,
@@ -630,7 +625,6 @@ const createStyles = (theme, nightMode) =>
       paddingTop: 10,
       gap: 10,
     },
-
     searchBar: {
       flex: 1,
       flexDirection: 'row',
@@ -639,13 +633,11 @@ const createStyles = (theme, nightMode) =>
       paddingHorizontal: 12,
       height: 45,
     },
-
     searchInput: {
       flex: 1,
       marginLeft: 8,
       fontSize: 14,
     },
-
     filterButton: {
       width: 45,
       height: 45,
@@ -653,14 +645,12 @@ const createStyles = (theme, nightMode) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-
     filterContainer: {
       flexDirection: 'row',
       paddingHorizontal: 16,
       paddingVertical: 10,
       gap: 10,
     },
-
     filterChip: {
       paddingHorizontal: 14,
       paddingVertical: 6,

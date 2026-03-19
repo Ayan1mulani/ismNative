@@ -13,12 +13,14 @@ import {
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import AppHeader from "../components/AppHeader";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from "react-native-safe-area-context";
 import SubmitButton from "../components/SubmitButton";
 import StatusModal from "../../app/components/StatusModal";
 
 import { otherServices } from "../../services/otherServices";
 import { ismServices } from "../../services/ismServices";
+
 
 const SettingsScreen = () => {
 
@@ -27,12 +29,14 @@ const SettingsScreen = () => {
   const [isAway, setIsAway] = useState(false);
   const [visitSound, setVisitSound] = useState(true);
   const [staffNotification, setStaffNotification] = useState(true);
-  const [ivrEnabled, setIvrEnabled] = useState(true);
+  const [ivrEnabled, setIvrEnabled] = useState(false);
+  const [user, setUser] = useState(null);
 
   const [primaryNumber, setPrimaryNumber] = useState("");
   const [secondaryNumber, setSecondaryNumber] = useState("");
 
   const [initialData, setInitialData] = useState({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const [statusModal, setStatusModal] = useState({
     visible: false,
@@ -53,11 +57,51 @@ const SettingsScreen = () => {
       LOAD USER SETTINGS
   ------------------------------ */
 
+  const handleTestNotification = async () => {
+    try {
+
+      setStatusModal({
+        visible: true,
+        type: "loading",
+        title: "Sending Notification",
+        subtitle: "Please wait..."
+      });
+
+      const res = await otherServices.sendTestNotificationSound();
+
+      if (res?.status === "success") {
+        setStatusModal({
+          visible: true,
+          type: "success",
+          title: "Notification Sent",
+          subtitle: "Check your phone 🔔"
+        });
+      } else {
+        throw new Error("Failed");
+      }
+
+    } catch (error) {
+
+      setStatusModal({
+        visible: true,
+        type: "error",
+        title: "Failed",
+        subtitle: "Unable to send notification"
+      });
+
+      console.log("Test Notification Error:", error);
+    }
+  };
+
+
   const loadUserSettings = async () => {
     try {
 
       const res = await ismServices.getUserDetails()
       const user = res?.data || res;
+      console.log(user, "get User Details")
+      setUser(user);
+
 
       if (user) {
 
@@ -83,6 +127,13 @@ const SettingsScreen = () => {
       const soundRes = await otherServices.getNotificationSound();
 
       if (soundRes?.data) {
+
+        // ✅ Save to local storage
+        await AsyncStorage.setItem(
+          "notificationSoundSettings",
+          JSON.stringify(soundRes.data)
+        );
+
         soundRes.data.forEach(item => {
           if (item.name === "VISIT") setVisitSound(item.switch === 1);
           if (item.name === "STAFF") setStaffNotification(item.switch === 1);
@@ -99,40 +150,50 @@ const SettingsScreen = () => {
   }, []);
 
   /* ------------------------------
+      CHECK FOR UNSAVED CHANGES
+  ------------------------------ */
+  useEffect(() => {
+    const changed =
+      initialData.isAway !== isAway ||
+      initialData.ivrEnabled !== ivrEnabled ||
+      initialData.primaryNumber !== primaryNumber ||
+      initialData.secondaryNumber !== secondaryNumber;
+
+    setHasUnsavedChanges(changed);
+  }, [isAway, ivrEnabled, primaryNumber, secondaryNumber, initialData]);
+
+  /* ------------------------------
       SAVE IVR + AWAY SETTINGS
   ------------------------------ */
 
   const handleSave = async () => {
     try {
 
-      // ❌ VALIDATION
-      if (!isValidPhone(primaryNumber)) {
-        setStatusModal({
-          visible: true,
-          type: "error",
-          title: "Invalid Number",
-          subtitle: "Enter valid 10-digit primary number"
-        });
-        return;
-      }
+      // ❌ VALIDATION - Only validate phone numbers if IVR is enabled AND numbers are entered
+      if (ivrEnabled) {
+        if (primaryNumber && !isValidPhone(primaryNumber)) {
+          setStatusModal({
+            visible: true,
+            type: "error",
+            title: "Invalid Primary Number",
+            subtitle: "Enter a valid 10-digit primary number starting with 6-9"
+          });
+          return;
+        }
 
-      if (secondaryNumber && !isValidPhone(secondaryNumber)) {
-        setStatusModal({
-          visible: true,
-          type: "error",
-          title: "Invalid Number",
-          subtitle: "Enter valid 10-digit secondary number"
-        });
-        return;
+        if (secondaryNumber && !isValidPhone(secondaryNumber)) {
+          setStatusModal({
+            visible: true,
+            type: "error",
+            title: "Invalid Secondary Number",
+            subtitle: "Enter a valid 10-digit secondary number starting with 6-9"
+          });
+          return;
+        }
       }
 
       // ❌ NO CHANGE CHECK
-      if (
-        initialData.isAway === isAway &&
-        initialData.ivrEnabled === ivrEnabled &&
-        initialData.primaryNumber === primaryNumber &&
-        initialData.secondaryNumber === secondaryNumber
-      ) {
+      if (!hasUnsavedChanges) {
         setStatusModal({
           visible: true,
           type: "info",
@@ -151,10 +212,18 @@ const SettingsScreen = () => {
       });
 
       const payload = {
+        id: user.id,
+        name: user.name,
+        phone_no: user.phone_no,
+        email: user.email,
+        flat_no: user.flat_no,
+        display_unit_no: user.display_unit_no,
+        tenant: user.tenant,
+
         home_away: isAway ? 1 : 0,
         ivr_enable: ivrEnabled ? 1 : 0,
-        ivr_p: primaryNumber || null,
-        ivr_s: secondaryNumber || null
+        ivr_p: primaryNumber,  // Always send current value, don't delete
+        ivr_s: secondaryNumber  // Always send current value, don't delete
       };
 
 
@@ -167,7 +236,7 @@ const SettingsScreen = () => {
         visible: true,
         type: "success",
         title: "Saved Successfully",
-        subtitle: "Your IVR settings have been updated"
+        subtitle: "Your settings have been updated"
       });
 
       await loadUserSettings();
@@ -190,20 +259,77 @@ const SettingsScreen = () => {
 
   const toggleVisitSound = async (value) => {
     setVisitSound(value);
+
     try {
       await otherServices.setNotificationSound("VISIT", value);
+
+      // ✅ Update local storage
+      const stored = await AsyncStorage.getItem("notificationSoundSettings");
+      let data = stored ? JSON.parse(stored) : [
+        { name: "VISIT", switch: value ? 1 : 0 },
+        { name: "STAFF", switch: 1 }
+      ];
+
+      const updated = data.some(item => item.name === "VISIT")
+        ? data.map(item =>
+          item.name === "VISIT"
+            ? { ...item, switch: value ? 1 : 0 }
+            : item
+        )
+        : [...data, { name: "VISIT", switch: value ? 1 : 0 }];
+
+      await AsyncStorage.setItem(
+        "notificationSoundSettings",
+        JSON.stringify(updated)
+      );
+
     } catch (e) {
       console.log("Visit sound error:", e);
     }
   };
-
   const toggleStaffSound = async (value) => {
     setStaffNotification(value);
+
     try {
       await otherServices.setNotificationSound("STAFF", value);
+
+      const stored = await AsyncStorage.getItem("notificationSoundSettings");
+      let data = [];
+
+      try {
+        data = stored ? JSON.parse(stored) : [];
+      } catch (e) {
+        console.log("Storage parse error", e);
+      }
+
+      const updated = data.map(item =>
+        item.name === "STAFF"
+          ? { ...item, switch: value ? 1 : 0 }
+          : item
+      );
+
+      if (JSON.stringify(data) !== JSON.stringify(updated)) {
+        await AsyncStorage.setItem("notificationSoundSettings", JSON.stringify(updated));
+      }
+
     } catch (e) {
       console.log("Staff sound error:", e);
     }
+  };
+
+  /* ------------------------------
+      HANDLE PHONE NUMBER INPUT
+  ------------------------------ */
+  const handlePrimaryNumberChange = (text) => {
+    // Only allow digits
+    const cleaned = text.replace(/[^0-9]/g, '');
+    setPrimaryNumber(cleaned);
+  };
+
+  const handleSecondaryNumberChange = (text) => {
+    // Only allow digits
+    const cleaned = text.replace(/[^0-9]/g, '');
+    setSecondaryNumber(cleaned);
   };
 
   return (
@@ -213,82 +339,167 @@ const SettingsScreen = () => {
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        <Text style={styles.sectionTitle}>Personal</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="person-outline" size={16} color="#6B7280" />
+          <Text style={styles.sectionTitle}>Personal</Text>
+        </View>
 
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.label}>I am Away</Text>
-            <Switch value={isAway} onValueChange={setIsAway} trackColor={{ false: "#ddd", true: "#1996D3" }} thumbColor="#fff" />
+            <Switch
+              value={isAway}
+              onValueChange={setIsAway}
+              trackColor={{ false: "#ddd", true: "#1996D3" }}
+              thumbColor="#fff"
+            />
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Notifications</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="notifications-outline" size={16} color="#6B7280" />
+          <Text style={styles.sectionTitle}>Notifications</Text>
+        </View>
 
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.label}>Visit Sound</Text>
-            <Switch value={visitSound} onValueChange={toggleVisitSound} trackColor={{ false: "#ddd", true: "#1996D3" }} />
+            <Switch
+              value={visitSound}
+              onValueChange={toggleVisitSound}
+              trackColor={{ false: "#ddd", true: "#1996D3" }}
+            />
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.row}>
             <Text style={styles.label}>Staff</Text>
-            <Switch value={staffNotification} onValueChange={toggleStaffSound} trackColor={{ false: "#ddd", true: "#1996D3" }} />
+            <Switch
+              value={staffNotification}
+              onValueChange={toggleStaffSound}
+              trackColor={{ false: "#ddd", true: "#1996D3" }}
+            />
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>IVR Settings</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="call-outline" size={16} color="#6B7280" />
+          <Text style={styles.sectionTitle}>IVR Settings</Text>
+        </View>
 
         <View style={styles.card}>
 
           <View style={styles.row}>
             <Text style={styles.label}>Enable IVR</Text>
-            <Switch value={ivrEnabled} onValueChange={setIvrEnabled} trackColor={{ false: "#ddd", true: "#1996D3" }} />
+            <Switch
+              value={ivrEnabled}
+              onValueChange={setIvrEnabled}
+              trackColor={{ false: "#ddd", true: "#1996D3" }}
+            />
           </View>
 
           {ivrEnabled && (
             <>
               <View style={styles.divider} />
 
-              <View style={styles.phoneRow}>
-                <Text style={styles.phoneLabel}>Primary</Text>
+              <View style={styles.inputSection}>
+                <Text style={styles.inputLabel}>Primary Number</Text>
                 <TextInput
-                  style={styles.phoneInput}
-                  placeholder="Set Primary Number"
+                  style={[
+                    styles.phoneInput,
+                    primaryNumber && !isValidPhone(primaryNumber) && styles.phoneInputError
+                  ]}
+                  placeholder="Enter 10-digit number"
                   keyboardType="phone-pad"
+                  maxLength={10}
+                  placeholderTextColor="#9CA3AF"
                   value={primaryNumber}
-                  onChangeText={setPrimaryNumber}
+                  onChangeText={handlePrimaryNumberChange}
                 />
+                {primaryNumber && !isValidPhone(primaryNumber) && (
+                  <Text style={styles.errorText}>
+                    Must be 10 digits starting with 6-9
+                  </Text>
+                )}
               </View>
 
-              <View style={styles.phoneRow}>
-                <Text style={styles.phoneLabel}>Secondary</Text>
+              <View style={styles.inputSection}>
+                <Text style={styles.inputLabel}>Secondary Number</Text>
                 <TextInput
-                  style={styles.phoneInput}
-                  placeholder="Set Secondary Number"
+                  style={[
+                    styles.phoneInput,
+                    secondaryNumber && !isValidPhone(secondaryNumber) && styles.phoneInputError
+                  ]}
+                  placeholder="Enter 10-digit number (optional)"
+                  maxLength={10}
                   keyboardType="phone-pad"
+                  placeholderTextColor="#9CA3AF"
                   value={secondaryNumber}
-                  onChangeText={setSecondaryNumber}
+                  onChangeText={handleSecondaryNumberChange}
                 />
+                {secondaryNumber && !isValidPhone(secondaryNumber) && (
+                  <Text style={styles.errorText}>
+                    Must be 10 digits starting with 6-9
+                  </Text>
+                )}
               </View>
 
-              <SubmitButton
-                title="Save IVR Settings"
-                style={{ marginHorizontal: 15, marginBottom: 15 }}
-                onPress={handleSave}
-                disabled={
-                  !ivrEnabled ||
-                  !primaryNumber ||
-                  !isValidPhone(primaryNumber) ||
-                  (secondaryNumber && !isValidPhone(secondaryNumber))
-                }
-              />
             </>
           )}
+
+          {/* Show save button when there are changes */}
+
         </View>
 
+
+        {hasUnsavedChanges && (
+          <Text style={styles.unsavedNote}>
+            You have unsaved changes
+          </Text>
+        )}
+
+        {hasUnsavedChanges && (
+          <View style={styles.saveButtonContainer}>
+            <SubmitButton
+              title="Save Settings"
+              onPress={handleSave}
+              disabled={
+                // Only disable if IVR is enabled and phone numbers are invalid
+                ivrEnabled && (
+                  (primaryNumber && !isValidPhone(primaryNumber)) ||
+                  (secondaryNumber && !isValidPhone(secondaryNumber))
+                )
+              }
+            />
+          </View>
+        )}
+
+        {/* IVR Information Note - Outside card, centered */}
+        {ivrEnabled && (
+          <View style={styles.noteOuterContainer}>
+            <Text style={styles.noteTitle}>Important Note</Text>
+            <Text style={styles.noteSubtitle}>
+              You will receive a call for confirmation on arrival of your visitor/guest.
+            </Text>
+            <Text style={styles.noteText}>
+              By providing your contact details you have authorized Factech Automation Solutions Private Limited to contact you in future through calls/Email/SMS to share information from iSocietyManager.
+            </Text>
+          </View>
+        )}
+
+
         <View style={{ height: 40 }} />
+
+        <View style={{ paddingHorizontal: 20, marginTop: 10 }}>
+          <TouchableOpacity
+            style={styles.testBtn}
+            onPress={handleTestNotification}
+          >
+            <Ionicons name="notifications" size={18} color="#fff" />
+            <Text style={styles.testBtnText}> Test Notification</Text>
+          </TouchableOpacity>
+        </View>
 
       </ScrollView>
 
@@ -306,17 +517,14 @@ const SettingsScreen = () => {
 };
 
 export default SettingsScreen;
+
 const styles = StyleSheet.create({
 
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-
   sectionTitle: {
-    marginTop: 10,
-    marginBottom: 10,
-    paddingHorizontal: 20,
     fontSize: 13,
     fontWeight: "600",
     color: "#6B7280",
@@ -330,8 +538,25 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#7eabe645",
+    marginBottom: 10
   },
 
+  testBtn: {
+    flexDirection: "row",   // 🔥 ADD THIS
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,                // spacing between icon & text
+    marginTop: 20,
+    backgroundColor: "#111",
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+
+  testBtnText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -351,6 +576,63 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#eee",
     marginHorizontal: 18,
+  },
+
+  inputSection: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 10
+  },
+
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 8,
+  },
+
+  phoneInput: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    height: 44,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: "#111827",
+    backgroundColor: "#F9FAFB",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+
+  phoneInputError: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+  },
+
+  errorText: {
+    fontSize: 12,
+    color: "#EF4444",
+    marginTop: 4,
+  },
+
+  saveButtonContainer: {
+    marginTop: -20,
+    padding: 15,
+  },
+
+  unsavedNote: {
+    textAlign: "center",
+    color: "#F59E0B",
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 10,
+    marginHorizontal: 20,
   },
 
   optionRow: {
@@ -380,19 +662,35 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
 
-  noteTitle: {
-    marginTop: 25,
+  noteOuterContainer: {
     paddingHorizontal: 20,
+    paddingVertical: 15,
+    marginTop: 15,
+  },
+
+  noteTitle: {
+    fontSize: 14,
     fontWeight: "600",
-    color: "#111827",
-    textAlign: "center"
+    color: "#111827",   // 🔥 Dark (primary)
+    lineHeight: 20,
+    textAlign: "center",
+  },
+
+  noteSubtitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#4B5563",   // 👈 Medium faint
+    lineHeight: 18,
+    textAlign: "center",
+    marginTop: 6,
   },
 
   noteText: {
-    paddingHorizontal: 20,
-    marginTop: 6,
-    color: "#4B5563",
-    textAlign: "center"
+    marginTop: 8,
+    fontSize: 13,
+    color: "#9CA3AF",   // 👈 More faint
+    lineHeight: 18,
+    textAlign: "center",
   },
 
   smallNote: {
@@ -402,36 +700,4 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     textAlign: "center"
   },
-
-  row2: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingLeft: 20,
-    paddingVertical: 18
-  },
-  phoneRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 12
-  },
-
-  phoneLabel: {
-    fontSize: 15,
-    color: "#111827"
-  },
-
-  phoneInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 6,
-    height: 36,
-    width: 150,
-    paddingHorizontal: 10,
-    textAlign: "right"
-  },
-
-
 });

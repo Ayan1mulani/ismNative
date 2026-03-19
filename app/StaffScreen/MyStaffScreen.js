@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Image
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { otherServices } from "../../services/otherServices";
@@ -61,8 +62,13 @@ const MyStaffScreen = ({ nightMode }) => {
           let avgRating = null;
 
           try {
-            if (staff.avg_rating && typeof staff.avg_rating === "string") {
-              const parsed = JSON.parse(staff.avg_rating);
+            let parsed = staff.avg_rating;
+
+            if (typeof parsed === "string") {
+              parsed = JSON.parse(parsed);
+            }
+
+            if (Array.isArray(parsed)) {
               avgRating = parsed?.[0]?.average_rating
                 ? parseFloat(parsed[0].average_rating)
                 : null;
@@ -87,7 +93,7 @@ const MyStaffScreen = ({ nightMode }) => {
   };
 
   const filteredStaff = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().trim();
 
     const result = staffList.filter(
       (s) =>
@@ -99,9 +105,13 @@ const MyStaffScreen = ({ nightMode }) => {
 
     // PRESENT (IN) always on top
     return result.sort((a, b) => {
-      if (a.status === "PRESENT" && b.status !== "PRESENT") return -1;
-      if (a.status !== "PRESENT" && b.status === "PRESENT") return 1;
-      return 0;
+      const aPresent = a.status?.toUpperCase() === "PRESENT";
+      const bPresent = b.status?.toUpperCase() === "PRESENT";
+
+      if (aPresent && !bPresent) return -1;
+      if (!aPresent && bPresent) return 1;
+
+      return a.name.localeCompare(b.name); // secondary sort
     });
   }, [search, staffList]);
 
@@ -119,7 +129,7 @@ const MyStaffScreen = ({ nightMode }) => {
   };
 
   const renderItem = ({ item }) => {
-    const isPresent = item.status === "PRESENT";
+    const isPresent = item.status?.toUpperCase() === "PRESENT";
 
     return (
       <AppCard theme={theme}>
@@ -133,7 +143,14 @@ const MyStaffScreen = ({ nightMode }) => {
           {/* ── Left: avatar + info ── */}
           <View style={styles.leftRow}>
             <View style={styles.avatar}>
-              < Ionicons name="person" size={22} color={theme.textSecondary} />
+              {item.image ? (
+                <Image
+                  source={{ uri: item.image }}
+                  style={{ width: "100%", height: "100%", borderRadius: 22 }}
+                />
+              ) : (
+                <Ionicons name="person" size={22} color={theme.textSecondary} />
+              )}
             </View>
 
             {/* FIX: flexShrink:1 prevents long names from pushing rightCol off screen */}
@@ -144,7 +161,7 @@ const MyStaffScreen = ({ nightMode }) => {
                   numberOfLines={1}
                   style={[styles.name, { color: theme.text, flex: 1 }]}
                 >
-                  {item.name || "Unknown"}
+                  {item.name?.trim() || "Unknown"}
                 </Text>
               </View>
 
@@ -164,23 +181,18 @@ const MyStaffScreen = ({ nightMode }) => {
           </View>
 
           {/* ── Right: IN/OUT badge on top, emp code below ── */}
-          <View style={styles.rightCol}>
-            {/* IN/OUT badge — top-right corner, above emp code */}
-            <View>
-              <Text
-                style={{
-                  color: isPresent ? "#10B981" : "#EF4444",
-                  fontSize: 11,
-                  fontWeight: "700",
-                }}
-              >
-                {isPresent ? "IN" : "OUT"}
-              </Text>
-            </View>
-
-            {/* FIX: null fallback for item.code */}
-            <Text style={[styles.empCode, { color: theme.textSecondary }]}>
-              Id-{item.code || "—"}
+          <View style={{
+            backgroundColor: isPresent ? "#ECFDF5" : "#FEF2F2",
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            borderRadius: 6,
+          }}>
+            <Text style={{
+              color: isPresent ? "#10B981" : "#EF4444",
+              fontSize: 11,
+              fontWeight: "700",
+            }}>
+              {isPresent ? "IN" : "OUT"}
             </Text>
           </View>
         </TouchableOpacity>
@@ -212,18 +224,18 @@ const MyStaffScreen = ({ nightMode }) => {
         }
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-     ListEmptyComponent={() => (
-  <EmptyState
-    icon="people-outline"
-    title={search ? "No Results Found" : "No Staff Found"}
-    subtitle={
-      search
-        ? `No staff matches "${search}"`
-        : "Add staff to manage them here"
-    }
-    theme={theme}
-  />
-)}
+        ListEmptyComponent={() => (
+          <EmptyState
+            icon="people-outline"
+            title={search ? "No Results Found" : "No Staff Found"}
+            subtitle={
+              search
+                ? `No staff matches "${search}"`
+                : "Add staff to manage them here"
+            }
+            theme={theme}
+          />
+        )}
       />
     </View>
   );
@@ -302,5 +314,5 @@ const createStyles = (theme) =>
       paddingTop: 60,
     },
 
-  
+
   });

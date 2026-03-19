@@ -1,4 +1,4 @@
-import React, { useEffect, useRef ,useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -67,6 +67,13 @@ import OtpVerifyScreen from './app/Login/OtpVerifyScreen';
 import ResidentIdCardScreen from './app/HomeScreen/VirtualIdcard';
 import VisitorApprovalScreen from './app/VisitorsScreen/VisitorApprovalScreen';
 import VisitorNotificationMessage from './app/VisitorsScreen/VisitorNotificationMessage';
+import BillPaymentScreen from './app/AllServicesScreen/BillPaymentScreen';
+import PaymentDetailScreen from './app/AllServicesScreen/PaymentDetailScreen';
+
+import payment from './app/AllServicesScreen/Payment';
+
+import MeterScreen from './app/meter/MeterScreen';
+
 
 
 
@@ -353,6 +360,11 @@ const NavigationPage = () => {
           <Stack.Screen name="FamilyMember" component={MembersScreen} />
           <Stack.Screen name="OtpLogin" component={OtpLoginScreen} />
           <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />
+          <Stack.Screen name="Meter" component={MeterScreen} />
+          <Stack.Screen name="BillPaymentScreen" component={BillPaymentScreen} />
+          <Stack.Screen name="Payment" component={payment} />
+          <Stack.Screen name="PaymentDetailScreen" component={PaymentDetailScreen} />
+
           <Stack.Screen
             name="VisitorNotificationMessage"
             component={VisitorNotificationMessage}

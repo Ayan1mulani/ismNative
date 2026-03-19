@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Image, Linking
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -103,7 +104,7 @@ const StaffDetailScreen = ({ route, navigation }) => {
   const handleAssociate = useCallback(async () => {
     try {
       setAssigning(true);
-          showModal("loading", "Associating", "Please wait...");
+      showModal("loading", "Associating", "Please wait...");
 
 
       // FIX (Issue 1): use staffId
@@ -155,7 +156,16 @@ const StaffDetailScreen = ({ route, navigation }) => {
         {/* ── Profile ── */}
         <View style={styles.profileContainer}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={70} color="#94A3B8" />
+            {staff.image && staff.image.startsWith("http") ? (
+              <Image
+                source={{ uri: staff.image }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.initials}>
+                {staff.name?.charAt(0)?.toUpperCase() || "U"}
+              </Text>
+            )}
           </View>
 
           {/* FIX (Issue 5): safe toUpperCase */}
@@ -285,13 +295,13 @@ const StaffDetailScreen = ({ route, navigation }) => {
       </ScrollView>
 
       {/* Status Modal */}
-  <StatusModal
-  visible={statusModal.visible}
-  type={statusModal.type}
-  title={statusModal.title}
-  subtitle={statusModal.subtitle}
-  onClose={closeModal}
-/>
+      <StatusModal
+        visible={statusModal.visible}
+        type={statusModal.type}
+        title={statusModal.title}
+        subtitle={statusModal.subtitle}
+        onClose={closeModal}
+      />
     </SafeAreaView>
   );
 };
@@ -380,6 +390,17 @@ const styles = StyleSheet.create({
   buttonContainer: {
     alignItems: "center",
     marginVertical: 20,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 65,
+  },
+
+  initials: {
+    fontSize: 36,
+    fontWeight: "700",
+    color: "#6B7280",
   },
   associateButton: {
     backgroundColor: COLORS.primary,

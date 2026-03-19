@@ -62,6 +62,9 @@ const complaintService = {
       flat_no: user.flat_no,
       unit_id: user.unit_id,
       society_id: user.societyId,
+      close_complaint_if_staff_assigned: 0,
+
+
     };
 
     const encodedUser = encodeURIComponent(JSON.stringify(userObj));

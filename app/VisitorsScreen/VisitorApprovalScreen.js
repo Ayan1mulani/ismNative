@@ -11,13 +11,16 @@ import {
 import Sound from 'react-native-sound';
 import { visitorServices } from '../../services/visitorServices';
 import { navigate } from "../../NavigationService";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Vibration } from 'react-native';
+
 
 
 const VisitorApprovalScreen = ({ route }) => {
   const { visitor, onGoBack } = route.params || {};
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(!!visitor?.id);
-  
+
 
   const soundRef = useRef(null);
 
@@ -27,36 +30,61 @@ const VisitorApprovalScreen = ({ route }) => {
   useEffect(() => {
     if (!visible) return;
 
-    Sound.setCategory('Playback');
+    const checkAndPlaySound = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("notificationSoundSettings");
 
-    const sound = new Sound(
-      'visitor_alert.wav',
-      Sound.MAIN_BUNDLE,
-      (error) => {
-        if (error) {
-          console.log('❌ Sound load error:', error);
+        let isVisitSoundOn = true;
+
+        if (stored) {
+          const data = JSON.parse(stored);
+          const visit = data.find(item => item.name === "VISIT");
+          isVisitSoundOn = visit?.switch === 1;
+        }
+
+        // 🔕 If OFF → Vibrate instead
+        if (!isVisitSoundOn) {
+          console.log("🔕 Sound OFF → Vibrating");
+          Vibration.vibrate(500);
           return;
         }
 
-        sound.setVolume(1.0);
+        // 🔊 PLAY SOUND
+        Sound.setCategory('Playback');
 
-        // 🔥 OPTIONAL: LOOP SOUND (doorbell effect)
-        sound.setNumberOfLoops(-1);
+        const sound = new Sound(
+          'visitor_alert.wav',
+          Sound.MAIN_BUNDLE,
+          (error) => {
+            if (error) {
+              console.log('❌ Sound load error:', error);
+              return;
+            }
 
-        sound.play((success) => {
-          if (!success) {
-            console.log('❌ Sound play failed');
+            sound.setVolume(1.0);
+            sound.setNumberOfLoops(-1);
+
+            sound.play((success) => {
+              if (!success) {
+                console.log('❌ Sound play failed');
+              }
+            });
           }
-        });
-      }
-    );
+        );
 
-    soundRef.current = sound;
+        soundRef.current = sound;
+
+      } catch (e) {
+        console.log("Sound setting error:", e);
+      }
+    };
+
+    checkAndPlaySound();
 
     return () => {
       if (soundRef.current) {
-        const s = soundRef.current; 
-        soundRef.current = null;      
+        const s = soundRef.current;
+        soundRef.current = null;
 
         s.stop(() => {
           s.release();
@@ -65,7 +93,6 @@ const VisitorApprovalScreen = ({ route }) => {
     };
   }, [visible]);
 
-  
   const stopSound = () => {
     if (soundRef.current) {
       const sound = soundRef.current; // 👈 store reference
@@ -205,7 +232,7 @@ const VisitorApprovalScreen = ({ route }) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>❌ Decline</Text>
+                <Text style={styles.buttonText}> Decline</Text>
               )}
             </TouchableOpacity>
 
@@ -217,7 +244,7 @@ const VisitorApprovalScreen = ({ route }) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>✅ Accept</Text>
+                <Text style={styles.buttonText}> Accept</Text>
               )}
             </TouchableOpacity>
           </View>

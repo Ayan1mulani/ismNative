@@ -5,6 +5,7 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
+  Image,
   TouchableOpacity,
   ScrollView,
 } from "react-native";
@@ -170,28 +171,47 @@ const SearchStaffScreen = ({ nightMode, categories, categoriesLoading }) => {
             }
           >
             <View style={styles.cardHeader}>
-              <View style={styles.staffInfo}>
-                <Text
-                  style={[styles.staffName, { color: theme.text }]}
-                  numberOfLines={1}
-                >
-                  {item.name || "Unknown"}
-                </Text>
 
-                <Text
-                  style={[styles.designation, { color: theme.textSecondary }]}
-                  numberOfLines={1}
-                >
-                  {item.designation || "No Designation"}
-                </Text>
+              {/* 🔥 LEFT: Image + Info */}
+              <View style={styles.leftSection}>
 
-                {item.code ? (
-                  <Text style={[styles.empId, { color: theme.textSecondary }]}>
-                    EMP ID: {item.code}
+                {/* 👤 Avatar */}
+                <View style={styles.avatar}>
+                  {item.image && item.image.startsWith("http") ? (
+                    <Image
+                      source={{ uri: item.image }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <Ionicons name="person" size={20} color={theme.textSecondary} />
+                  )}
+                </View>
+
+                {/* 🧾 Info */}
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[styles.staffName, { color: theme.text }]}
+                    numberOfLines={1}
+                  >
+                    {item.name || "Unknown"}
                   </Text>
-                ) : null}
+
+                  <Text
+                    style={[styles.designation, { color: theme.textSecondary }]}
+                    numberOfLines={1}
+                  >
+                    {item.designation || "No Designation"}
+                  </Text>
+
+                  {item.code ? (
+                    <Text style={[styles.empId, { color: theme.textSecondary }]}>
+                      EMP ID: {item.code}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
 
+              {/* 🏷️ RIGHT: Category Badge */}
               <View
                 style={[
                   styles.categoryBadge,
@@ -205,6 +225,7 @@ const SearchStaffScreen = ({ nightMode, categories, categoriesLoading }) => {
                   {selectedCategory}
                 </Text>
               </View>
+
             </View>
 
             {(validMobile || workLocations.length > 0) && (
@@ -401,6 +422,28 @@ const createStyles = (theme) =>
       paddingBottom: 40,
     },
 
+    leftSection: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+      marginRight: 10,
+    },
+
+    avatar: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: theme.surface,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 10,
+      overflow: "hidden",
+    },
+
+    avatarImage: {
+      width: "100%",
+      height: "100%",
+    },
     cardHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -459,7 +502,7 @@ const createStyles = (theme) =>
       flex: 1,
     },
 
-  
+
 
 
   });

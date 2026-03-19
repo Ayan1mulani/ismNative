@@ -310,9 +310,9 @@ const ServiceRequestDetailCard = ({ complaint, onPress }) => {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
-    paddingVertical: 14,
+    paddingVertical: 8,
     paddingHorizontal: 16,
-    marginVertical: 6,
+    marginVertical: 3,
     marginHorizontal: 16,
     borderWidth: 1,
     borderColor: 'rgba(3, 65, 109, 0.09)',

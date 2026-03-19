@@ -86,7 +86,7 @@ const ProviderSelector = ({
   let quickList = [];
 
   if (visitorType === "cab") {
-    quickList = [{ name: "Any", logo_url: null }, ...rawList];
+    quickList = [{ name: "Custom", logo_url: null }, ...rawList];
   } else {
     // FIX 1: filter by popularProviders instead of hardcoded slice(0,3)
     let popularItems = rawList.filter((item) =>
@@ -96,7 +96,7 @@ const ProviderSelector = ({
     // FIX 4: if selected item came from modal, replace last slot so row stays fixed
     const isModalSelection =
       selectedProvider &&
-      selectedProvider !== "Any" &&
+      selectedProvider !== "Custom" &&
       !popularProviders.includes(selectedProvider);
 
     if (isModalSelection) {
@@ -108,7 +108,7 @@ const ProviderSelector = ({
     }
 
     quickList = [
-      { name: "Any", logo_url: null },
+      { name: "Custom", logo_url: null },
       ...popularItems,
     ];
   }
@@ -185,7 +185,7 @@ const ProviderSelector = ({
                     : { borderColor: "transparent" },
                 ]}
               >
-                {item.name === "Any" ? (
+                {item.name === "Custom" ? (
                   <Ionicons
                     name="layers-outline"
                     size={26}

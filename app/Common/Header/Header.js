@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,17 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { usePermissions } from '../../../Utils/ConetextApi';
 import { Common } from '../../../services/Common';
-import { useNavigation } from '@react-navigation/native';
-// import { hasPermission } from '../../../Utils/PermissionHelper';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import BRAND from '../../config';
+import { ismServices } from '../../../services/ismServices';
 
 const ResidentHeader = () => {
   const navigation = useNavigation();
-  const { nightMode, permissions } = usePermissions();
+  const { nightMode } = usePermissions();
 
-  const [userDetails, setUserDetails] = useState();
+  const [userDetails, setUserDetails] = useState(null);
   const [societyLogo, setSocietyLogo] = useState(null);
-
-  // const canViewNotifications =
-  //   permissions && hasPermission(permissions, "NOTF", "R");
+  const [isAway, setIsAway] = useState(false);
 
   const theme = {
     background: nightMode ? '#1f2937' : '#ffffff',
@@ -30,63 +28,61 @@ const ResidentHeader = () => {
     border: nightMode ? '#374151' : '#E5E7EB',
   };
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const details = await Common.getUserDetails();
-        const user = await Common.getLoggedInUser();
+  /* ------------------------------
+      LOAD DATA (RUNS EVERY TIME SCREEN OPENS)
+  ------------------------------ */
+  const loadHeaderData = async () => {
+    try {
+      const res = await ismServices.getUserProfileData();
+      const details = res?.data || res;
+      console.log(details,"det")
 
-        setUserDetails(details);
+      setUserDetails(details);
 
-        // Parse society logo
-        if (user?.society?.data) {
-          const parsed = JSON.parse(user.society.data);
-          setSocietyLogo(parsed.logo);
-        }
+      // ✅ FIX AWAY STATUS
+      const awayValue = Number(details?.home_away) === 1;
+      setIsAway(awayValue);
 
-      } catch (err) {
-        console.log("Header load error", err);
+      // ✅ FIX LOGO (RESTORE THIS)
+      const user = await Common.getLoggedInUser();
+
+      if (user?.society?.data) {
+        const parsed = JSON.parse(user.society.data);
+        setSocietyLogo(parsed.logo);
       }
-    };
 
-    load();
-  }, []);
+    } catch (err) {
+      console.log("Header load error", err);
+    }
+  };
+
+  /* 🔥 THIS IS THE KEY FIX */
+  useFocusEffect(
+    useCallback(() => {
+      loadHeaderData();
+    }, [])
+  );
 
   return (
     <View style={{ backgroundColor: theme.background }}>
+
+      {/* HEADER */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
 
-        {/* LEFT SECTION */}
+        {/* LEFT */}
         <View style={styles.leftSection}>
           <View style={styles.iconContainer}>
-
             <Image
-              source={
-                societyLogo
-                  ? { uri: societyLogo }
-                  : BRAND.LOGO
-              }
+              source={societyLogo ? { uri: societyLogo } : BRAND.LOGO}
               style={styles.logoImage}
               resizeMode="contain"
             />
-
-          </View>
-
-          <View>
-            <Text style={[styles.greetingText, { color: theme.text }]}>
-              {BRAND.APP_NAME}
-            </Text>
-
-            <Text style={[styles.locationText, { color: theme.subText }]}>
-              {userDetails?.society_name}
-            </Text>
           </View>
         </View>
 
-        {/* RIGHT SECTION */}
+        {/* RIGHT */}
         <View style={styles.rightSection}>
 
-          {/* Search */}
           <TouchableOpacity
             onPress={() => navigation.navigate('AllServicesScreen')}
             style={styles.iconBtn}
@@ -94,23 +90,29 @@ const ResidentHeader = () => {
             <Ionicons name="search-outline" size={22} color={theme.text} />
           </TouchableOpacity>
 
-          {/* Notification */}
-          {/* {canViewNotifications && ( */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('NotificationsScreen')}
-              style={styles.iconBtn}
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={22}
-                color={theme.text}
-              />
-            </TouchableOpacity>
-          {/* )} */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('NotificationsScreen')}
+            style={styles.iconBtn}
+          >
+            <Ionicons name="notifications-outline" size={22} color={theme.text} />
+          </TouchableOpacity>
 
         </View>
-
       </View>
+
+      {/* 🔴 AWAY INDICATOR */}
+      {isAway && (
+        <>
+          <TouchableOpacity
+            style={styles.awayBanner}
+            onPress={() => navigation.navigate("Settings")}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.awayText}>You are marked as away</Text>
+            <Ionicons name="chevron-forward" size={14} color="#EF4444" style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 };
@@ -128,7 +130,7 @@ const styles = StyleSheet.create({
   },
 
   leftSection: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
   },
 
@@ -142,7 +144,7 @@ const styles = StyleSheet.create({
   },
 
   iconContainer: {
-    width: 44,
+    width: 100,
     height: 44,
     overflow: 'hidden',
     marginRight: 6,
@@ -160,7 +162,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  locationText: {
-    fontSize: 13,
+
+  awayBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+
+  awayText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '500',
+    marginLeft: 6,
   },
 });

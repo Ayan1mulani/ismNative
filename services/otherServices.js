@@ -20,74 +20,74 @@ const otherServices = {
     return response
   },
   getNotificationSound: async () => {
-  try {
-    const user = await Common.getLoggedInUser();
+    try {
+      const user = await Common.getLoggedInUser();
 
-    const userObj = {
-      user_id: user.id,
-      group_id: user.role_id,
-      flat_no: user.flat_no,
-      unit_id: user.unit_id,
-      society_id: user.societyId,
-    };
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId,
+      };
 
-    const params = {
-      "api-token": user.api_token,
-      "user-id": JSON.stringify(userObj),
-    };
+      const params = {
+        "api-token": user.api_token,
+        "user-id": JSON.stringify(userObj),
+      };
 
-    const url = otherServices.appendParamsInUrl(
-      `${API_URL2}/getNotificationSound`,
-      params
-    );
+      const url = otherServices.appendParamsInUrl(
+        `${API_URL2}/getNotificationSound`,
+        params
+      );
 
-    const headers = await Util.getCommonAuth();
+      const headers = await Util.getCommonAuth();
 
-    return await ApiCommon.getReq(url, headers);
+      return await ApiCommon.getReq(url, headers);
 
-  } catch (error) {
-    console.log("Get Notification Sound Error:", error);
-    throw error;
-  }
-},
+    } catch (error) {
+      console.log("Get Notification Sound Error:", error);
+      throw error;
+    }
+  },
 
-setNotificationSound: async (type, value) => {
-  try {
-    const user = await Common.getLoggedInUser();
+  setNotificationSound: async (type, value) => {
+    try {
+      const user = await Common.getLoggedInUser();
 
-    const userObj = {
-      user_id: user.id,
-      group_id: user.role_id,
-      flat_no: user.flat_no,
-      unit_id: user.unit_id,
-      society_id: user.societyId,
-    };
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId,
+      };
 
-    const params = {
-      "api-token": user.api_token,
-      "user-id": JSON.stringify(userObj),
-    };
+      const params = {
+        "api-token": user.api_token,
+        "user-id": JSON.stringify(userObj),
+      };
 
-    const url = otherServices.appendParamsInUrl(
-      `${API_URL2}/setNotificationSound`,
-      params
-    );
+      const url = otherServices.appendParamsInUrl(
+        `${API_URL2}/setNotificationSound`,
+        params
+      );
 
-    const headers = await Util.getCommonAuth();
+      const headers = await Util.getCommonAuth();
 
-    // Matches exact payload from network log: {type: "VISIT", switch: 0}
-    const payload = {
-      type: type,       // "VISIT" or "STAFF"
-      switch: value ? 1 : 0,
-    };
+      // Matches exact payload from network log: {type: "VISIT", switch: 0}
+      const payload = {
+        type: type,       // "VISIT" or "STAFF"
+        switch: value ? 1 : 0,
+      };
 
-    return await ApiCommon.postReq(url, payload, headers);
+      return await ApiCommon.postReq(url, payload, headers);
 
-  } catch (error) {
-    console.log("Set Notification Sound Error:", error);
-    throw error;
-  }
-},
+    } catch (error) {
+      console.log("Set Notification Sound Error:", error);
+      throw error;
+    }
+  },
 
   getAmenityBookingsById: async (amenityId) => {
     try {
@@ -146,98 +146,98 @@ setNotificationSound: async (type, value) => {
   },
 
   sendTestNotification: async () => {
-  try {
-
-    console.log("🚀 Sending Test Notification...");
-
-    /* -------------------------------
-       GET LOGGED IN USER
-    -------------------------------- */
-    const user = await Common.getLoggedInUser();
-
-    console.log("👤 Logged In User:", user);
-
-    /* -------------------------------
-       GET ONESIGNAL DEVICE ID
-    -------------------------------- */
-    let osid = await OneSignal.User.pushSubscription.getIdAsync();
-
-    // Sometimes OneSignal is not ready immediately
-    if (!osid) {
-      console.log("⚠️ Device ID not ready, waiting 2 seconds...");
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      osid = await OneSignal.User.pushSubscription.getIdAsync();
-    }
-
-    if (!osid) {
-      console.log("❌ OneSignal device ID not found");
-      return;
-    }
-
-    console.log("📱 Device ID being sent:", osid);
-
-    /* -------------------------------
-       PARSE USER ID
-    -------------------------------- */
-
-    let parsedUserId;
-
     try {
-      // user.id may be JSON string
-      parsedUserId = JSON.parse(user.id).user_id;
-    } catch (e) {
-      // or may already be number
-      parsedUserId = user.unit_id || user.id;
+
+      console.log("🚀 Sending Test Notification...");
+
+      /* -------------------------------
+         GET LOGGED IN USER
+      -------------------------------- */
+      const user = await Common.getLoggedInUser();
+
+      console.log("👤 Logged In User:", user);
+
+      /* -------------------------------
+         GET ONESIGNAL DEVICE ID
+      -------------------------------- */
+      let osid = await OneSignal.User.pushSubscription.getIdAsync();
+
+      // Sometimes OneSignal is not ready immediately
+      if (!osid) {
+        console.log("⚠️ Device ID not ready, waiting 2 seconds...");
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        osid = await OneSignal.User.pushSubscription.getIdAsync();
+      }
+
+      if (!osid) {
+        console.log("❌ OneSignal device ID not found");
+        return;
+      }
+
+      console.log("📱 Device ID being sent:", osid);
+
+      /* -------------------------------
+         PARSE USER ID
+      -------------------------------- */
+
+      let parsedUserId;
+
+      try {
+        // user.id may be JSON string
+        parsedUserId = JSON.parse(user.id).user_id;
+      } catch (e) {
+        // or may already be number
+        parsedUserId = user.unit_id || user.id;
+      }
+
+      console.log("🆔 Parsed User ID:", parsedUserId);
+
+      /* -------------------------------
+         BUILD API URL
+      -------------------------------- */
+
+      const apiUrl =
+        `${API_URL4}/v1/society/${user.societyId}/resident/${parsedUserId}/testnotifyring` +
+        `?api-token=${user.api_token}` +
+        `&user-id=${parsedUserId}` +
+        `&deviceid=${osid}`;
+
+      console.log("🌐 Final API URL:", apiUrl);
+
+      /* -------------------------------
+         HEADERS
+      -------------------------------- */
+
+      const headers = await Util.getCommonAuth();
+
+      /* -------------------------------
+         PAYLOAD
+      -------------------------------- */
+
+      const payload = {
+        test: true
+      };
+
+      /* -------------------------------
+         API CALL
+      -------------------------------- */
+
+      const response = await ApiCommon.postReq(apiUrl, payload, headers);
+
+      console.log("✅ Test Notification Response:", response);
+
+      return response;
+
+    } catch (error) {
+
+      console.log("❌ Test Notification Error:", error);
+
+      throw error;
+
     }
-
-    console.log("🆔 Parsed User ID:", parsedUserId);
-
-    /* -------------------------------
-       BUILD API URL
-    -------------------------------- */
-
-    const apiUrl =
-      `${API_URL4}/v1/society/${user.societyId}/resident/${parsedUserId}/testnotifyring` +
-      `?api-token=${user.api_token}` +
-      `&user-id=${parsedUserId}` +
-      `&deviceid=${osid}`;
-
-    console.log("🌐 Final API URL:", apiUrl);
-
-    /* -------------------------------
-       HEADERS
-    -------------------------------- */
-
-    const headers = await Util.getCommonAuth();
-
-    /* -------------------------------
-       PAYLOAD
-    -------------------------------- */
-
-    const payload = {
-      test: true
-    };
-
-    /* -------------------------------
-       API CALL
-    -------------------------------- */
-
-    const response = await ApiCommon.postReq(apiUrl, payload, headers);
-
-    console.log("✅ Test Notification Response:", response);
-
-    return response;
-
-  } catch (error) {
-
-    console.log("❌ Test Notification Error:", error);
-
-    throw error;
-
-  }
-},
+  },
 
 
   sendFeedback: async (subject, body) => {
@@ -361,6 +361,49 @@ setNotificationSound: async (type, value) => {
 
     } catch (error) {
       console.log("Get Bills By Flat Error:", error);
+      throw error;
+    }
+  },
+
+  staffNotification: async (staffId, status) => {
+    try {
+      const user = await Common.getLoggedInUser();
+
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId,
+      };
+
+      const params = {
+        "api-token": user.api_token,
+      };
+
+      const url = otherServices.appendParamsInUrl(
+        `${API_URL4}/v1/society/${user.societyId}/staffnotification`,
+        params
+      );
+
+      let headers = await Util.getCommonAuth();
+
+      // remove user-id from headers
+      delete headers["user-id"];
+
+      const payload = {
+        staff_id: staffId,
+        value: status ? 1 : 0,
+        user: {
+          id: JSON.stringify(userObj), // 🔥 important
+        },
+      };
+      console.log("✅ FINAL PAYLOAD:", payload);
+
+      return await ApiCommon.postReq(url, payload, headers);
+
+    } catch (error) {
+      console.log("❌ Staff Notification Error:", error);
       throw error;
     }
   },
@@ -505,7 +548,38 @@ setNotificationSound: async (type, value) => {
       throw error;
     }
   },
+  getStaffNotification: async (staffId) => {
+    try {
+      const user = await Common.getLoggedInUser();
 
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId,
+      };
+
+      const params = {
+        "api-token": user.api_token,
+        "user-id": JSON.stringify(userObj),
+        staff_id: staffId,
+      };
+
+      const url = otherServices.appendParamsInUrl(
+        `${API_URL4}/v1/society/${user.societyId}/staffnotification`,
+        params
+      );
+
+      const headers = await Util.getCommonAuth();
+
+      return await ApiCommon.getReq(url, headers);
+
+    } catch (error) {
+      console.log("Get Staff Notification Error:", error);
+      throw error;
+    }
+  },
 
   getStaffByCategory: async (category) => {
     try {
@@ -1042,6 +1116,85 @@ setNotificationSound: async (type, value) => {
       throw error;
     }
   },
+
+
+sendTestNotificationSound: async () => {
+  try {
+    console.log("🚀 Sending Test Notification...");
+
+    /* -------------------------------
+       GET USER
+    -------------------------------- */
+    const user = await Common.getLoggedInUser();
+
+    console.log("👤 USER:", user);
+
+    // ✅ FIX: ALWAYS USE DIRECT ID
+    const userId = user?.id;
+
+    if (!userId) {
+      console.log("❌ User ID missing");
+      throw new Error("User ID not found");
+    }
+
+    /* -------------------------------
+       GET ONESIGNAL DEVICE ID
+    -------------------------------- */
+    let osid = await OneSignal.User.pushSubscription.getIdAsync();
+
+    if (!osid) {
+      console.log("⚠️ Waiting for OneSignal ID...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      osid = await OneSignal.User.pushSubscription.getIdAsync();
+    }
+
+    if (!osid) {
+      console.log("❌ Device ID not found");
+      throw new Error("Device not registered");
+    }
+
+    console.log("📱 Device ID:", osid);
+
+    /* -------------------------------
+       BUILD URL (CORRECT)
+    -------------------------------- */
+    const params = {
+      "api-token": user.api_token,
+      "user-id": userId,   // ✅ FIXED
+      deviceid: osid,
+    };
+
+    const url = otherServices.appendParamsInUrl(
+      `${API_URL4}/v1/society/${user.societyId}/resident/${userId}/testnotifyring`,
+      params
+    );
+
+    console.log("🌐 FINAL URL:", url);
+
+    /* -------------------------------
+       HEADERS
+    -------------------------------- */
+    const headers = await Util.getCommonAuth();
+
+    /* -------------------------------
+       API CALL
+    -------------------------------- */
+    const response = await ApiCommon.postReq(
+      url,
+      { test: true },
+      headers
+    );
+
+    console.log("✅ RESPONSE:", response);
+
+    return response;
+
+  } catch (error) {
+    console.log("❌ Test Notification Error:", error);
+    throw error;
+  }
+},
+
   addOrUpdateRating: async (staffId, rating, review) => {
     try {
       const user = await Common.getLoggedInUser();

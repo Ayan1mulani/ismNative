@@ -14,14 +14,17 @@ import { ismServices } from "../../services/ismServices";
 import { otherServices } from "../../services/otherServices";
 import { hasPermission } from "../../Utils/PermissionHelper";
 import BRAND from "../config";
+import { useNavigation } from "@react-navigation/native";
+
 
 
 const ResidentProfile = () => {
- const { nightMode, setFlatNo, permissions } = usePermissions();
- const canViewDashboard =
-  permissions && hasPermission(permissions, "RESDSB", "R");
+  const navigation = useNavigation();
+  const { nightMode, setFlatNo, permissions } = usePermissions();
+  const canViewDashboard =
+    permissions && hasPermission(permissions, "RESDSB", "R");
   console.log("Permissions:", permissions);
-console.log("Can View Dashboard:", canViewDashboard);
+  console.log("Can View Dashboard:", canViewDashboard);
   const COLORS = BRAND.COLORS;
 
   const [userDetails, setUserDetails] = useState({});
@@ -36,35 +39,35 @@ console.log("Can View Dashboard:", canViewDashboard);
     online: COLORS.success,
     border: COLORS.border,
   };
- const loadData = async () => {
-  try {
+  const loadData = async () => {
+    try {
 
-    const storedUser = await AsyncStorage.getItem("userInfo");
-    if (!storedUser) return;
+      const storedUser = await AsyncStorage.getItem("userInfo");
+      if (!storedUser) return;
 
-    const [detailsRes, billRes] = await Promise.all([
-      ismServices.getUserDetails(),
-      otherServices.getOutStandings()
-    ]);
+      const [detailsRes, billRes] = await Promise.all([
+        ismServices.getUserDetails(),
+        otherServices.getOutStandings()
+      ]);
 
-    setUserDetails(detailsRes || {});
+      setUserDetails(detailsRes || {});
 
-    if (detailsRes?.flat_no) {
-      setFlatNo(detailsRes.flat_no);
+      if (detailsRes?.flat_no) {
+        setFlatNo(detailsRes.flat_no);
+      }
+
+      setOutstanding(billRes?.data || []);
+
+    } catch (err) {
+
+      console.log("Profile load error", err);
+
+    } finally {
+
+      setLoading(false);
+
     }
-
-    setOutstanding(billRes?.data || []);
-
-  } catch (err) {
-
-    console.log("Profile load error", err);
-
-  } finally {
-
-    setLoading(false);
-
-  }
-};
+  };
 
   useEffect(() => {
     loadData();
@@ -80,8 +83,8 @@ console.log("Can View Dashboard:", canViewDashboard);
     0
   );
   if (!canViewDashboard) {
-  return null;
-}
+    return null;
+  }
 
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -104,11 +107,11 @@ console.log("Can View Dashboard:", canViewDashboard);
                 source={{
                   uri:
                     userDetails?.image_src ||
-                    "https://static.vecteezy.com/system/resources/previews/018/765/757/original/user-profile-icon-in-flat-style-member-avatar-illustration-on-isolated-background-human-permission-sign-business-concept-vector.jpg", 
+                    "https://static.vecteezy.com/system/resources/previews/018/765/757/original/user-profile-icon-in-flat-style-member-avatar-illustration-on-isolated-background-human-permission-sign-business-concept-vector.jpg",
                 }}
                 style={styles.avatar}
               />
-           
+
             </View>
 
             <View style={styles.profileDetails}>
@@ -164,6 +167,7 @@ console.log("Can View Dashboard:", canViewDashboard);
           </Text>
 
           <TouchableOpacity
+            onPress={() => navigation.navigate("BillPaymentScreen")}
             style={[styles.payButton, { backgroundColor: colors.primary }]}
           >
             <Text style={styles.payButtonText}>Pay Now</Text>
@@ -198,14 +202,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     elevation: 6,
     overflow: "hidden",
-    paddingLeft:10,
+    paddingLeft: 10,
   },
 
   greeting: {
     color: "#fff",
     fontSize: 14,
     fontWeight: "700",
-     paddingTop:10
+    paddingTop: 10
 
   },
 
@@ -241,7 +245,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     gap: 6,
-    paddingBottom:10
+    paddingBottom: 10
   },
 
   badge: {
@@ -251,8 +255,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
-    width:"90%"
-    
+    width: "90%"
+
   },
 
   badgeText: {
@@ -260,8 +264,8 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: "600",
     marginLeft: 6,
-    paddingRight:3
-  
+    paddingRight: 3
+
   },
 
   billCard: {

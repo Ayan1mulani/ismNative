@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  TextInput
 } from "react-native";
 import ProviderSelector from "../components/ProviderSelector";
 import CalendarSelector from "../components/Calender";
@@ -20,6 +21,8 @@ const SingleDeliveryForm = ({ theme }) => {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [visitDate, setVisitDate] = useState(null);
   const [modalType, setModalType] = useState(null);
+  const [isCustom, setIsCustom] = useState(false);
+  const [customName, setCustomName] = useState("");
   const [errors, setErrors] = useState({});
   const navigation = useNavigation();
 
@@ -32,6 +35,12 @@ const SingleDeliveryForm = ({ theme }) => {
     if (!selectedProvider) {
       newErrors.provider = "Please select delivery company";
     }
+
+    // 👉 custom validation
+    if (isCustom && !customName.trim()) {
+      newErrors.custom = "Please enter company name";
+    }
+
 
     if (!visitDate) {
       newErrors.date = "Please select visit date";
@@ -52,7 +61,9 @@ const SingleDeliveryForm = ({ theme }) => {
 
       const payload = {
         date_time: formattedDate,
-        company_name: selectedProvider?.name || selectedProvider,
+        company_name: isCustom
+          ? customName
+          : selectedProvider?.name || selectedProvider,
         type: "delivery",
       };
       setModalType("loading");
@@ -83,20 +94,52 @@ const SingleDeliveryForm = ({ theme }) => {
     <>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Provider */}
-        <ProviderSelector
-          visitorType="delivery"
-          theme={theme}
-          required={true}
-          selectedProvider={selectedProvider}
-          setSelectedProvider={(val) => {
-            setSelectedProvider(val);
-            if (errors.provider)
-              setErrors((prev) => ({ ...prev, provider: null }));
-          }}
-          stylesFromParent={styles}
-        />
+       <ProviderSelector
+  visitorType="delivery"
+  theme={theme}
+  required={true}
+  selectedProvider={selectedProvider}   // ✅ ADD THIS LINE
+  setSelectedProvider={(val) => {
+    setSelectedProvider(val);
+
+    if (val === "Custom") {
+      setIsCustom(true);
+    } else {
+      setIsCustom(false);
+      setCustomName("");
+    }
+
+    if (errors.provider)
+      setErrors((prev) => ({ ...prev, provider: null }));
+  }}
+  stylesFromParent={styles}
+/>
         {errors.provider && (
           <Text style={styles.errorText}>{errors.provider}</Text>
+        )}
+
+        {isCustom && (
+          <View style={[styles.card, { backgroundColor: theme.cardBg, marginTop: 10 }]}>
+            <Text style={styles.label}>Enter Delivery Company</Text>
+
+            <TextInput
+              value={customName}
+              onChangeText={(text) => {
+                setCustomName(text);
+
+                if (errors.custom) {
+                  setErrors((prev) => ({ ...prev, custom: null }));
+                }
+              }}
+              placeholder="Enter company name"
+              placeholderTextColor="#9CA3AF"
+              style={styles.input}
+            />
+
+            {errors.custom && (
+              <Text style={styles.errorText}>{errors.custom}</Text>
+            )}
+          </View>
         )}
 
         {/* Visit Date */}
@@ -169,13 +212,6 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
 
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    fontSize: 14,
-  },
 
   phoneRow: {
     flexDirection: "row",
@@ -191,6 +227,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
   phoneInput: {
     flex: 1,
     height: 48,

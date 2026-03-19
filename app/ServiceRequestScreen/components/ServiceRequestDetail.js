@@ -69,7 +69,7 @@ const ServiceRequestDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const onGoBack = route.params?.onGoBack;
-  
+
   const { nightMode } = usePermissions();
   const complaint = route.params?.complaint || {};
   const { showAlert, AlertComponent } = useAlert(nightMode);
@@ -188,8 +188,8 @@ const ServiceRequestDetailScreen = () => {
       setModalState({
         visible: true,
         type: 'success',
-        title: 'Submitted!',
-        subtitle: 'Thank you! Your feedback helps us improve.',
+        title: res?.message || 'Success',
+        subtitle: res?.data || 'Complaint updated successfully',
       });
 
     } catch (e) {
@@ -227,7 +227,7 @@ const ServiceRequestDetailScreen = () => {
                 ...complaint,
                 status: "Reopen",
               };
-              await complaintService.updateComplaintStatus(payload, "Reopen");
+              const res = await complaintService.updateComplaintStatus(payload, "Reopen");
 
               console.log('🔄 Complaint reopened successfully, setting hasChanges = true');
               hasChanges.current = true; // ✅ Mark that changes were made
@@ -236,8 +236,8 @@ const ServiceRequestDetailScreen = () => {
               setModalState({
                 visible: true,
                 type: 'success',
-                title: 'Request Reopened!',
-                subtitle: 'Your service request has been reopened successfully.',
+                title: res?.message || 'Reopened',
+                subtitle: res?.data || 'Request reopened successfully',
               });
 
             } catch (e) {

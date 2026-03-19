@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Image,
   Linking,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -50,6 +51,8 @@ const MyStaffDetailScreen = ({ route }) => {
   const navigation = useNavigation();
 
   const staffId = staff.staff_id || staff.id;
+  const [staffNotification, setStaffNotification] = useState(true);
+  const [notifLoading, setNotifLoading] = useState(false);
 
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState("");
@@ -59,33 +62,63 @@ const MyStaffDetailScreen = ({ route }) => {
   const [existingRating, setExistingRating] = useState(null);
   const [fetchingRating, setFetchingRating] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // FIX: uses parseJSONArray so arrays from backend work too
   const houseCount = parseJSONArray(staff.work_location).length;
 
   const [statusModal, setStatusModal] = useState({
-  visible: false,
-  type: "loading",
-  title: "",
-  subtitle: "",
-});
-
-const closeModal = useCallback(() => {
-  setStatusModal((prev) => ({ ...prev, visible: false }));
-}, []);
-
-const showModal = useCallback((type, title, subtitle) => {
-  setStatusModal({
-    visible: true,
-    type,
-    title,
-    subtitle,
+    visible: false,
+    type: "loading",
+    title: "",
+    subtitle: "",
   });
-}, []);
+
+  const closeModal = useCallback(() => {
+    setStatusModal((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const showModal = useCallback((type, title, subtitle) => {
+    setStatusModal({
+      visible: true,
+      type,
+      title,
+      subtitle,
+    });
+  }, []);
 
   useEffect(() => {
     fetchExistingRating();
+    // fetchStaffNotification(); // 👈 ADD THIS
+
   }, []);
+
+ 
+  // const toggleStaffNotification = async (value) => {
+  //   try {
+  //     setNotifLoading(true);
+
+  //     // 🔥 instant UI update
+  //     setStaffNotification(value);
+
+  //     const res = await otherServices.staffNotification(staffId, value);
+
+  //     if (res?.status !== "success") {
+  //       throw new Error("Failed");
+  //     }
+
+  //   } catch (error) {
+  //     console.log("Toggle error:", error);
+
+  //     // 🔁 revert if failed
+  //     setStaffNotification(prev => !prev);
+
+  //     showModal("error", "Error", "Failed to update notification");
+
+  //   } finally {
+  //     setNotifLoading(false);
+  //   }
+  // };
 
   const fetchExistingRating = useCallback(async () => {
     try {
@@ -125,43 +158,43 @@ const showModal = useCallback((type, title, subtitle) => {
     }
   }, []);
 
-const handleRelease = useCallback(() => {
-  Alert.alert(
-    "Release Staff",
-    "Are you sure you want to release this staff?",
-    [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Yes",
-        onPress: async () => {
-          try {
-            setReleasing(true);
+  const handleRelease = useCallback(() => {
+    Alert.alert(
+      "Release Staff",
+      "Are you sure you want to release this staff?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes",
+          onPress: async () => {
+            try {
+              setReleasing(true);
 
-            showModal("loading", "Releasing Staff", "Please wait...");
+              showModal("loading", "Releasing Staff", "Please wait...");
 
-            const res = await otherServices.unassignStaff(staffId);
+              const res = await otherServices.unassignStaff(staffId);
 
-            if (res?.status === "success") {
-              showModal("success", "Released", "Staff has been released");
+              if (res?.status === "success") {
+                showModal("success", "Released", "Staff has been released");
 
-              setTimeout(() => {
-                closeModal();
-                navigation.goBack();
-              }, 2000);
-            } else {
-              showModal("error", "Error", res?.message || "Unable to release staff");
+                setTimeout(() => {
+                  closeModal();
+                  navigation.goBack();
+                }, 2000);
+              } else {
+                showModal("error", "Error", res?.message || "Unable to release staff");
+              }
+            } catch (error) {
+              console.error("[MyStaffDetailScreen] release error:", error);
+              showModal("error", "Error", "Failed to release staff");
+            } finally {
+              setReleasing(false);
             }
-          } catch (error) {
-            console.error("[MyStaffDetailScreen] release error:", error);
-            showModal("error", "Error", "Failed to release staff");
-          } finally {
-            setReleasing(false);
-          }
+          },
         },
-      },
-    ]
-  );
-}, [staffId, navigation, showModal, closeModal]);
+      ]
+    );
+  }, [staffId, navigation, showModal, closeModal]);
 
   const handleSubmitRating = useCallback(async () => {
     if (!rating) {
@@ -227,7 +260,13 @@ const handleRelease = useCallback(() => {
         {/* ── PROFILE ── */}
         <View style={styles.profileContainer}>
           <View style={styles.avatar}>
-            < Ionicons name="person" size={70} color="#94A3B8" />
+            {staff.image && staff.image.startsWith("http") ? (
+              <Image source={{ uri: staff.image }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.initials}>
+                {staff.name?.charAt(0)?.toUpperCase() || "U"}
+              </Text>
+            )}
           </View>
           {/* FIX: safe toUpperCase using String() */}
           <Text style={styles.name}>
@@ -312,6 +351,29 @@ const handleRelease = useCallback(() => {
           </TouchableOpacity>
         </View>
 
+        {/* <View style={styles.notificationCard}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons name="notifications-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.notificationText}>Staff Notifications</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.toggleBtn,
+              { backgroundColor: staffNotification ? COLORS.success : "#D1D5DB" }
+            ]}
+            onPress={() => toggleStaffNotification(!staffNotification)}
+            disabled={notifLoading}
+          >
+            {notifLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.toggleText}>
+                {staffNotification ? "ON" : "OFF"}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View> */}
         {/* ── RATING SECTION ── */}
         <View style={styles.rateSection}>
 
@@ -416,12 +478,12 @@ const handleRelease = useCallback(() => {
         <View style={{ height: 40 }} />
       </ScrollView>
       <StatusModal
-  visible={statusModal.visible}
-  type={statusModal.type}
-  title={statusModal.title}
-  subtitle={statusModal.subtitle}
-  onClose={closeModal}
-/>
+        visible={statusModal.visible}
+        type={statusModal.type}
+        title={statusModal.title}
+        subtitle={statusModal.subtitle}
+        onClose={closeModal}
+      />
     </SafeAreaView>
   );
 };
@@ -473,6 +535,48 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     paddingHorizontal: 4,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 60,
+  },
+  notificationCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 14,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+
+  notificationText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+
+  toggleBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+
+  toggleText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+
+  initials: {
+    fontSize: 34,
+    fontWeight: "700",
+    color: "#6B7280",
   },
   infoNumber: {
     fontSize: 13,

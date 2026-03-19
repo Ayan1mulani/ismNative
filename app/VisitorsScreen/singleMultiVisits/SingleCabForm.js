@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   TextInput,
 } from "react-native";
@@ -20,6 +19,8 @@ const SingleCabForm = ({ theme }) => {
   const onGoBack = route.params?.onGoBack;
 
   const [selectedProvider, setSelectedProvider] = useState(null);
+  const [isCustom, setIsCustom] = useState(false);
+  const [customName, setCustomName] = useState("");
   const [visitDate, setVisitDate] = useState(null);
   const [vehicleNo, setVehicleNo] = useState("");
   // const [entriesPerDay, setEntriesPerDay] = useState(1);
@@ -27,15 +28,12 @@ const SingleCabForm = ({ theme }) => {
   const [modalType, setModalType] = useState(null);
 
   const handleVehicleChange = (text) => {
-
     const numeric = text.replace(/[^0-9]/g, "");
-
     setVehicleNo(numeric.slice(0, 4));
 
     if (errors.vehicle) {
       setErrors((prev) => ({ ...prev, vehicle: null }));
     }
-
   };
 
   const handleSubmit = async () => {
@@ -45,6 +43,11 @@ const SingleCabForm = ({ theme }) => {
       newErrors.provider = "Please select cab company";
     }
 
+    // 👉 custom validation
+    if (isCustom && !customName.trim()) {
+      newErrors.custom = "Please enter company name";
+    }
+
     if (!visitDate) {
       newErrors.date = "Please select visit date";
     }
@@ -52,6 +55,7 @@ const SingleCabForm = ({ theme }) => {
     if (!vehicleNo || vehicleNo.length !== 4) {
       newErrors.vehicle = "Enter 4-digit cab number";
     }
+    
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -67,11 +71,12 @@ const SingleCabForm = ({ theme }) => {
 
       const payload = {
         date_time: formattedDate,
-        company_name: selectedProvider?.name || selectedProvider,
+        company_name: isCustom
+          ? customName
+          : selectedProvider?.name || selectedProvider,
         cab_number: vehicleNo,
         type: "cab",
       };
-
 
       setModalType("loading");
 
@@ -98,11 +103,10 @@ const SingleCabForm = ({ theme }) => {
     }
   };
 
-
   return (
     <View style={{ flex: 1, backgroundColor: theme.cardBg }}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{ paddingBottom: 0 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Provider */}
@@ -113,6 +117,15 @@ const SingleCabForm = ({ theme }) => {
           selectedProvider={selectedProvider}
           setSelectedProvider={(val) => {
             setSelectedProvider(val);
+
+            // Handle Custom Selection
+            if (val === "Custom") {
+              setIsCustom(true);
+            } else {
+              setIsCustom(false);
+              setCustomName("");
+            }
+
             if (errors.provider)
               setErrors((prev) => ({ ...prev, provider: null }));
           }}
@@ -120,6 +133,38 @@ const SingleCabForm = ({ theme }) => {
         />
         {errors.provider && (
           <Text style={styles.errorText}>{errors.provider}</Text>
+        )}
+
+        {/* Custom Company Name Input */}
+        {isCustom && (
+          <View style={[styles.card, { backgroundColor: theme.cardBg, marginTop: 10 }]}>
+            <Text style={[styles.label, { color: theme.text }]}>Enter Cab Company</Text>
+
+            <TextInput
+              value={customName}
+              onChangeText={(text) => {
+                setCustomName(text);
+
+                if (errors.custom) {
+                  setErrors((prev) => ({ ...prev, custom: null }));
+                }
+              }}
+              placeholder="Enter company name"
+              placeholderTextColor={theme.textSecondary || "#9CA3AF"}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.inputBg || "#fff",
+                  borderColor: theme.border || "#E5E7EB",
+                  color: theme.text,
+                }
+              ]}
+            />
+
+            {errors.custom && (
+              <Text style={styles.errorText}>{errors.custom}</Text>
+            )}
+          </View>
         )}
 
         {/* Visit Date */}
@@ -152,12 +197,12 @@ const SingleCabForm = ({ theme }) => {
             keyboardType="number-pad"
             maxLength={4}
             placeholder="0000"
-            placeholderTextColor={theme.textSecondary}
+            placeholderTextColor={theme.textSecondary || "#9CA3AF"}
             style={[
               styles.vehicleInput,
               {
-                backgroundColor: theme.inputBg,
-                borderColor: theme.border,
+                backgroundColor: theme.inputBg || "#fff",
+                borderColor: theme.border || "#E5E7EB",
                 color: theme.text,
               },
             ]}
@@ -167,34 +212,6 @@ const SingleCabForm = ({ theme }) => {
           )}
         </View>
 
-        {/* Entries */}
-        {/* <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
-          <Text style={[styles.label, { color: theme.text }]}>
-            Entries Per Day
-          </Text>
-
-          <View style={styles.counterRow}>
-            <TouchableOpacity
-              style={[styles.counterBtn, { borderColor: theme.border }]}
-              onPress={() =>
-                setEntriesPerDay(Math.max(1, entriesPerDay - 1))
-              }
-            >
-              < Ionicons name="remove" size={18} color={theme.primaryBlue} />
-            </TouchableOpacity>
-
-            <Text style={[styles.counterText, { color: theme.text }]}>
-              {entriesPerDay}
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.counterBtn, { borderColor: theme.border }]}
-              onPress={() => setEntriesPerDay(entriesPerDay + 1)}
-            >
-              < Ionicons name="add" size={18} color={theme.primaryBlue} />
-            </TouchableOpacity>
-          </View>
-        </View> */}
       </ScrollView>
 
       {/* Sticky Button */}
@@ -239,6 +256,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 8,
+  },
+
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 14,
   },
 
   vehicleInput: {

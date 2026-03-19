@@ -24,18 +24,43 @@ const LOCAL_IMAGES = {
   delivery: require('../../assets/images/delivery.jpg'),
 };
 
-const VisitorSection = ({ refreshTrigger }) => {
+// --- NEW: Sub-component to handle broken S3 links automatically ---
+const AvatarImage = ({ source, role }) => {
+  const [imgSource, setImgSource] = useState(source);
 
+  const handleError = () => {
+    // If the AWS URL image doesn't exist, fallback to local default images based on role
+    const roleLower = role?.toLowerCase();
+    if (roleLower === 'cab') {
+      setImgSource(LOCAL_IMAGES.cab);
+    } else if (roleLower === 'delivery') {
+      setImgSource(LOCAL_IMAGES.delivery);
+    } else {
+      setImgSource({ uri: DEFAULT_GUEST_IMAGE });
+    }
+  };
+
+  // Reset source if the original source prop changes
+  useEffect(() => {
+    setImgSource(source);
+  }, [source]);
+
+  return (
+    <Image
+      source={imgSource}
+      style={styles.avatar}
+      resizeMode="cover"
+      onError={handleError}
+    />
+  );
+};
+
+const VisitorSection = ({ refreshTrigger }) => {
   const { nightMode, permissions } = usePermissions();
 
-  const permissionsLoaded =
-    permissions !== null && permissions !== undefined;
-
-  const canCreatePass =
-    permissionsLoaded && hasPermission(permissions, "VMS", "C");
-
-  const canReadPass =
-    permissionsLoaded && hasPermission(permissions, "VMS", "R");
+  const permissionsLoaded = permissions !== null && permissions !== undefined;
+  const canCreatePass = permissionsLoaded && hasPermission(permissions, "VMS", "C");
+  const canReadPass = permissionsLoaded && hasPermission(permissions, "VMS", "R");
 
   const [visitors, setVisitors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,43 +68,30 @@ const VisitorSection = ({ refreshTrigger }) => {
 
   const navigation = useNavigation();
 
-  // Avatar Logic
+  // Avatar Logic (Updated to remove "any")
   const getPassAvatar = (pass) => {
-
     const purpose = pass.purpose?.toLowerCase();
-    const name =
-      pass.company_name?.toLowerCase() ||
-      pass.name?.toLowerCase();
+    const name = pass.company_name?.toLowerCase() || pass.name?.toLowerCase();
 
     if (purpose === "cab") {
-
-      if (!name || name === "any") {
+      if (!name) {
         return LOCAL_IMAGES.cab;
       }
-
-      return {
-        uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
-      };
+      return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
     }
 
     if (purpose === "delivery") {
-
-      if (!name || name === "any") {
+      if (!name) {
         return LOCAL_IMAGES.delivery;
       }
-
-      return {
-        uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png`
-      };
+      return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
     }
 
     return { uri: DEFAULT_GUEST_IMAGE };
   };
 
   const fetchTodayArrivals = async () => {
-
     try {
-
       setLoading(true);
 
       const [visitorRes, passRes] = await Promise.all([
@@ -88,7 +100,6 @@ const VisitorSection = ({ refreshTrigger }) => {
       ]);
 
       const visitArray = visitorRes?.data?.visits || [];
-
       const passArray =
         passRes?.data?.passes ||
         passRes?.data?.visits ||
@@ -132,16 +143,11 @@ const VisitorSection = ({ refreshTrigger }) => {
       );
 
       setVisitors(combined);
-
     } catch (error) {
-
       console.error("Error fetching arrivals:", error);
       setVisitors([]);
-
     } finally {
-
       setLoading(false);
-
     }
   };
 
@@ -154,25 +160,13 @@ const VisitorSection = ({ refreshTrigger }) => {
   }, [refreshTrigger]);
 
   const getRoleColor = (role) => {
-
     const roleLower = role?.toLowerCase() || '';
-
     switch (roleLower) {
-
-      case 'guest':
-        return '#9C27B0';
-
-      case 'delivery':
-        return '#FF8C00';
-
-      case 'cab':
-        return '#00C853';
-
-      case 'employee':
-        return '#1976D2';
-
-      default:
-        return '#9C27B0';
+      case 'guest': return '#9C27B0';
+      case 'delivery': return '#FF8C00';
+      case 'cab': return '#00C853';
+      case 'employee': return '#1976D2';
+      default: return '#9C27B0';
     }
   };
 
@@ -188,7 +182,6 @@ const VisitorSection = ({ refreshTrigger }) => {
   if (!canReadPass) return null;
 
   if (loading) {
-
     return (
       <View style={[styles.container, { minHeight: 80, justifyContent: 'center' }]}>
         <ActivityIndicator size="small" color="#3B82F6" />
@@ -197,13 +190,9 @@ const VisitorSection = ({ refreshTrigger }) => {
   }
 
   return (
-
     <View style={styles.container}>
-
       {/* Header */}
-
       <View style={styles.header}>
-
         <View style={styles.headerTitleRow}>
           <Ionicons name="people" size={20} color={theme.textMain} />
           <Text style={[styles.title, { color: theme.textMain }]}>
@@ -219,29 +208,23 @@ const VisitorSection = ({ refreshTrigger }) => {
             <Ionicons name="add" size={28} color={theme.textMain} />
           </TouchableOpacity>
         )}
-
       </View>
 
       <View style={[styles.divider, { backgroundColor: theme.divider }]} />
 
       {visitors.length === 0 ? (
-
         <View style={styles.emptyContainer}>
           <Text style={{ color: theme.textSub, fontSize: 13 }}>
             No arrivals today
           </Text>
         </View>
-
       ) : (
-
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-
           {visitors.map((visitor) => (
-
             <TouchableOpacity
               key={visitor.id}
               style={styles.visitorItem}
@@ -249,27 +232,14 @@ const VisitorSection = ({ refreshTrigger }) => {
               onPress={() =>
                 navigation.navigate('PassDetails', {
                   pass: visitor.originalData,
-                  onGoBack: fetchTodayArrivals, // ✅ ADD THIS
+                  onGoBack: fetchTodayArrivals,
                 })
-
               }
             >
-
               <View style={styles.avatarWrapper}>
-
-                <View
-                  style={[
-                    styles.avatarRing,
-                    { borderColor: theme.ringColor },
-                  ]}
-                >
-
-                  <Image
-                    source={visitor.avatar}
-                    style={styles.avatar}
-                    resizeMode="cover"
-                  />
-
+                <View style={[styles.avatarRing, { borderColor: theme.ringColor }]}>
+                  {/* Replaced standard Image with our fallback-enabled AvatarImage */}
+                  <AvatarImage source={visitor.avatar} role={visitor.role} />
                 </View>
 
                 <View
@@ -285,34 +255,25 @@ const VisitorSection = ({ refreshTrigger }) => {
                     {visitor.role}
                   </Text>
                 </View>
-
               </View>
 
-              <Text
-                style={[styles.name, { color: theme.textMain }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.name, { color: theme.textMain }]} numberOfLines={1}>
                 {visitor.name}
               </Text>
-
             </TouchableOpacity>
-
           ))}
-
         </ScrollView>
-
       )}
 
       <PreApproveModal
         visible={showPreApproveModal}
         nightMode={nightMode}
         onClose={() => setShowPreApproveModal(false)}
-
         onDelivery={() => {
           setShowPreApproveModal(false);
           navigation.navigate('AddVisitor', {
             type: 'delivery',
-            onGoBack: fetchTodayArrivals, // ✅ ADD THIS
+            onGoBack: fetchTodayArrivals,
           });
         }}
         onGuest={() => {
@@ -320,62 +281,44 @@ const VisitorSection = ({ refreshTrigger }) => {
           setTimeout(() =>
             navigation.navigate('AddVisitor', {
               type: 'guest',
-              onGoBack: fetchTodayArrivals, // ✅
+              onGoBack: fetchTodayArrivals,
             })
           );
         }}
-
         onCab={() => {
           setShowPreApproveModal(false);
           setTimeout(() =>
             navigation.navigate('AddVisitor', {
               type: 'cab',
-              onGoBack: fetchTodayArrivals, // ✅
+              onGoBack: fetchTodayArrivals,
             })
           );
         }}
-
-      // onOthers={() => {
-      //   setShowPreApproveModal(false);
-      //   setTimeout(() =>
-      //     navigation.navigate('AddVisitor', {
-      //       type: 'others',
-      //       onGoBack: fetchTodayArrivals, // ✅
-      //     })
-      //   );
-      // }}
       />
-
     </View>
-
   );
 };
 
 const styles = StyleSheet.create({
-
   container: {
     marginHorizontal: 20,
     marginTop: 0,
   },
-
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
   },
-
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-
   title: {
     fontSize: 16,
     fontWeight: '700',
     marginLeft: 10,
   },
-
   addButton: {
     width: 32,
     height: 32,
@@ -383,31 +326,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-
   emptyContainer: {
     paddingTop: 10,
     paddingBottom: 15,
     alignItems: 'center',
   },
-
   scrollContent: {
     paddingBottom: 8,
     paddingRight: 20,
   },
-
   visitorItem: {
     alignItems: 'center',
     width: 60,
     marginRight: 14,
   },
-
   avatarWrapper: {
     position: 'relative',
     alignItems: 'center',
     marginBottom: 8,
   },
-
   avatarRing: {
     width: 46,
     height: 46,
@@ -416,13 +353,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
   },
-
   roleBadge: {
     position: 'absolute',
     bottom: -8,
@@ -433,20 +368,17 @@ const styles = StyleSheet.create({
     minWidth: 40,
     alignItems: 'center',
   },
-
   roleBadgeText: {
     color: '#FFFFFF',
     fontSize: 9,
     fontWeight: '700',
     textTransform: 'capitalize',
   },
-
   name: {
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
   },
-
 });
 
 export default VisitorSection;

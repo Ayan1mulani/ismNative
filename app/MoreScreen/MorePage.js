@@ -308,7 +308,7 @@ const ProfileScreen = () => {
       console.log('Switch error:', error);
       showAlert({
         title: "Error",
-        message: "Unable to check accounts.",
+        message: "No accounts found!",
         buttons: [{ text: "OK" }],
       });
     } finally {
@@ -337,7 +337,7 @@ const ProfileScreen = () => {
       setIsSwitching(true);
 
       // 🔔 Unregister old user push notification
-      await OneSignal.User.pushSubscription.optOut();
+       OneSignal.User.pushSubscription.optOut();
       await UnRegisterOneSignal();
 
       const userInfo = await AsyncStorage.getItem('userInfo');

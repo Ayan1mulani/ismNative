@@ -1,4 +1,4 @@
-import { API_URL2, APP_NAME } from "../app/config/env"
+import { API_URL2, PAYMENT_URL, APP_NAME, SUB_DOMAIN, METER_URL } from "../app/config/env"
 import { ApiCommon } from "./ApiCommon"
 import { Common } from "./Common"
 import { Util } from "./Util"
@@ -6,6 +6,71 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const ismServices = {
 
+  getMeterStatus: async () => {
+    try {
+      const user = await Common.getLoggedInUser();
+
+      const url =
+        `${METER_URL}/v1/society/${user.societyId}/unit/${user.flat_no}/meter` +
+        `?api-token=${user.api_token}` +
+        `&user-id=${user.id}`;
+
+      const headers = await Util.getCommonAuth();
+
+      const res = await ApiCommon.getReq(url, headers);
+
+      if (res?.status === "success") {
+        return res?.data?.status === "UP";
+      }
+
+      return true;
+
+    } catch (error) {
+      console.log("Meter status error:", error);
+      return true;
+    }
+  },
+  getLiveMeterReading: async () => {
+    const user = await Common.getLoggedInUser();
+
+    const url =
+      `${METER_URL}/v1/society/${user.societyId}/unit/${user.flat_no}/livereading` +
+      `?api-token=${user.api_token}` +
+      `&user-id=${user.id}`;
+
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  getPayments: async () => {
+  try {
+    const user = await Common.getLoggedInUser();
+
+    const userObj = {
+      user_id: user.id,
+      group_id: user.role_id,
+      flat_no: user.flat_no,
+      unit_id: user.unit_id,
+      society_id: user.societyId,
+    };
+
+    const encodedUser = encodeURIComponent(JSON.stringify(userObj));
+
+    const url = `${PAYMENT_URL}/v1/society/${user.societyId}/getpayments?api-token=${user.api_token}&user-id=${encodedUser}&flat_no_x=${user.flat_no}`;
+
+    const headers = await Util.getCommonAuth();
+
+    const res = await ApiCommon.getReq(url, headers);
+
+    console.log("Payments API:", res);
+
+    return res;
+
+  } catch (e) {
+    console.log("Payments API Error:", e);
+    return null;
+  }
+},
 
   changePassword: async (payload) => {
     try {
@@ -42,29 +107,117 @@ const ismServices = {
   },
 
 
-  getUserDetails: async () => {
+
+  getMeterReadings: async (pageNo = 1) => {
     try {
+      const user = await Common.getLoggedInUser();
 
-      const url = await ismServices.appendParamsInUrl(
-        `${API_URL2}/userDetail`
-      );
+      const url =
+        `${METER_URL}/v1/society/${user.societyId}/unit/${user.flat_no}/readings` +
+        `?api-token=${user.api_token}` +
+        `&user-id=${user.id}` +
+        `&per_page=20&page_no=${pageNo}`;
 
-      const response = await ApiCommon.getReq(url);
+      const headers = await Util.getCommonAuth();
 
-      console.log("USER DETAILS RESPONSE:", response);
+      return await ApiCommon.getReq(url, headers);
 
-      await AsyncStorage.setItem(
-        "userDetails",
-        JSON.stringify(response)
-      );
+    } catch (error) {
+      console.log("Meter readings error:", error);
+      throw error;
+    }
+  },
+
+
+  getMeterConsumption: async () => {
+    try {
+      const user = await Common.getLoggedInUser();
+
+      const url =
+        `${METER_URL}/v1/society/${user.societyId}/unit/${user.flat_no}/consumption` +
+        `?api-token=${user.api_token}` +
+        `&user-id=${user.id}`;
+
+      const headers = await Util.getCommonAuth();
+
+      return await ApiCommon.getReq(url, headers);
+
+    } catch (error) {
+      console.log("Meter consumption error:", error);
+      throw error;
+    }
+  },
+  makePayment: async (amount, billType, remarks = "") => {
+    try {
+      const user = await Common.getLoggedInUser();
+
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId
+      };
+
+      const rawUser = JSON.stringify(userObj); // 🔥 NOT ENCODED
+
+      let url =
+        `${PAYMENT_URL}/v1/society/${user.societyId}/requestpayment` +
+        `?api-token=${user.api_token}` +
+        `&user-id=${rawUser}` +   // 🔥 FIXED
+        `&sub_domain=${SUB_DOMAIN}` +
+        `&flat_no=${user.flat_no}` +
+        `&amount=${amount}` +
+        `&remarks=${encodeURIComponent(remarks || "")}`;
+
+      if (billType && billType !== 0) {
+        if (billType?.id === "AMENITY_BOOKING") {
+          url += `&bill_type=null&amenity=${billType?.amenity?.booking_id}`;
+        } else {
+          url += `&bill_type=${billType?.id || billType}`;
+        }
+      }
+
+      console.log("✅ FINAL PAYMENT URL:", url);
+
+      return url;
+
+    } catch (error) {
+      console.log("❌ Payment URL Error:", error);
+      throw error;
+    }
+  },
+
+  getBillTypes: async () => {
+    try {
+      const user = await Common.getLoggedInUser();
+
+      const uObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId
+      };
+
+      const url =
+        `${API_URL2}/getBillType/${user.societyId}` +
+        `?api-token=${user.api_token}` +
+        `&user-id=${encodeURIComponent(JSON.stringify(uObj))}`;
+
+      const headers = await Util.getCommonAuth();
+
+      const response = await ApiCommon.getReq(url, headers);
 
       return response;
 
     } catch (error) {
-      console.log("User detail error:", error);
+      console.log("Get Bill Types Error:", error);
       throw error;
     }
   },
+
+
 
   getMyNotifications: async () => {
     const url = await ismServices.appendParamsInUrl(
@@ -78,7 +231,7 @@ const ismServices = {
   // ✅ KEPT: original function used by other pages
   getUserDetails: async () => {
     const user = await Common.getLoggedInUser();
-    console.log(user,"++++++++++=user+++++")
+    console.log(user, "++++++++++=user+++++")
     if (!user) throw new Error("User not logged in");
 
     const uObj = {

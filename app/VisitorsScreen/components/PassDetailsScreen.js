@@ -16,11 +16,46 @@ import { useNavigation } from '@react-navigation/native';
 import StatusModal from '../../components/StatusModal';
 import useAlert from '../../components/UseAlert';
 
-
 const BASE_URL = "https://ism-vms.s3.amazonaws.com/company-logo/";
 const DEFAULT_GUEST_IMAGE =
   "https://app.factech.co.in/user/assets/images/visitor/default-guest.png";
 
+const LOCAL_IMAGES = {
+  cab: require('../../../assets/images/cab.jpg'),
+  delivery: require('../../../assets/images/delivery.jpg'),
+};
+
+// --- NEW: Sub-component to handle broken S3 links automatically ---
+const DetailsAvatar = ({ source, purpose, style }) => {
+  const [imgSource, setImgSource] = useState(source);
+
+  // Update image if the source prop changes
+  useEffect(() => {
+    setImgSource(source);
+  }, [source]);
+
+  const handleError = () => {
+    // If the AWS URL image doesn't exist, fallback to local images based on purpose
+    const purposeLower = purpose?.toLowerCase();
+    if (purposeLower === 'cab') {
+      setImgSource(LOCAL_IMAGES.cab);
+    } else if (purposeLower === 'delivery') {
+      setImgSource(LOCAL_IMAGES.delivery);
+    } else {
+      setImgSource({ uri: DEFAULT_GUEST_IMAGE });
+    }
+  };
+
+  return (
+    <Image
+      source={imgSource}
+      style={style}
+      resizeMode="contain"
+      onError={handleError}
+      alt="pass-logo"
+    />
+  );
+};
 
 const PassDetailsScreen = ({ route }) => {
   const hasChanges = useRef(false);
@@ -28,7 +63,6 @@ const PassDetailsScreen = ({ route }) => {
   const { nightMode } = usePermissions() || { nightMode: false };
   const navigation = useNavigation();
   const onGoBack = route?.params?.onGoBack;
-
 
   const [modalConfig, setModalConfig] = useState({
     visible: false,
@@ -39,11 +73,6 @@ const PassDetailsScreen = ({ route }) => {
 
   // ── STEP 2: destructure showAlert and AlertComponent from the hook ──
   const { showAlert, AlertComponent } = useAlert(nightMode);
-
-  const LOCAL_IMAGES = {
-    cab: require('../../../assets/images/cab.jpg'),
-    delivery: require('../../../assets/images/delivery.jpg'),
-  };
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -88,12 +117,12 @@ const PassDetailsScreen = ({ route }) => {
     const name = pass.company_name?.toLowerCase() || pass.name?.toLowerCase();
 
     if (purpose === "cab") {
-      if (!name || name === "any") return LOCAL_IMAGES.cab;
+      if (!name) return LOCAL_IMAGES.cab;
       return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
     }
 
     if (purpose === "delivery") {
-      if (!name || name === "any") return LOCAL_IMAGES.delivery;
+      if (!name) return LOCAL_IMAGES.delivery;
       return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
     }
 
@@ -207,7 +236,12 @@ const PassDetailsScreen = ({ route }) => {
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Image source={getLogo()} style={styles.logo} resizeMode="contain" />
+            {/* Replaced standard Image with our fallback-enabled DetailsAvatar */}
+            <DetailsAvatar 
+              source={getLogo()} 
+              purpose={pass.purpose} 
+              style={styles.logo} 
+            />
           </View>
 
           {/* Status Badge */}
