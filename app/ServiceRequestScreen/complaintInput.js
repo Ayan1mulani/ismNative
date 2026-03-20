@@ -15,6 +15,7 @@ import CalendarSelector from '../VisitorsScreen/components/Calender';
 import { complaintService } from '../../services/complaintService';
 import BRAND from '../config';
 import AppHeader from '../components/AppHeader';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get('window');
 const PRIMARY = BRAND.COLORS.primary;
@@ -210,7 +211,7 @@ const formatDate = (raw) => {
 const makeTime = (hours, minutes = 0) => {
   const d = new Date();
   d.setHours(hours, minutes, 0, 0);
-  return d;``
+  return d; ``
 };
 
 // ─── Time Picker Modal ────────────────────────────────────────────────────────
@@ -467,13 +468,23 @@ const ComplaintInputScreen = ({ navigation, route }) => {
   useEffect(() => { loadConfig(); }, []);
 
   const loadConfig = async () => {
-    try {
-      const res = await complaintService.getSocietyConfig();
-      if (res?.status === 'success') setConfig(res.data);
-    } catch (error) {
-      console.log('Config Error:', error);
+  try {
+    const data = await AsyncStorage.getItem("SOCIETY_CONFIG");
+
+    if (data) {
+      const parsed = JSON.parse(data);
+
+      setConfig(parsed.data); // ✅ correct
+
+      console.log("✅ Loaded config:", parsed.data);
+    } else {
+      console.log("⚠️ No config found");
     }
-  };
+
+  } catch (error) {
+    console.log("❌ Config Error:", error);
+  }
+};
 
   const handlePriorityChange = (val) => {
     setIsASAP(val);
@@ -768,11 +779,11 @@ const s = StyleSheet.create({
   },
   priorityTxt: { fontSize: 13, fontWeight: '500' },
 
-  scheduleRow: { flexDirection: 'row', gap: 12, marginBottom: 12, alignItems: 'flex-start' , paddingHorizontal:12},
+  scheduleRow: { flexDirection: 'row', gap: 12, marginBottom: 12, alignItems: 'flex-start', paddingHorizontal: 12 },
   timeOutLabel: { fontSize: 11, fontWeight: '600', marginBottom: 6, marginTop: 2 },
   timeBtn: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, height: 47, justifyContent: 'center' },
   timeValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  timeBtnValue: { fontSize: 11, flexShrink: 1 , },
+  timeBtnValue: { fontSize: 11, flexShrink: 1, },
 
   picker: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

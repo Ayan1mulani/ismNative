@@ -19,6 +19,7 @@ import { complaintService } from "../../../services/complaintService";
 import { usePermissions } from "../../../Utils/ConetextApi";
 import AppHeader from "../../components/AppHeader";
 import StatusModal from "../../components/StatusModal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const BRAND_BLUE = "#1996D3";
 const KAV_OFFSET = Platform.OS === "ios" ? 90 : 30;
@@ -44,15 +45,14 @@ const getStatusConfig = (status) =>
     icon: "help-circle-outline",
   };
 
-const formatDate = (dateString) => {
-  if (!dateString || dateString === "0000-00-00") return null;
-  try {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric", month: "short", day: "numeric",
-    });
-  } catch {
-    return dateString;
-  }
+const formatDate = () => {
+  const d = new Date();
+  return d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0") + " " +
+    String(d.getHours()).padStart(2, "0") + ":" +
+    String(d.getMinutes()).padStart(2, "0") + ":" +
+    String(d.getSeconds()).padStart(2, "0");
 };
 
 const InfoRow = ({ label, value, theme }) => {
@@ -73,6 +73,7 @@ const ServiceRequestDetailScreen = () => {
   const { nightMode } = usePermissions();
   const complaint = route.params?.complaint || {};
   const { showAlert, AlertComponent } = useAlert(nightMode);
+  const [societySettings, setSocietySettings] = useState(null);
 
   const scrollRef = useRef(null);
 
@@ -98,6 +99,14 @@ const ServiceRequestDetailScreen = () => {
     : { bg: "#F4F6FA", card: "#fff", text: "#111", sub: "#6B7280", border: "#E5E7EB", inputBg: "#F3F4F6" };
 
   const isClosed = ["Closed", "Resolved", "Completed"].includes(complaint.status);
+  const status = complaint.status?.trim().toLowerCase();
+
+  const canReopen =
+    ["closed", "resolved", "completed"].includes(status) &&
+    societySettings?.data?.reopen_complaint === "1"
+
+  console.log(canReopen, "reopenstatus")
+
   const hasRating = complaint.rating !== null &&
     complaint.rating !== undefined &&
     parseFloat(complaint.rating) > 0;
@@ -121,7 +130,32 @@ const ServiceRequestDetailScreen = () => {
 
   const otp = parsedData?.otp;
 
+  useEffect(() => {
+    loadConfig();
+  }, []);
   useEffect(() => { loadComments(); }, []);
+
+
+  const loadConfig = async () => {
+    try {
+      const data = await AsyncStorage.getItem("SOCIETY_CONFIG");
+
+      if (data) {
+        const parsed = JSON.parse(data);
+
+        setSocietySettings(parsed);
+
+        console.log("✅ Loaded from storage:", parsed);
+        console.log("🔥 reopen_complaint:", parsed?.reopen_complaint);
+      } else {
+        console.log("⚠️ No config found in storage");
+      }
+
+    } catch (e) {
+      console.log("❌ Async load error:", e);
+    }
+  };
+  console.log("FULL SETTINGS:", societySettings);
 
   const loadComments = async () => {
     try {
@@ -163,9 +197,8 @@ const ServiceRequestDetailScreen = () => {
       return;
     }
 
-    setRatingModal(false); // Close rating input
+    setRatingModal(false);
 
-    // Show Loading
     setModalState({
       visible: true,
       type: 'loading',
@@ -174,27 +207,36 @@ const ServiceRequestDetailScreen = () => {
     });
 
     try {
-      const payload = {
-        ...complaint,
-        status: "Closed",
-        rating: String(rating),
-        resident_remarks: feedback,
-      };
-      await complaintService.updateComplaintStatus(payload, "Closed");
+      const res = await
+        complaintService.updateComplaintStatus({
+          id: complaint.id,
+          status: "Closed",
 
-      hasChanges.current = true; // ✅ Mark that changes were made
+          // 🔥 REQUIRED to prevent NULL
+          description: complaint.description,
+          complaint_type: complaint.complaint_type,
+          sub_category: complaint.sub_category,
+          sub_category_id: complaint.sub_category_id,
+          severity: complaint.severity,
 
-      // Show Success
+          // optional
+          rating: rating,
+          resident_remarks: feedback,
+        });
+
+      console.log(res, "complint status")
+
+      hasChanges.current = true;
+
       setModalState({
         visible: true,
         type: 'success',
         title: res?.message || 'Success',
-        subtitle: res?.data || 'Complaint updated successfully',
+        subtitle: res?.message || 'Complaint updated successfully',
       });
 
     } catch (e) {
       console.log(e);
-      // Show Error
       setModalState({
         visible: true,
         type: 'error',
@@ -203,7 +245,6 @@ const ServiceRequestDetailScreen = () => {
       });
     }
   };
-
   // ✅ NEW: Reopen Request Handler
   const handleReopenRequest = async () => {
     showAlert({
@@ -214,7 +255,7 @@ const ServiceRequestDetailScreen = () => {
         {
           text: "Reopen",
           onPress: async () => {
-            // Show Loading
+
             setModalState({
               visible: true,
               type: 'loading',
@@ -223,26 +264,32 @@ const ServiceRequestDetailScreen = () => {
             });
 
             try {
-              const payload = {
-                ...complaint,
-                status: "Reopen",
-              };
-              const res = await complaintService.updateComplaintStatus(payload, "Reopen");
+              const res = await complaintService.updateComplaintStatus({
+                id: complaint.id,
+                status: "Reopen", // ✅ IMPORTANT CHANGE
 
-              console.log('🔄 Complaint reopened successfully, setting hasChanges = true');
-              hasChanges.current = true; // ✅ Mark that changes were made
+                // 🔥 REQUIRED FIELDS (same as close)
+                description: complaint.description,
+                complaint_type: complaint.complaint_type,
+                sub_category: complaint.sub_category,
+                sub_category_id: complaint.sub_category_id,
+                severity: complaint.severity,
+              });
 
-              // Show Success
+              console.log("✅ Reopen response:", res);
+
+              hasChanges.current = true;
+
               setModalState({
                 visible: true,
                 type: 'success',
                 title: res?.message || 'Reopened',
-                subtitle: res?.data || 'Request reopened successfully',
+                subtitle: res?.message || 'Request reopened successfully',
               });
 
             } catch (e) {
               console.log('❌ Reopen error:', e);
-              // Show Error
+
               setModalState({
                 visible: true,
                 type: 'error',
@@ -348,19 +395,21 @@ const ServiceRequestDetailScreen = () => {
             </TouchableOpacity>
           )}
 
-          {/* ✅ NEW: Action Buttons for Closed Complaints */}
           {isClosed && (
             <View style={{ gap: 10 }}>
-              {/* Reopen Button - Always visible for closed complaints */}
-              <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: "#9333EA" }]}
-                onPress={handleReopenRequest}
-              >
-                <Ionicons name="refresh-circle-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.actionBtnText}>Reopen Request</Text>
-              </TouchableOpacity>
 
-              {/* Rating Button - Only if not rated yet */}
+              {/* ✅ Reopen only if allowed */}
+              {canReopen && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: "#9333EA" }]}
+                  onPress={handleReopenRequest}
+                >
+                  <Ionicons name="refresh-circle-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.actionBtnText}>Reopen Request</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* ✅ Rating */}
               {!hasRating && (
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: "#F59E0B" }]}
@@ -486,7 +535,7 @@ const ServiceRequestDetailScreen = () => {
           }
         }}
       />
-    </SafeAreaView>
+    </SafeAreaView >
   );
 };
 

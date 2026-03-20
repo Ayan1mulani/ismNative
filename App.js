@@ -9,12 +9,62 @@ import NavigationPage from "./NavigationPage";
 import BRAND from "./app/config";
 import initializeOneSignal from "./Utils/PushNotifications";
 import { RegisterAppOneSignal } from "./services/oneSignalService";
+import { complaintService } from "./services/complaintService";
 
 
 
 
 export default function App() {
 
+  const loadSocietyConfig = async () => {
+    try {
+      const existing = await AsyncStorage.getItem("SOCIETY_CONFIG");
+
+      if (existing) {
+        try {
+          const parsed = JSON.parse(existing);
+
+          if (parsed && typeof parsed === "object") {
+            console.log("📦 Config already exists, skipping API");
+            return;
+          }
+        } catch (e) {
+          console.log("⚠️ Corrupted config, refetching...");
+        }
+      }
+
+      console.log("🌐 Fetching config from API...");
+
+      const res = await complaintService.getSocietyConfigNew();
+
+      if (res && typeof res === "object") {
+        await AsyncStorage.setItem(
+          "SOCIETY_CONFIG",
+          JSON.stringify(res)
+        );
+
+        console.log("✅ Society config stored:", res);
+      }
+
+    } catch (error) {
+      console.log("❌ Config load error:", error);
+    }
+  };
+
+  useEffect(() => {
+    const initConfig = async () => {
+      const user = await AsyncStorage.getItem("userInfo");
+
+      if (user) {
+        console.log("👤 User found, loading config...");
+        await loadSocietyConfig();
+      } else {
+        console.log("🚫 No user, skipping config");
+      }
+    };
+
+    initConfig();
+  }, []);
   /* -------------------------------------------------------
      INIT ONESIGNAL
   ------------------------------------------------------- */
