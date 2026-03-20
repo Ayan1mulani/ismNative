@@ -219,7 +219,12 @@ const ComplaintStats = ({ theme, nightMode, onSegmentPress, selectedSegment }) =
         <View style={{ marginRight: 16 }}>
           <Svg width={120} height={120} viewBox="-60 -60 120 120">
             {total === 0 ? (
-              <Path d={createArc(0, 360, radius, innerRadius)} fill="#E0E0E0" />
+              <Path d={createArc(0, 359.9, radius, innerRadius)} fill="#E0E0E0" />
+            ) : segments.length === 1 || segments.some(s => s.percentage === 100) ? (
+              <Path
+                d={createArc(0, 359.9, radius, innerRadius)}
+                fill={segments.find(s => s.percentage === 100)?.color || "#ccc"}
+              />
             ) : (
               segments.map((s, i) => {
                 const isSelected = selectedSegment === s.key;

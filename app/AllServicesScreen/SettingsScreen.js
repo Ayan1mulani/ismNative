@@ -10,7 +10,11 @@ import {
   TextInput
 } from "react-native";
 
+
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
+import { checkNotifications, requestNotifications } from 'react-native-permissions';
 import { useNavigation } from "@react-navigation/native";
 import AppHeader from "../components/AppHeader";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,7 +24,7 @@ import StatusModal from "../../app/components/StatusModal";
 
 import { otherServices } from "../../services/otherServices";
 import { ismServices } from "../../services/ismServices";
-
+import { PERMISSIONS, check } from 'react-native-permissions';
 
 const SettingsScreen = () => {
 
@@ -37,6 +41,27 @@ const SettingsScreen = () => {
 
   const [initialData, setInitialData] = useState({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [permissionWarning, setPermissionWarning] = useState(false);
+  const [permissionMessage, setPermissionMessage] = useState("");
+
+
+  const checkPermissions = async () => {
+    const notif = await checkNotificationPermission();
+    const alarm = await checkAlarmPermission();
+
+    if (!notif && !alarm) {
+      setPermissionMessage("Notifications & alarms are OFF");
+      setPermissionWarning(true);
+    } else if (!notif) {
+      setPermissionMessage("Notifications are OFF");
+      setPermissionWarning(true);
+    } else if (!alarm) {
+      setPermissionMessage("Alarms & reminders are OFF");
+      setPermissionWarning(true);
+    } else {
+      setPermissionWarning(false);
+    }
+  };
 
   const [statusModal, setStatusModal] = useState({
     visible: false,
@@ -145,9 +170,46 @@ const SettingsScreen = () => {
     }
   };
 
+  const checkNotificationPermission = async () => {
+    const { status } = await checkNotifications();
+
+    if (status !== "granted") {
+      return false;
+    }
+
+    return true;
+  };
+  const checkAlarmPermission = async () => {
+    try {
+      if (Platform.OS === "android") {
+
+        const permission = PERMISSIONS.ANDROID.SCHEDULE_EXACT_ALARM;
+
+        // ❌ if undefined → skip
+        if (!permission) return true;
+
+        const status = await check(permission);
+
+        return status === "granted";
+      }
+
+      return true;
+    } catch (e) {
+      console.log("Alarm permission error:", e);
+      return true; // don't crash UI
+    }
+  };
+
   useEffect(() => {
     loadUserSettings();
+
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkPermissions();
+    }, [])
+  );
 
   /* ------------------------------
       CHECK FOR UNSAVED CHANGES
@@ -336,6 +398,21 @@ const SettingsScreen = () => {
     <SafeAreaView style={styles.container}>
 
       <AppHeader title="Settings" />
+      {permissionWarning && (
+        <View style={{
+          margin: 15,
+          padding: 12,
+          borderRadius: 10,
+          backgroundColor: "#FEF3C7",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}>
+          <Text style={{ color: "#92400E", flex: 1 }}>
+            {permissionMessage}. Please enable them from system settings 🔔
+          </Text>
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -491,7 +568,7 @@ const SettingsScreen = () => {
 
         <View style={{ height: 40 }} />
 
-        <View style={{ paddingHorizontal: 20, marginTop: 10 }}>
+        {/* <View style={{ paddingHorizontal: 20, marginTop: 10 }}>
           <TouchableOpacity
             style={styles.testBtn}
             onPress={handleTestNotification}
@@ -499,7 +576,7 @@ const SettingsScreen = () => {
             <Ionicons name="notifications" size={18} color="#fff" />
             <Text style={styles.testBtnText}> Test Notification</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
 
       </ScrollView>
 

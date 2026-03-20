@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Linking,
-  Modal,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { usePermissions } from '../../Utils/ConetextApi';
@@ -18,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RefreshControl } from 'react-native';
 import BRAND from '../config';
 import EmptyState from '../components/EmptyState';
+import useAlert from '../components/UseAlert'; // ← import your alert hook
 
 const BillsPage = () => {
   const { nightMode, permissions } = usePermissions();
@@ -38,6 +38,8 @@ const BillsPage = () => {
       iconBg: BRAND.COLORS.iconbg,
       accent: '#1996D3',
       danger: '#DC3545',
+      downloadBtn: '#EFF6FF',
+      downloadText: '#1996D3',
     },
     dark: {
       containerBg: '#0F172A',
@@ -48,6 +50,8 @@ const BillsPage = () => {
       iconBg: '#1E3A5F',
       accent: '#60A5FA',
       danger: '#F87171',
+      downloadBtn: '#1E3A5F',
+      downloadText: '#60A5FA',
     },
   };
 
@@ -56,13 +60,13 @@ const BillsPage = () => {
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [menuVisible, setMenuVisible] = useState(false);
-  const [selectedBill, setSelectedBill] = useState(null);
+
+  // ← useAlert hook (pass nightMode for themed popup)
+  const { showAlert, AlertComponent } = useAlert(nightMode);
 
   const fetchBills = async () => {
     try {
       const response = await otherServices.getBillsByFlat();
-
       if (Array.isArray(response)) {
         setBills(response);
       } else if (Array.isArray(response?.data)) {
@@ -89,11 +93,26 @@ const BillsPage = () => {
     await fetchBills();
   }, []);
 
-  const downloadBill = () => {
-    if (selectedBill?.url) {
-      Linking.openURL(selectedBill.url);
-    }
-    setMenuVisible(false);
+  // ← Show confirmation popup before downloading
+  const handleDownload = (bill) => {
+    showAlert({
+      title: 'Download Bill',
+      message: `Do you want to download bill ${bill.bill_no}?`,
+      buttons: [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Download',
+          onPress: () => {
+            if (bill?.url) {
+              Linking.openURL(bill.url);
+            }
+          },
+        },
+      ],
+    });
   };
 
   const formatDate = (date) => {
@@ -106,12 +125,12 @@ const BillsPage = () => {
     });
   };
 
-  const AmountItem = ({ label, value, theme }) => (
+  const AmountItem = ({ label, value }) => (
     <View style={styles.amountItem}>
-      <Text style={[styles.label, { color: theme.secondaryText }]}>
+      <Text style={[styles.label, { color: currentTheme.secondaryText }]}>
         {label}
       </Text>
-      <Text style={[styles.amount, { color: theme.textColor }]}>
+      <Text style={[styles.amount, { color: currentTheme.textColor }]}>
         ₹{value.toLocaleString()}
       </Text>
     </View>
@@ -125,13 +144,11 @@ const BillsPage = () => {
 
     return (
       <View style={[styles.card, { backgroundColor: currentTheme.cardBg }]}>
+        {/* TOP ROW — Bill No + Download Button */}
         <View style={styles.topRow}>
           <View style={styles.leftPart}>
             <View
-              style={[
-                styles.iconBox,
-                { backgroundColor: currentTheme.iconBg },
-              ]}
+              style={[styles.iconBox, { backgroundColor: currentTheme.iconBg }]}
             >
               <Ionicons
                 name="document-outline"
@@ -141,22 +158,12 @@ const BillsPage = () => {
             </View>
 
             <View style={styles.billInfo}>
-              <Text
-                style={[
-                  styles.billNo,
-                  { color: currentTheme.textColor },
-                ]}
-              >
+              <Text style={[styles.billNo, { color: currentTheme.textColor }]}>
                 {item.bill_no}
               </Text>
 
               <View style={styles.dateRow}>
-                <Text
-                  style={[
-                    styles.date,
-                    { color: currentTheme.secondaryText },
-                  ]}
-                >
+                <Text style={[styles.date, { color: currentTheme.secondaryText }]}>
                   {formatDate(item.bill_date)}
                 </Text>
 
@@ -167,10 +174,7 @@ const BillsPage = () => {
                   ]}
                 >
                   <Text
-                    style={[
-                      styles.dueBadgeText,
-                      { color: currentTheme.danger },
-                    ]}
+                    style={[styles.dueBadgeText, { color: currentTheme.danger }]}
                   >
                     Due: {formatDate(item.bill_due_date)}
                   </Text>
@@ -179,95 +183,61 @@ const BillsPage = () => {
             </View>
           </View>
 
+          {/* ← Direct Download Button (replaces three dots) */}
           <TouchableOpacity
-            onPress={() => {
-              setSelectedBill(item);
-              setMenuVisible(true);
-            }}
-            style={styles.menuBtn}
+            onPress={() => handleDownload(item)}
+            style={[
+              styles.downloadBtn,
+              { backgroundColor: currentTheme.downloadBtn },
+            ]}
+            activeOpacity={0.7}
           >
-            <Ionicons
-              name="ellipsis-vertical"
-              size={20}
-              color={currentTheme.secondaryText}
-            />
+            <Ionicons name="download-outline" size={14} color={currentTheme.downloadText} />
+            <Text style={[styles.downloadBtnText, { color: currentTheme.downloadText }]}>
+              Download
+            </Text>
           </TouchableOpacity>
         </View>
 
+        {/* PERIOD + BALANCE ROW */}
         <View style={styles.periodBalanceRow}>
-          <Text
-            style={[
-              styles.periodText,
-              { color: currentTheme.secondaryText },
-            ]}
-          >
-            {formatDate(item.bill_start_date)} —{' '}
-            {formatDate(item.bill_end_date)}
+          <Text style={[styles.periodText, { color: currentTheme.secondaryText }]}>
+            {formatDate(item.bill_start_date)} — {formatDate(item.bill_end_date)}
           </Text>
 
           <View style={styles.balanceInlineBox}>
             <Text
-              style={[
-                styles.balanceLabelInline,
-                { color: currentTheme.secondaryText },
-              ]}
+              style={[styles.balanceLabelInline, { color: currentTheme.secondaryText }]}
             >
               Balance:
             </Text>
-
             <Text
-              style={[
-                styles.balanceValueInline,
-                { color: BRAND.COLORS.icon },
-              ]}
+              style={[styles.balanceValueInline, { color: BRAND.COLORS.icon }]}
             >
               ₹{balance.toLocaleString()}
             </Text>
           </View>
         </View>
 
-        <View
-          style={[
-            styles.divider,
-            { backgroundColor: currentTheme.borderColor },
-          ]}
-        />
+        <View style={[styles.divider, { backgroundColor: currentTheme.borderColor }]} />
 
+        {/* AMOUNT GRID */}
         <View style={styles.amountGrid}>
-          <AmountItem
-            label="Current"
-            value={current}
-            theme={currentTheme}
-          />
-          <AmountItem label="Tax" value={tax} theme={currentTheme} />
-          <AmountItem
-            label="Arrear"
-            value={arrear}
-            theme={currentTheme}
-          />
+          <AmountItem label="Current" value={current} />
+          <AmountItem label="Tax" value={tax} />
+          <AmountItem label="Arrear" value={arrear} />
         </View>
       </View>
     );
   };
 
+  /* ─── STATES ─── */
+
   if (!permissionsLoaded) {
     return (
-      <View
-        style={[
-          styles.centerContainer,
-          { backgroundColor: currentTheme.containerBg },
-        ]}
-      >
-        <ActivityIndicator
-          size="large"
-          color={currentTheme.accent}
-        />
-        <Text
-          style={{
-            marginTop: 10,
-            color: currentTheme.secondaryText,
-          }}
-        >
+      <View style={[styles.centerContainer, { backgroundColor: currentTheme.containerBg }]}>
+        <ActivityIndicator size="large" color={currentTheme.accent} />
+        <Text style={{ marginTop: 10, color: currentTheme.secondaryText }}>
           Loading...
         </Text>
       </View>
@@ -276,37 +246,12 @@ const BillsPage = () => {
 
   if (!canViewBills) {
     return (
-      <View
-        style={[
-          styles.centerContainer,
-          { backgroundColor: currentTheme.containerBg },
-        ]}
-      >
-        <Ionicons
-          name="lock-closed-outline"
-          size={60}
-          color={currentTheme.secondaryText}
-        />
-        <Text
-          style={{
-            marginTop: 12,
-            fontSize: 16,
-            color: currentTheme.textColor,
-            fontWeight: '600',
-          }}
-        >
+      <View style={[styles.centerContainer, { backgroundColor: currentTheme.containerBg }]}>
+        <Ionicons name="lock-closed-outline" size={60} color={currentTheme.secondaryText} />
+        <Text style={{ marginTop: 12, fontSize: 16, color: currentTheme.textColor, fontWeight: '600' }}>
           Access Restricted
         </Text>
-
-        <Text
-          style={{
-            marginTop: 6,
-            fontSize: 13,
-            color: currentTheme.secondaryText,
-            textAlign: 'center',
-            paddingHorizontal: 40,
-          }}
-        >
+        <Text style={{ marginTop: 6, fontSize: 13, color: currentTheme.secondaryText, textAlign: 'center', paddingHorizontal: 40 }}>
           You do not have permission to view bills.
         </Text>
       </View>
@@ -315,29 +260,19 @@ const BillsPage = () => {
 
   if (loading) {
     return (
-      <View
-        style={[
-          styles.centerContainer,
-          { backgroundColor: currentTheme.containerBg },
-        ]}
-      >
-        <ActivityIndicator
-          size="large"
-          color={currentTheme.accent}
-        />
+      <View style={[styles.centerContainer, { backgroundColor: currentTheme.containerBg }]}>
+        <ActivityIndicator size="large" color={currentTheme.accent} />
       </View>
     );
   }
 
   return (
     <SafeAreaView
-      style={[
-        styles.container,
-        { backgroundColor: currentTheme.containerBg },
-      ]}
+      style={[styles.container, { backgroundColor: currentTheme.containerBg }]}
     >
       <AppHeader title="Bills" />
 
+      {/* ← FlatList handles scrolling natively */}
       <FlatList
         data={bills}
         keyExtractor={(item, index) =>
@@ -346,14 +281,9 @@ const BillsPage = () => {
         renderItem={renderItem}
         contentContainerStyle={
           bills.length === 0
-            ? {
-              flexGrow: 1,
-              paddingTop: 120,
-              paddingHorizontal: 16
-            }
+            ? { flexGrow: 1, paddingTop: 120, paddingHorizontal: 16 }
             : styles.listContent
         }
-
         ListEmptyComponent={() => (
           <EmptyState
             icon="document-outline"
@@ -361,7 +291,7 @@ const BillsPage = () => {
             subtitle=""
             theme={{
               text: currentTheme.textColor,
-              textSecondary: currentTheme.secondaryText
+              textSecondary: currentTheme.secondaryText,
             }}
           />
         )}
@@ -373,101 +303,11 @@ const BillsPage = () => {
             colors={[BRAND.COLORS.primary]}
           />
         }
+        showsVerticalScrollIndicator={false}
       />
 
-      <Modal
-        transparent
-        visible={menuVisible}
-        animationType="none"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPressOut={() => setMenuVisible(false)}
-        >
-          <View
-            style={[
-              styles.bottomSheet,
-              { backgroundColor: currentTheme.cardBg },
-            ]}
-          >
-            <View
-              style={[
-                styles.sheetHandle,
-                { backgroundColor: currentTheme.borderColor },
-              ]}
-            />
-
-            <Text
-              style={[
-                styles.sheetTitle,
-                { color: currentTheme.textColor },
-              ]}
-            >
-              {selectedBill?.bill_no || 'Bill Options'}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.sheetItem}
-              onPress={downloadBill}
-            >
-              <View
-                style={[
-                  styles.sheetIcon,
-                  { backgroundColor: BRAND.COLORS.iconbg },
-                ]}
-              >
-                <Ionicons
-                  name="download"
-                  size={20}
-                  color={BRAND.COLORS.icon}
-                />
-              </View>
-
-              <View style={styles.sheetContent}>
-                <Text
-                  style={[
-                    styles.sheetItemTitle,
-                    { color: currentTheme.textColor },
-                  ]}
-                >
-                  Download Bill
-                </Text>
-
-                <Text
-                  style={[
-                    styles.sheetItemSub,
-                    { color: currentTheme.secondaryText },
-                  ]}
-                >
-                  Save as PDF
-                </Text>
-              </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={currentTheme.secondaryText}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={() => setMenuVisible(false)}
-            >
-              <Text
-                style={[
-                  styles.closeBtnText,
-                  { color: currentTheme.secondaryText },
-                ]}
-              >
-                Close
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {/* ← Alert popup rendered here, always mounted */}
+      <AlertComponent />
     </SafeAreaView>
   );
 };
@@ -486,11 +326,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emptyText: {
-    marginTop: 12,
-    fontSize: 14,
-    fontWeight: '500',
   },
 
   /* CARD */
@@ -558,9 +393,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  menuBtn: {
-    padding: 4,
-    paddingHorizontal: 8,
+  /* ← DOWNLOAD BUTTON (replaces three-dot menu) */
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 8,
+    alignSelf: 'flex-start',
+  },
+
+  downloadBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 
   /* PERIOD + BALANCE ROW */
@@ -576,7 +423,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  /* BALANCE - Inline with amount */
   balanceInlineBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -598,7 +444,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
 
-  /* AMOUNTS GRID - 3 Items */
+  /* AMOUNTS GRID */
   amountGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -620,76 +466,6 @@ const styles = StyleSheet.create({
 
   amount: {
     fontSize: 12,
-    fontWeight: '600',
-  },
-
-  /* MODAL */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'flex-end',
-  },
-
-  bottomSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    paddingBottom: 24,
-  },
-
-  sheetHandle: {
-    width: 36,
-    height: 3,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-
-  sheetTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 14,
-    textAlign: 'center',
-  },
-
-  sheetItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-  },
-
-  sheetIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-
-  sheetContent: {
-    flex: 1,
-  },
-
-  sheetItemTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-
-  sheetItemSub: {
-    fontSize: 11,
-  },
-
-  closeBtn: {
-    marginTop: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-
-  closeBtnText: {
-    fontSize: 14,
     fontWeight: '600',
   },
 });

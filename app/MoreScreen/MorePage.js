@@ -510,7 +510,7 @@ const ProfileScreen = () => {
             onPress={() => setMeterOpen(prev => !prev)}
           >
             <Text style={[styles.sectionTitle, { color: theme.textMain }]}>
-              Meter Details
+              Metre Details
             </Text>
 
             <Ionicons
@@ -526,12 +526,7 @@ const ProfileScreen = () => {
 
               <InfoRow label="Grid Meter No" value={userProfile.grid_meter_no} />
               <InfoRow label="DG Meter No" value={userProfile.dg_meter_no} />
-
-
-
               <InfoRow label="Gas Meter No" value={userProfile.gas_meter_no} />
-
-
               <InfoRow label="Meter Balance" value={userProfile.meter_balance} />
 
 

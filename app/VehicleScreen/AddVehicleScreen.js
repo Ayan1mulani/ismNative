@@ -20,6 +20,7 @@ import StatusModal from "../components/StatusModal";
 
 import { usePermissions } from "../../Utils/ConetextApi";
 import { hasPermission } from "../../Utils/PermissionHelper";
+import AppHeader from "../components/AppHeader";
 
 /* ---------- INPUT COMPONENT ---------- */
 
@@ -166,15 +167,13 @@ const AddVehicleScreen = ({ navigation, route }) => {
       let response;
 
       if (isEdit) {
-        const url = `${API_URL2}/my/vehicle/${vehicle.id}?api-token=${
-          user.api_token
-        }&user-id=${encodeURIComponent(JSON.stringify(userObj))}`;
+        const url = `${API_URL2}/my/vehicle/${vehicle.id}?api-token=${user.api_token
+          }&user-id=${encodeURIComponent(JSON.stringify(userObj))}`;
 
         response = await ApiCommon.postReq(url, payload, headers);
       } else {
-        const url = `${API_URL2}/my/vehicle?api-token=${
-          user.api_token
-        }&user-id=${encodeURIComponent(JSON.stringify(userObj))}`;
+        const url = `${API_URL2}/my/vehicle?api-token=${user.api_token
+          }&user-id=${encodeURIComponent(JSON.stringify(userObj))}`;
 
         response = await ApiCommon.putReq(url, payload, headers);
       }
@@ -190,14 +189,14 @@ const AddVehicleScreen = ({ navigation, route }) => {
         });
 
         setTimeout(() => {
-  setStatusModal((prev) => ({ ...prev, visible: false }));
+          setStatusModal((prev) => ({ ...prev, visible: false }));
 
-  navigation.navigate({
-    name: "MyVehiclesScreen",
-    params: { refresh: true },
-    merge: true,
-  });
-}, 1500);
+          navigation.navigate({
+            name: "MyVehiclesScreen",
+            params: { refresh: true },
+            merge: true,
+          });
+        }, 1500);
       } else {
         setStatusModal({
           visible: true,
@@ -226,15 +225,14 @@ const AddVehicleScreen = ({ navigation, route }) => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
 
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={26} color="#111" />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>
-          {isEdit ? "Update Vehicle" : "Add Vehicle"}
-        </Text>
-      </View>
+      <AppHeader
+        title="Add Vehicle"
+        rightIcon={
+          <TouchableOpacity onPress={() => navigation.navigate("MyVehiclesScreen")}>
+            <Ionicons name="car-outline" size={22} color="#111" />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>

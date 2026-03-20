@@ -172,20 +172,6 @@ useFocusEffect(
             onChangeText={setSearchQuery}
           />
         </View>
-
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            { backgroundColor: showFilters ? theme.primary : theme.searchBg },
-          ]}
-          onPress={() => setShowFilters(!showFilters)}
-        >
-          <Ionicons
-            name="filter"
-            size={20}
-            color={showFilters ? '#fff' : theme.textSecondary}
-          />
-        </TouchableOpacity>
       </View>
 
       <FlatList

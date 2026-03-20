@@ -12,6 +12,7 @@ const AppHeader = ({
   title,
   nightMode = false,
   showBack = true,
+  rightIcon, // ✅ ADDED
 }) => {
   const navigation = useNavigation();
 
@@ -38,7 +39,7 @@ const AppHeader = ({
             onPress={() => navigation.goBack()}
             style={styles.iconBtn}
           >
-            < Ionicons name="arrow-back" size={22} color={theme.text} />
+            <Ionicons name="arrow-back" size={22} color={theme.text} />
           </TouchableOpacity>
         )}
 
@@ -46,9 +47,12 @@ const AppHeader = ({
           {title}
         </Text>
       </View>
-      
 
-    
+      {/* ✅ RIGHT SECTION (NEW) */}
+      <View style={styles.right}>
+        {rightIcon ? rightIcon : <View style={{ width: 24 }} />}
+      </View>
+
     </View>
   );
 };
@@ -67,6 +71,11 @@ const styles = StyleSheet.create({
   left: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  right: { // ✅ ADDED
+    width: 30,
+    alignItems: 'flex-end',
+    marginRight:15
   },
   title: {
     fontSize: 18,

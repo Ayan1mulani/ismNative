@@ -8,9 +8,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
+import sanitizeHtml from "sanitize-html";
 import AppHeader from "../components/AppHeader";
 
 const { height } = Dimensions.get("window");
+
 
 // Wraps raw HTML fragment in a full styled document
 const buildHtml = (bodyContent = "") => `
@@ -112,6 +114,26 @@ const buildHtml = (bodyContent = "") => `
 const NoticeDetailScreen = ({ route }) => {
   const { notice } = route.params;
   const [loading, setLoading] = useState(true);
+  const cleanHtml = sanitizeHtml(notice?.notice || "", {
+    allowedTags: sanitizeHtml.defaults.allowedTags,
+    allowedAttributes: {
+      a: ["href", "name", "target", "rel"],
+      img: ["src", "alt"],
+    },
+    transformTags: {
+      "a": (tagName, attribs) => {
+        return {
+          tagName,
+          attribs: {
+            ...attribs,
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+        };
+      },
+    },
+    allowedSchemes: ["http", "https"],
+  });
 
   const formattedDate = notice.published_at
     ? new Date(notice.published_at).toLocaleDateString("en-IN", {
@@ -148,7 +170,10 @@ const NoticeDetailScreen = ({ route }) => {
 
         <WebView
           originWhitelist={["*"]}
-          source={{ html: buildHtml(notice.notice) }}
+
+          source={{
+            html: buildHtml(cleanHtml || "<p>No content available</p>")
+          }}
           style={styles.webView}
           onLoadEnd={() => setLoading(false)}
           scrollEnabled
@@ -160,25 +185,23 @@ const NoticeDetailScreen = ({ route }) => {
             const url = request.url;
 
             // ✅ Allow safe links only
-            if (
-              url.startsWith("http://") ||
-              url.startsWith("https://") ||
-              url.startsWith("about:blank")
-            ) {
+            if (/^https?:\/\//i.test(url) || url === "about:blank") {
               return true;
             }
-
-            // ❌ Block dangerous protocols
             if (
               url.startsWith("javascript:") ||
-              url.startsWith("data:")
+              url.startsWith("data:") ||
+              url.startsWith("file:") ||
+              url.startsWith("intent:") ||
+              url.startsWith("content:")
             ) {
-              console.log("Blocked malicious URL:", url);
               return false;
             }
 
+
             return false;
           }}
+
         />
       </View>
     </SafeAreaView>

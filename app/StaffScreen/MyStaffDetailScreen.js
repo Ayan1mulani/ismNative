@@ -18,6 +18,7 @@ import { otherServices } from "../../services/otherServices";
 import AppHeader from "../components/AppHeader";
 import BRAND from "../config";
 import StatusModal from "../components/StatusModal";
+import useAlert from "../components/UseAlert"; // adjust path
 
 const COLORS = {
   primary: BRAND.COLORS.primary,
@@ -53,6 +54,8 @@ const MyStaffDetailScreen = ({ route }) => {
   const staffId = staff.staff_id || staff.id;
   const [staffNotification, setStaffNotification] = useState(true);
   const [notifLoading, setNotifLoading] = useState(false);
+  const { showAlert, AlertComponent } = useAlert();
+
 
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState("");
@@ -93,7 +96,7 @@ const MyStaffDetailScreen = ({ route }) => {
 
   }, []);
 
- 
+
   // const toggleStaffNotification = async (value) => {
   //   try {
   //     setNotifLoading(true);
@@ -154,18 +157,23 @@ const MyStaffDetailScreen = ({ route }) => {
       }
     } catch (e) {
       console.error("[MyStaffDetailScreen] Call error:", e);
-      Alert.alert("Error", "Failed to open dialer");
+      showAlert({
+        title: "Error",
+        message: "Cannot make calls on this device",
+        buttons: [{ text: "OK" }],
+      });
     }
   }, []);
 
   const handleRelease = useCallback(() => {
-    Alert.alert(
-      "Release Staff",
-      "Are you sure you want to release this staff?",
-      [
+    showAlert({
+      title: "Release Staff",
+      message: "Are you sure you want to release this staff?",
+      buttons: [
         { text: "Cancel", style: "cancel" },
         {
           text: "Yes",
+          style: "destructive",
           onPress: async () => {
             try {
               setReleasing(true);
@@ -185,20 +193,24 @@ const MyStaffDetailScreen = ({ route }) => {
                 showModal("error", "Error", res?.message || "Unable to release staff");
               }
             } catch (error) {
-              console.error("[MyStaffDetailScreen] release error:", error);
+              console.error("[Release error]:", error);
               showModal("error", "Error", "Failed to release staff");
             } finally {
               setReleasing(false);
             }
           },
         },
-      ]
-    );
+      ],
+    });
   }, [staffId, navigation, showModal, closeModal]);
 
   const handleSubmitRating = useCallback(async () => {
     if (!rating) {
-      Alert.alert("Validation", "Please select a rating before submitting");
+      showAlert({
+        title: "Validation",
+        message: "Please select a rating before submitting",
+        buttons: [{ text: "OK" }],
+      });
       return;
     }
 
@@ -208,11 +220,19 @@ const MyStaffDetailScreen = ({ route }) => {
       const res = await otherServices.addOrUpdateRating(staffId, rating, review);
 
       if (res?.status === "success") {
-        Alert.alert("Success", isEditing ? "Rating updated!" : "Rating submitted!");
+        showAlert({
+          title: "Success",
+          message: isEditing ? "Rating updated!" : "Rating submitted!",
+          buttons: [{ text: "OK" }],
+        });
         setIsEditing(false);
         fetchExistingRating();
       } else {
-        Alert.alert("Error", res?.message || "Failed to submit rating");
+        showAlert({
+          title: "Error",
+          message: res?.message || "Failed to submit rating",
+          buttons: [{ text: "OK" }],
+        });
       }
     } catch (error) {
       console.error("[MyStaffDetailScreen] rating submit error:", error);
@@ -484,6 +504,7 @@ const MyStaffDetailScreen = ({ route }) => {
         subtitle={statusModal.subtitle}
         onClose={closeModal}
       />
+      <AlertComponent />
     </SafeAreaView>
   );
 };

@@ -42,35 +42,65 @@ const ismServices = {
     return res.json();
   },
 
+
+  getPaymentById: async (paymentId) => {
+    try {
+      const user = await Common.getLoggedInUser();
+
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId,
+      };
+
+      const encodedUser = encodeURIComponent(JSON.stringify(userObj));
+
+      const url = `https://pay-api.isocietymanager.com/v1/society/${user.societyId}/getpayments?api-token=${user.api_token}&user-id=${encodedUser}&id=${paymentId}`;
+
+      const headers = await Util.getCommonAuth();
+
+      const res = await ApiCommon.getReq(url, headers);
+
+      console.log("Payment Detail API:", res);
+
+      return res;
+
+    } catch (e) {
+      console.log("Payment Detail Error:", e);
+      return null;
+    }
+  },
   getPayments: async () => {
-  try {
-    const user = await Common.getLoggedInUser();
+    try {
+      const user = await Common.getLoggedInUser();
 
-    const userObj = {
-      user_id: user.id,
-      group_id: user.role_id,
-      flat_no: user.flat_no,
-      unit_id: user.unit_id,
-      society_id: user.societyId,
-    };
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId,
+      };
 
-    const encodedUser = encodeURIComponent(JSON.stringify(userObj));
+      const encodedUser = encodeURIComponent(JSON.stringify(userObj));
 
-    const url = `${PAYMENT_URL}/v1/society/${user.societyId}/getpayments?api-token=${user.api_token}&user-id=${encodedUser}&flat_no_x=${user.flat_no}`;
+      const url = `${PAYMENT_URL}/v1/society/${user.societyId}/getpayments?api-token=${user.api_token}&user-id=${encodedUser}&flat_no_x=${user.flat_no}`;
 
-    const headers = await Util.getCommonAuth();
+      const headers = await Util.getCommonAuth();
 
-    const res = await ApiCommon.getReq(url, headers);
+      const res = await ApiCommon.getReq(url, headers);
 
-    console.log("Payments API:", res);
+      console.log("Payments API:", res);
 
-    return res;
+      return res;
 
-  } catch (e) {
-    console.log("Payments API Error:", e);
-    return null;
-  }
-},
+    } catch (e) {
+      console.log("Payments API Error:", e);
+      return null;
+    }
+  },
 
   changePassword: async (payload) => {
     try {
