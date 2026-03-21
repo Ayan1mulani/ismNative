@@ -1,5 +1,4 @@
-// ServiceRequestTabs.js
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,8 +8,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { usePermissions } from '../../Utils/ConetextApi';
 import { hasPermission } from '../../Utils/PermissionHelper';
 import ComplaintListScreen from './ServiceRequestPage';
@@ -20,62 +20,109 @@ import BRAND from '../config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-
-const TABS = ['Open', 'Closed', 'All'];
+const TABS     = ['Open', 'Closed', 'All'];
+const PER_PAGE = 15;
 
 const COLORS = {
   primary: BRAND.COLORS.primary,
   light: {
-    background: '#FFFFFF',
-    surface: '#F8F9FA',
-    text: '#111827',
+    background:    '#FFFFFF',
+    surface:       '#F8F9FA',
+    text:          '#111827',
     textSecondary: '#6C757D',
   },
   dark: {
-    background: '#121212',
-    surface: '#1E1E1E',
-    text: '#FFFFFF',
+    background:    '#121212',
+    surface:       '#1E1E1E',
+    text:          '#FFFFFF',
     textSecondary: '#9E9E9E',
   },
 };
 
-const REQUEST_STATUS = {
-  OPEN: 'Open',
-  CLOSED: 'Closed',
-  ALL: 'All',
-};
+const OPEN_STATUSES   = ['open', 'wip', 'in progress', 'pending', 'reopen', 'reopened'];
+const CLOSED_STATUSES = ['closed', 'resolved', 'completed'];
+
+const normalizeStatus = (status) => (status || '').trim().toLowerCase();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LazyTabPage — only mounts a tab's content after the user first visits it.
+// Avoids rendering all 3 lists on initial load.
+// ─────────────────────────────────────────────────────────────────────────────
+const LazyTabPage = React.memo(({ tabIndex, activeIndex, backgroundColor, children }) => {
+  const hasBeenActive = useRef(tabIndex === 0); // first tab visible immediately
+
+  if (activeIndex === tabIndex) {
+    hasBeenActive.current = true;
+  }
+
+  if (!hasBeenActive.current) {
+    // Placeholder — same size, zero cost
+    return <View style={{ width: SCREEN_WIDTH, flex: 1, backgroundColor }} />;
+  }
+
+  return (
+    <View style={{ width: SCREEN_WIDTH, flex: 1, backgroundColor }}>
+      {children}
+    </View>
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const ServiceRequestTabs = () => {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
-  const [requests, setRequests] = useState({ open: [], closed: [], all: [] });
-  const [isLoading, setIsLoading] = useState(true);
-  const [statsVisible, setStatsVisible] = useState(false);
+  const [allComplaints, setAllComplaints]   = useState([]);
+  const [currentPage, setCurrentPage]       = useState(1);
+  const [hasMore, setHasMore]               = useState(true);
+  const [isLoading, setIsLoading]           = useState(true);
+  const [isLoadingMore, setIsLoadingMore]   = useState(false);
+  const isFetchingRef                       = useRef(false);
 
   const scrollViewRef = useRef(null);
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const scrollX       = useRef(new Animated.Value(0)).current;
 
   const { nightMode, permissions } = usePermissions();
   const navigation = useNavigation();
   const theme = nightMode ? COLORS.dark : COLORS.light;
 
   // ── Permission flags ──────────────────────────────────────────────────────
-  const permissionsLoaded = permissions !== null && permissions !== undefined;
-  const canViewComplaints = permissionsLoaded && hasPermission(permissions, 'COM', 'R');
+  const permissionsLoaded  = permissions !== null && permissions !== undefined;
+  const canViewComplaints  = permissionsLoaded && hasPermission(permissions, 'COM', 'R');
   const canCreateComplaint = permissionsLoaded && hasPermission(permissions, 'COM', 'C');
+  const canReopen          = permissionsLoaded && hasPermission(permissions, 'COM', 'REOPEN');
 
+  // ── Memoized buckets — only recompute when master list changes ────────────
+  const requests = useMemo(() => ({
+    open:   allComplaints.filter(i => OPEN_STATUSES.includes(normalizeStatus(i.status))),
+    closed: allComplaints.filter(i => CLOSED_STATUSES.includes(normalizeStatus(i.status))),
+    all:    allComplaints,
+  }), [allComplaints]);
 
-  const complaintStats = {
-    open: requests.open.length,
-    closed: requests.closed.length,
-    pending: requests.all.filter(item =>
-      ['Pending', 'WIP', 'In Progress'].includes(item.status)
+  // ── Memoized stats ────────────────────────────────────────────────────────
+  const complaintStats = useMemo(() => ({
+    open:    allComplaints.filter(i => normalizeStatus(i.status) === 'open').length,
+    closed:  allComplaints.filter(i => CLOSED_STATUSES.includes(normalizeStatus(i.status))).length,
+    pending: allComplaints.filter(i =>
+      ['pending', 'wip', 'in progress'].includes(normalizeStatus(i.status))
     ).length,
-    reopen: requests.all.filter(item =>
-      ['Reopen', 'Reopened'].includes(item.status)
+    reopen:  allComplaints.filter(i =>
+      ['reopen', 'reopened'].includes(normalizeStatus(i.status))
     ).length,
-  };
+  }), [allComplaints]);
 
-  // ── Loading state: permissions not yet fetched ────────────────────────────
+  // ── Stable tab→data map ───────────────────────────────────────────────────
+  const tabData = useMemo(() => ({
+    Open:   requests.open,
+    Closed: requests.closed,
+    All:    requests.all,
+  }), [requests]);
+
+  // ── Initial load ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (canViewComplaints) fetchServiceRequests(1, true);
+  }, [canViewComplaints]);
+
+  // ── Conditional renders AFTER all hooks ──────────────────────────────────
   if (!permissionsLoaded) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
@@ -85,84 +132,104 @@ const ServiceRequestTabs = () => {
     );
   }
 
-  // ── Access restricted: no R permission ─────────────────────────────────
   if (!canViewComplaints) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <Ionicons name="lock-closed-outline" size={64} color={theme.textSecondary} />
         <Text style={[styles.restrictedTitle, { color: theme.text }]}>Access Restricted</Text>
         <Text style={[styles.restrictedSub, { color: theme.textSecondary }]}>
-          You do not have permission to view service requests.{'\n'}Please contact your administrator.
+          You do not have permission to view service requests.{'\n'}
+          Please contact your administrator.
         </Text>
       </View>
     );
   }
 
-  // ✅ UPDATED: Initial load only (when screen first mounts)
+  // ── Core fetch ────────────────────────────────────────────────────────────
+  const fetchServiceRequests = async (page = 1, reset = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
 
-
-  // ✅ UPDATED: Conditional refresh - only when needsRefresh flag is set
-  useEffect(() => {
-    fetchServiceRequests();
-  }, []);
-  const fetchServiceRequests = async () => {
     try {
-      setIsLoading(true);
-      const res = await complaintService.getMyComplaints();
-      const allData = res.data || [];
-      console.log("res data ", allData);
+      reset ? setIsLoading(true) : setIsLoadingMore(true);
 
-      const openData = allData.filter((item) =>
-        ['Open', 'WIP', 'In Progress', 'Pending', 'Reopen', 'Reopened'].includes(item.status)
-      );
-      const closedData = allData.filter((item) =>
-        ['Closed', 'Resolved', 'Completed'].includes(item.status)
-      );
+      const res      = await complaintService.getMyComplaints({ page, perPage: PER_PAGE });
+      let pageData   = Array.isArray(res?.data) ? res.data : [];
 
-      setRequests({ open: openData, closed: closedData, all: allData });
-    } catch (error) {
-      console.error('Failed to fetch service requests:', error);
+      if (pageData.length === 0 && res?.metadata?.count > 0 && page === 1) {
+        const retry = await complaintService.getMyComplaints({ page: 1, perPage: PER_PAGE });
+        pageData    = Array.isArray(retry?.data) ? retry.data : [];
+      }
+
+      const cleaned = pageData.map((item) => {
+        let parsedData = {};
+        try { parsedData = item?.data ? JSON.parse(item.data) : {}; } catch (_) {}
+        return {
+          ...item,
+          status:       normalizeStatus(item.status),
+          rawStatus:    item?.status || '',
+          sub_category: item?.sub_category || 'No Sub Category',
+          parsedData,
+        };
+      });
+
+      const totalCount    = res?.metadata?.count ?? res?.metadata?.total ?? null;
+      const fetchedSoFar  = reset
+        ? cleaned.length
+        : (allComplaints.length + cleaned.length);
+      const moreAvailable =
+        cleaned.length === PER_PAGE &&
+        (totalCount === null || fetchedSoFar < totalCount);
+
+      setHasMore(moreAvailable);
+      setCurrentPage(page);
+
+      if (reset) {
+        setAllComplaints(cleaned);
+      } else {
+        setAllComplaints(prev => {
+          const existingIds = new Set(prev.map(i => i.id ?? i.com_no));
+          const newItems    = cleaned.filter(i => !existingIds.has(i.id ?? i.com_no));
+          return [...prev, ...newItems];
+        });
+      }
+    } catch (err) {
+      console.error('❌ fetchServiceRequests:', err);
+      if (reset) setAllComplaints([]);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
+      isFetchingRef.current = false;
     }
   };
 
-  const getCurrentRequests = (tabName) => {
-    switch (tabName) {
-      case REQUEST_STATUS.OPEN: return requests.open;
-      case REQUEST_STATUS.CLOSED: return requests.closed;
-      case REQUEST_STATUS.ALL: return requests.all;
-      default: return [];
-    }
-  };
+  // ── Stable callbacks — won't cause child re-renders ──────────────────────
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || isLoadingMore || isLoading) return;
+    fetchServiceRequests(currentPage + 1, false);
+  }, [hasMore, isLoadingMore, isLoading, currentPage]);
 
-  const handleAddRequest = () => {
-    navigation.navigate('CategorySelection');
-  };
+  const handleRefresh = useCallback(() => {
+    setHasMore(true);
+    fetchServiceRequests(1, true);
+  }, []);
 
-  const renderPage = (tabName) => (
-    <View style={[styles.page, { backgroundColor: theme.background }]}>
-      <ComplaintListScreen
-        nightMode={nightMode}
-        status={tabName}
-        complaints={getCurrentRequests(tabName)}
-        isLoading={isLoading}
-        onRefresh={fetchServiceRequests}
-        complaintStats={complaintStats}
-        showStats={tabName === REQUEST_STATUS.ALL}
-      />
-    </View>
-  );
+  const handleTabPress = useCallback((index) => {
+    setActiveTabIndex(index);
+    scrollViewRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+  }, []);
+
+  const handleMomentumScrollEnd = useCallback((e) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    setActiveTabIndex(index);
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <SlidingTabs
         tabs={TABS}
         activeIndex={activeTabIndex}
-        onTabPress={(index) => {
-          setActiveTabIndex(index);
-          scrollViewRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
-        }}
+        onTabPress={handleTabPress}
         scrollX={scrollX}
       />
 
@@ -174,33 +241,44 @@ const ServiceRequestTabs = () => {
         overScrollMode="never"
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
-        onMomentumScrollEnd={(event) => {
-          const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-          setActiveTabIndex(index);
-        }}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
           { useNativeDriver: false }
         )}
       >
-        {TABS.map((tab) => (
-          <View key={tab} style={{ width: SCREEN_WIDTH }}>
-            {renderPage(tab)}
-          </View>
+        {TABS.map((tab, index) => (
+          <LazyTabPage
+            key={tab}
+            tabIndex={index}
+            activeIndex={activeTabIndex}
+            backgroundColor={theme.background}
+          >
+            {/* ComplaintListScreen is React.memo'd — won't re-render unless its props change */}
+            <ComplaintListScreen
+              nightMode={nightMode}
+              status={tab}
+              complaints={tabData[tab]}
+              isLoading={isLoading}
+              isLoadingMore={isLoadingMore}
+              hasMore={hasMore}
+              onRefresh={handleRefresh}
+              onLoadMore={handleLoadMore}
+              complaintStats={complaintStats}
+              showStats={tab === 'All'}
+              canReopen={canReopen}
+            />
+          </LazyTabPage>
         ))}
       </Animated.ScrollView>
 
-      {/* FAB — only shown if user has CREATE permission */}
       {canCreateComplaint && (
         <TouchableOpacity
           style={[
             styles.fab,
-            {
-              backgroundColor: COLORS.primary,
-              shadowColor: nightMode ? '#000' : COLORS.primary,
-            },
+            { backgroundColor: COLORS.primary, shadowColor: nightMode ? '#000' : COLORS.primary },
           ]}
-          onPress={handleAddRequest}
+          onPress={() => navigation.navigate('CategorySelection')}
           activeOpacity={0.8}
         >
           <Ionicons name="add" size={28} color="#FFFFFF" />
@@ -213,42 +291,27 @@ const ServiceRequestTabs = () => {
 export default ServiceRequestTabs;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  page: {
-    width: SCREEN_WIDTH,
-    flex: 1,
-  },
+  container:       { flex: 1 },
   fab: {
-    position: 'absolute',
-    bottom: 110,
-    right: 30,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    position:       'absolute',
+    bottom:         110,
+    right:          30,
+    width:          56,
+    height:         56,
+    borderRadius:   28,
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    alignItems:     'center',
+    shadowOffset:   { width: 0, height: 4 },
+    shadowOpacity:  0.3,
+    shadowRadius:   8,
+    elevation:      8,
   },
   centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    flex:              1,
+    justifyContent:    'center',
+    alignItems:        'center',
     paddingHorizontal: 32,
   },
-  restrictedTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 16,
-  },
-  restrictedSub: {
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
-  },
+  restrictedTitle: { fontSize: 18, fontWeight: '600', marginTop: 16 },
+  restrictedSub:   { fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 20 },
 });

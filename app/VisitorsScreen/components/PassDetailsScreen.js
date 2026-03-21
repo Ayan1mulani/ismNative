@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  Animated,           // ← Alert import REMOVED
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePermissions } from '../../../Utils/ConetextApi';
@@ -16,212 +16,196 @@ import { useNavigation } from '@react-navigation/native';
 import StatusModal from '../../components/StatusModal';
 import useAlert from '../../components/UseAlert';
 
-const BASE_URL = "https://ism-vms.s3.amazonaws.com/company-logo/";
-const DEFAULT_GUEST_IMAGE =
-  "https://app.factech.co.in/user/assets/images/visitor/default-guest.png";
+const BASE_URL          = "https://ism-vms.s3.amazonaws.com/company-logo/";
+const DEFAULT_GUEST_URI = "https://app.factech.co.in/user/assets/images/visitor/default-guest.png";
 
 const LOCAL_IMAGES = {
-  cab: require('../../../assets/images/cab.jpg'),
+  cab:      require('../../../assets/images/cab.jpg'),
   delivery: require('../../../assets/images/delivery.jpg'),
 };
 
-// --- NEW: Sub-component to handle broken S3 links automatically ---
-const DetailsAvatar = ({ source, purpose, style }) => {
-  const [imgSource, setImgSource] = useState(source);
+// ─────────────────────────────────────────────────────────────────────────────
+// getLogoSource — pure function, returns STABLE primitives
+//
+// BUG (old): getLogo() returned `{ uri: "..." }` (new object) on every call.
+// DetailsAvatar's useEffect watched `source` by reference → fired every render
+// → setState → re-render → new object → fired again = infinite loop.
+//
+// FIX: return a URI string or stable require() number so PassAvatar can
+// compare by value (primitive), not by object identity.
+// ─────────────────────────────────────────────────────────────────────────────
+const getLogoSource = (pass) => {
+  const purpose = (pass.purpose || '').toLowerCase();
+  const name    = (pass.company_name || pass.name || '').toLowerCase();
 
-  // Update image if the source prop changes
+  if (purpose === 'cab') {
+    if (!name) return LOCAL_IMAGES.cab;                          // stable number
+    return `${BASE_URL}${name.replace(/\s+/g, '-')}.png`;       // stable string
+  }
+
+  if (purpose === 'delivery') {
+    if (!name) return LOCAL_IMAGES.delivery;                     // stable number
+    return `${BASE_URL}${name.replace(/\s+/g, '-')}.png`;       // stable string
+  }
+
+  return DEFAULT_GUEST_URI;                                      // stable string
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DetailsAvatar — receives a URI string OR require() number.
+// Compares by value so useEffect only fires when the image actually changes.
+// ─────────────────────────────────────────────────────────────────────────────
+const DetailsAvatar = memo(({ source, purpose, style }) => {
+  const isRemote = typeof source === 'string';
+  const [imgSrc, setImgSrc] = useState(
+    isRemote ? { uri: source } : source
+  );
+
+  // useRef tracks previous value so we skip unnecessary setState calls
+  const prevSource = useRef(source);
   useEffect(() => {
-    setImgSource(source);
-  }, [source]);
+    if (prevSource.current === source) return;   // same primitive → skip
+    prevSource.current = source;
+    setImgSrc(isRemote ? { uri: source } : source);
+  }, [source]);                                  // safe: source is a primitive
 
-  const handleError = () => {
-    // If the AWS URL image doesn't exist, fallback to local images based on purpose
-    const purposeLower = purpose?.toLowerCase();
-    if (purposeLower === 'cab') {
-      setImgSource(LOCAL_IMAGES.cab);
-    } else if (purposeLower === 'delivery') {
-      setImgSource(LOCAL_IMAGES.delivery);
-    } else {
-      setImgSource({ uri: DEFAULT_GUEST_IMAGE });
-    }
-  };
+  const handleError = useCallback(() => {
+    const p = (purpose || '').toLowerCase();
+    if      (p === 'cab')      setImgSrc(LOCAL_IMAGES.cab);
+    else if (p === 'delivery') setImgSrc(LOCAL_IMAGES.delivery);
+    else                       setImgSrc({ uri: DEFAULT_GUEST_URI });
+  }, [purpose]);
 
   return (
     <Image
-      source={imgSource}
+      source={imgSrc}
       style={style}
       resizeMode="contain"
       onError={handleError}
-      alt="pass-logo"
     />
   );
-};
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable info row — memo so it won't re-render unless its own props change
+// ─────────────────────────────────────────────────────────────────────────────
+const InfoRow = memo(({ label, value, isLast, theme }) => (
+  <>
+    <View style={styles.infoRow}>
+      <Text style={[styles.infoLabel, { color: theme.subText }]}>{label}</Text>
+      <Text
+        style={[styles.infoValue, { color: theme.text }]}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+      >
+        {value}
+      </Text>
+    </View>
+    {!isLast && <View style={[styles.rowDivider, { backgroundColor: theme.border }]} />}
+  </>
+));
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const PassDetailsScreen = ({ route }) => {
   const hasChanges = useRef(false);
-  const pass = route?.params?.pass || {};
-  const { nightMode } = usePermissions() || { nightMode: false };
-  const navigation = useNavigation();
-  const onGoBack = route?.params?.onGoBack;
+  const pass       = route?.params?.pass || {};
+  const onGoBack   = route?.params?.onGoBack;
 
-  const [modalConfig, setModalConfig] = useState({
-    visible: false,
-    type: "loading",
-    title: "",
-    subtitle: "",
-  });
-
-  // ── STEP 2: destructure showAlert and AlertComponent from the hook ──
+  const { nightMode }             = usePermissions() || { nightMode: false };
+  const navigation                = useNavigation();
   const { showAlert, AlertComponent } = useAlert(nightMode);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [modalConfig, setModalConfig] = useState({
+    visible: false, type: 'loading', title: '', subtitle: '',
+  });
+
+  // ── Theme (memoized so object reference is stable between renders) ────────
+  const theme = useMemo(() => ({
+    background: nightMode ? '#121212' : '#F4F6F9',
+    card:       nightMode ? '#1E1E1E' : '#FFFFFF',
+    text:       nightMode ? '#FFFFFF' : '#111827',
+    subText:    nightMode ? '#9CA3AF' : '#6B7280',
+    border:     nightMode ? '#2C2C2C' : '#E5E7EB',
+  }), [nightMode]);
+
+  // ── Logo source (memoized — only recomputes if pass changes) ─────────────
+  // BUG (old): getLogo() called inline → new object every render
+  const logoSource = useMemo(() => getLogoSource(pass), [pass.purpose, pass.company_name, pass.name]);
+
+  // ── Entry animation ───────────────────────────────────────────────────────
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      })
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 50, friction: 7, useNativeDriver: true }),
     ]).start();
   }, []);
 
-  const theme = {
-    background: nightMode ? '#121212' : '#F4F6F9',
-    card: nightMode ? '#1E1E1E' : '#FFFFFF',
-    text: nightMode ? '#FFFFFF' : '#111827',
-    subText: nightMode ? '#9CA3AF' : '#6B7280',
-    border: nightMode ? '#2C2C2C' : '#E5E7EB',
-  };
+  // ── Status ────────────────────────────────────────────────────────────────
+  const status = useMemo(() => {
+    const s = String(pass.status);
+    if (s === '0') return { label: 'ACTIVE',   color: '#34C759' };
+    if (s === '1') return { label: 'INACTIVE', color: '#EF4444' };
+    return            { label: 'PENDING',  color: '#F59E0B' };
+  }, [pass.status]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-GB');
-  };
-
-  const getStatus = () => {
-    if (String(pass.status) === "0") return { label: "ACTIVE", color: "#34C759" };
-    if (String(pass.status) === "1") return { label: "INACTIVE", color: "#EF4444" };
-    return { label: "PENDING", color: "#F59E0B" };
-  };
-
-  const getLogo = () => {
-    const purpose = pass.purpose?.toLowerCase();
-    const name = pass.company_name?.toLowerCase() || pass.name?.toLowerCase();
-
-    if (purpose === "cab") {
-      if (!name) return LOCAL_IMAGES.cab;
-      return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
-    }
-
-    if (purpose === "delivery") {
-      if (!name) return LOCAL_IMAGES.delivery;
-      return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
-    }
-
-    return { uri: DEFAULT_GUEST_IMAGE };
-  };
-
-  // ── STEP 3: replace Alert.alert() with showAlert() ──────────────────
-  const handleDelete = () => {
+  // ── Delete handler (stable reference) ────────────────────────────────────
+  const handleDelete = useCallback(() => {
     showAlert({
-      title: "Delete Pass",
-      message: "Are you sure you want to delete this pass? This cannot be undone.",
+      title:   'Delete Pass',
+      message: 'Are you sure you want to delete this pass? This cannot be undone.',
       buttons: [
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Cancel",
-          style: "cancel",
-          // no onPress needed for cancel
-        },
-        {
-          text: "Delete",
-          style: "destructive",
+          text:  'Delete',
+          style: 'destructive',
           onPress: async () => {
             try {
-              setModalConfig({
-                visible: true,
-                type: "loading",
-                title: "Deleting Pass",
-                subtitle: "Please wait...",
-              });
+              setModalConfig({ visible: true, type: 'loading', title: 'Deleting Pass', subtitle: 'Please wait...' });
 
               const res = await visitorServices.cancelPass(pass.id);
 
-              if (res?.status === "success") {
-                hasChanges.current = true; // ✅ VERY IMPORTANT
-                setModalConfig({
-                  visible: true,
-                  type: "success",
-                  title: "Deleted!",
-                  subtitle: "The pass has been removed.",
-                });
+              if (res?.status === 'success') {
+                hasChanges.current = true;
+                setModalConfig({ visible: true, type: 'success', title: 'Deleted!', subtitle: 'The pass has been removed.' });
 
                 setTimeout(() => {
-                  setModalConfig((prev) => ({ ...prev, visible: false }));
-
-                  if (hasChanges.current && onGoBack) {
-                    onGoBack(); // ✅ only when delete happened
-                  }
-
+                  setModalConfig(prev => ({ ...prev, visible: false }));
+                  if (hasChanges.current && onGoBack) onGoBack();
                   navigation.goBack();
                 }, 1500);
-
               } else {
-                setModalConfig({
-                  visible: true,
-                  type: "error",
-                  title: "Failed to delete",
-                  subtitle: res?.message || "Could not remove this pass.",
-                });
+                setModalConfig({ visible: true, type: 'error', title: 'Failed to delete', subtitle: res?.message || 'Could not remove this pass.' });
               }
-            } catch (error) {
-              setModalConfig({
-                visible: true,
-                type: "error",
-                title: "Error",
-                subtitle: "Something went wrong. Please check your connection.",
-              });
+            } catch {
+              setModalConfig({ visible: true, type: 'error', title: 'Error', subtitle: 'Something went wrong. Please check your connection.' });
             }
           },
         },
       ],
     });
-  };
-  // ────────────────────────────────────────────────────────────────────
+  }, [pass.id, onGoBack, showAlert, navigation]);
 
-  const status = getStatus();
-  const isCab = pass.purpose?.toLowerCase() === "cab";
-  const isGuest = pass.purpose?.toLowerCase() === "guest";
-  const validMobile = !!pass.mobile && pass.mobile !== 0 && pass.mobile !== "0";
+  const formatDate = useCallback((ds) => {
+    if (!ds) return '-';
+    return new Date(ds).toLocaleDateString('en-GB');
+  }, []);
 
   if (!pass?.id) return null;
 
-  // Reusable row component
-  const InfoRow = ({ label, value, isLast = false }) => (
-    <>
-      <View style={styles.infoRow}>
-        <Text style={[styles.infoLabel, { color: theme.subText }]}>{label}</Text>
-        <Text style={[styles.infoValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
-          {value}
-        </Text>
-      </View>
-      {!isLast && <View style={[styles.rowDivider, { backgroundColor: theme.border }]} />}
-    </>
-  );
+  const isCab        = (pass.purpose || '').toLowerCase() === 'cab';
+  const isGuest      = (pass.purpose || '').toLowerCase() === 'guest';
+  const validMobile  = !!pass.mobile && pass.mobile !== 0 && pass.mobile !== '0';
 
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.background }}
       edges={['top', 'left', 'right']}
     >
-      <AppHeader title="Pass Details" nightMode={nightMode} showBack={true} />
+      <AppHeader title="Pass Details" nightMode={nightMode} showBack />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
         <Animated.View
@@ -229,59 +213,54 @@ const PassDetailsScreen = ({ route }) => {
             styles.card,
             {
               backgroundColor: theme.card,
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              opacity:   fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
-            {/* Replaced standard Image with our fallback-enabled DetailsAvatar */}
-            <DetailsAvatar 
-              source={getLogo()} 
-              purpose={pass.purpose} 
-              style={styles.logo} 
-            />
+            <DetailsAvatar source={logoSource} purpose={pass.purpose} style={styles.logo} />
           </View>
 
-          {/* Status Badge */}
+          {/* Status badge */}
           <View style={[styles.statusBadge, { backgroundColor: `${status.color}15` }]}>
-            <Text style={[styles.statusText, { color: status.color }]}>
-              {status.label}
-            </Text>
+            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
           </View>
 
-          {/* Info rows grouped box */}
+          {/* Info rows */}
           <View style={[styles.infoBox, { borderColor: theme.border }]}>
             <InfoRow
-              label={isGuest ? "Visitor Name" : "Company Name"}
-              value={pass.company_name || pass.name || "-"}
+              label={isGuest ? 'Visitor Name' : 'Company Name'}
+              value={pass.company_name || pass.name || '-'}
+              theme={theme}
             />
-
             {validMobile && (
-              <InfoRow label="Phone" value={String(pass.mobile)} />
+              <InfoRow label="Phone" value={String(pass.mobile)} theme={theme} />
             )}
-
             {isGuest && pass.pass_no && (
-              <InfoRow label="Pass No." value={pass.pass_no} />
+              <InfoRow label="Pass No." value={pass.pass_no} theme={theme} />
             )}
-
             <InfoRow
               label="Visit Date"
-              value={pass?.date_time ? formatDate(pass.date_time) : "-"}
-              isLast={true}
+              value={pass.date_time ? formatDate(pass.date_time) : '-'}
+              isLast
+              theme={theme}
             />
           </View>
 
-          {/* Cab Box */}
+          {/* Cab number box */}
           {isCab && pass.pass_no && (
-            <View style={[styles.cabBox, { backgroundColor: nightMode ? '#2C2C2C' : '#F3F4F6' }]}>
+            <View style={[
+              styles.cabBox,
+              { backgroundColor: nightMode ? '#2C2C2C' : '#F3F4F6' },
+            ]}>
               <Text style={[styles.cabLabel, { color: theme.subText }]}>Cab No.</Text>
               <Text style={[styles.cabNumber, { color: theme.text }]}>{pass.pass_no}</Text>
             </View>
           )}
 
-          {/* Delete Button */}
+          {/* Delete */}
           <TouchableOpacity
             style={[styles.deleteButton, { opacity: modalConfig.visible ? 0.7 : 1 }]}
             onPress={handleDelete}
@@ -291,9 +270,8 @@ const PassDetailsScreen = ({ route }) => {
             <Text style={styles.deleteText}>Delete Pass</Text>
           </TouchableOpacity>
 
-          {/* Footer */}
           <Text style={[styles.footerText, { color: theme.subText }]}>
-            Created at {pass?.created_at ? formatDate(pass.created_at) : "-"}
+            Created at {pass.created_at ? formatDate(pass.created_at) : '-'}
           </Text>
         </Animated.View>
       </ScrollView>
@@ -303,12 +281,10 @@ const PassDetailsScreen = ({ route }) => {
         type={modalConfig.type}
         title={modalConfig.title}
         subtitle={modalConfig.subtitle}
-        onClose={() => setModalConfig((prev) => ({ ...prev, visible: false }))}
+        onClose={() => setModalConfig(prev => ({ ...prev, visible: false }))}
       />
 
-      {/* STEP 4: mount AlertComponent once at the bottom — that's it! */}
       <AlertComponent />
-
     </SafeAreaView>
   );
 };
@@ -317,110 +293,67 @@ export default PassDetailsScreen;
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    margin: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
+    borderRadius:  24,
+    margin:        16,
+    padding:       20,
+    shadowColor:   '#000',
+    shadowOffset:  { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 6,
-    alignItems: 'center',
+    shadowRadius:  12,
+    elevation:     6,
+    alignItems:    'center',
   },
-  logoContainer: {
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 10,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
+  logoContainer: { alignItems: 'center', marginTop: 8, marginBottom: 10 },
+  logo:          { width: 80, height: 80, borderRadius: 40 },
   statusBadge: {
-    alignSelf: 'center',
+    alignSelf:       'center',
     paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 10,
-    marginBottom: 14,
+    paddingVertical:  5,
+    borderRadius:    10,
+    marginBottom:    14,
   },
-  statusText: {
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 0.5,
-  },
+  statusText:    { fontWeight: '700', fontSize: 12, letterSpacing: 0.5 },
   infoBox: {
-    width: '100%',
-    borderWidth: 1,
+    width:        '100%',
+    borderWidth:  1,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow:     'hidden',
     marginBottom: 14,
   },
   infoRow: {
-    flexDirection: 'row',
+    flexDirection:  'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
+    alignItems:     'center',
+    paddingVertical:   12,
     paddingHorizontal: 16,
   },
-  rowDivider: {
-    height: 1,
-    width: '100%',
-  },
-  infoLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
-  },
+  rowDivider:  { height: 1, width: '100%' },
+  infoLabel:   { fontSize: 13, fontWeight: '600', flex: 1 },
+  infoValue:   { fontSize: 14, fontWeight: '500', flex: 1, textAlign: 'right' },
   cabBox: {
-    borderRadius: 14,
+    borderRadius:  14,
     paddingVertical: 14,
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    alignItems:    'center',
+    width:         '100%',
+    marginBottom:  14,
+    borderWidth:   1,
+    borderColor:   'rgba(0,0,0,0.05)',
   },
-  cabLabel: {
-    fontSize: 11,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  cabNumber: {
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: 4,
-  },
+  cabLabel:  { fontSize: 11, marginBottom: 4, textTransform: 'uppercase', fontWeight: '600', letterSpacing: 0.5 },
+  cabNumber: { fontSize: 30, fontWeight: '800', letterSpacing: 4 },
   deleteButton: {
     backgroundColor: '#EF4444',
     paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    width: '100%',
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-    marginBottom: 4,
+    borderRadius:    14,
+    alignItems:      'center',
+    width:           '100%',
+    shadowColor:     '#EF4444',
+    shadowOffset:    { width: 0, height: 3 },
+    shadowOpacity:   0.2,
+    shadowRadius:    6,
+    elevation:       3,
+    marginBottom:    4,
   },
-  deleteText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-    letterSpacing: 0.5,
-  },
-  footerText: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 12,
-  },
+  deleteText: { color: '#fff', fontWeight: '700', fontSize: 15, letterSpacing: 0.5 },
+  footerText: { fontSize: 12, textAlign: 'center', marginTop: 12 },
 });

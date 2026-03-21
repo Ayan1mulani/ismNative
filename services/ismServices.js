@@ -218,6 +218,34 @@ const ismServices = {
     }
   },
 
+  getAccountStatement: async (billTypeId, pageNo = 1) => {
+  try {
+    const user = await Common.getLoggedInUser();
+
+    const uObj = {
+      user_id:    user.id,
+      group_id:   user.role_id,
+      flat_no:    user.flat_no,
+      unit_id:    user.unit_id,
+      society_id: user.societyId,
+    };
+
+    const url =
+      `${API_URL2}/getAccountStatement` +
+      `?api-token=${user.api_token}` +
+      `&user-id=${encodeURIComponent(JSON.stringify(uObj))}` +
+      `&bill_type=${billTypeId}` +
+      `&page_no=${pageNo}`;
+
+    const headers = await Util.getCommonAuth();
+    return ApiCommon.getReq(url, headers);
+
+  } catch (error) {
+    console.log('getAccountStatement error:', error);
+    return null;
+  }
+},
+
   getBillTypes: async () => {
     try {
       const user = await Common.getLoggedInUser();

@@ -156,15 +156,11 @@ const NewLoginScreen = () => {
 
         // ✅ Save cleaned user
         await AsyncStorage.setItem("userInfo", JSON.stringify(user));
-
         await AsyncStorage.removeItem("permissions");
-
         await loadPermissions();
-
         setTimeout(async () => {
           await RegisterAppOneSignal();
         });
-
         setTimeout(() => {
           navigation.dispatch(
             CommonActions.reset({

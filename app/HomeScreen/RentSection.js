@@ -16,11 +16,9 @@ import { hasPermission } from "../../Utils/PermissionHelper";
 import BRAND from "../config";
 import { useNavigation } from "@react-navigation/native";
 
-
-
 const ResidentProfile = () => {
   const navigation = useNavigation();
-  const { nightMode, setFlatNo, permissions } = usePermissions();
+  const {setFlatNo, permissions } = usePermissions();
   const canViewDashboard =
     permissions && hasPermission(permissions, "RESDSB", "R");
   console.log("Permissions:", permissions);
@@ -102,7 +100,15 @@ const ResidentProfile = () => {
           </Text>
 
           <View style={styles.profileRow}>
-            <View style={styles.avatarWrapper}>
+            <TouchableOpacity
+              style={styles.avatarWrapper}
+              activeOpacity={0.8}
+              onPress={() =>
+                navigation.navigate("ResidentIdCard", {
+                  userDetails, // pass full data if needed
+                })
+              }
+            >
               <Image
                 source={{
                   uri:
@@ -110,9 +116,10 @@ const ResidentProfile = () => {
                     "https://static.vecteezy.com/system/resources/previews/018/765/757/original/user-profile-icon-in-flat-style-member-avatar-illustration-on-isolated-background-human-permission-sign-business-concept-vector.jpg",
                 }}
                 style={styles.avatar}
+                
               />
-
-            </View>
+              
+            </TouchableOpacity>
 
             <View style={styles.profileDetails}>
               <View style={styles.badge}>
@@ -229,6 +236,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
   },
+  avatarWrapper: {
+  marginRight: 10,
+  borderRadius: 14,
+  overflow: "hidden",
+},
 
   onlineDot: {
     position: "absolute",

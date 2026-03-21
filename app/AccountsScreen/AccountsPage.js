@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,8 @@ import { hasPermission } from '../../Utils/PermissionHelper';
 import BRAND from '../config';
 import useAlert from '../components/UseAlert';
 
+// ─── Theme constants ───────────────────────────────────────────────────────────
+
 const THEME = {
   primary: BRAND.COLORS.primary,
   primaryLight: '#E8F5FD',
@@ -34,45 +36,84 @@ const THEME = {
 };
 
 const NAV_OPTIONS = [
-  { key: 'Payments',    icon: 'card-outline',           screen: 'Payment'    },
-  { key: 'Bills',       icon: 'document-text-outline',  screen: 'bills'       },
-  // { key: 'Debit',       icon: 'trending-down-outline',  screen: 'Debit'       },
-  // { key: 'Credit Note', icon: 'trending-up-outline',    screen: 'CreditNote'  },
+  { key: 'Payments', icon: 'card-outline', screen: 'Payment' },
+  { key: 'Bills', icon: 'document-text-outline', screen: 'bills' },
 ];
+
+// ─── Pure helpers (defined outside component so they are never re-created) ─────
+
+const formatCurrency = (amount) => {
+  const num = parseFloat(amount);
+  return `₹${(isNaN(num) ? 0 : num).toLocaleString('en-IN')}`;
+};
+
+const formatDate = (date) => {
+  if (!date) return '-';
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) return '-';
+  return parsed.toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  });
+};
+
+/**
+ * Maps a statement row to an icon — same logic as Angular's getIcon():
+ *   type === 'bill'           → document / primary blue
+ *   type_of_payment === DEBIT → card / danger red   (money out)
+ *   anything else             → card / success green (money in)
+ */
+const getStatementIcon = (item) => {
+  if (item.type === 'bill')
+    return { name: 'document-outline', color: THEME.primary };
+  if (item.type_of_payment === 'DEBIT')
+    return { name: 'card-outline', color: THEME.danger };
+  return { name: 'card-outline', color: THEME.success };
+};
+
+// ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function AccountsScreen() {
   const navigation = useNavigation();
   const { nightMode, permissions } = usePermissions();
 
   const theme = {
-    bg:            nightMode ? THEME.darkBg    : THEME.lightBg,
-    card:          nightMode ? THEME.darkCard  : THEME.lightCard,
-    border:        nightMode ? THEME.darkBorder : THEME.border,
-    text:          nightMode ? '#F1F5F9'       : '#111827',
-    sub:           nightMode ? '#94A3B8'       : '#6B7280',
-    divider:       nightMode ? '#2A2D3A'       : '#F1F5F9',
-    pillBg:        nightMode ? '#1E2235'       : THEME.primaryLight,
-    downloadBtn:   nightMode ? '#1E3A5F'       : '#EFF6FF',
-    downloadText:  nightMode ? '#60A5FA'       : THEME.primary,
-    iconBg:        BRAND.COLORS.iconbg,
-    secondaryText: nightMode ? '#CBD5E1'       : '#6B7280',
-    borderColor:   nightMode ? '#334155'       : '#E5E7EB',
-    navCard:       nightMode ? '#1E293B'       : '#FFFFFF',
+    bg: nightMode ? THEME.darkBg : THEME.lightBg,
+    card: nightMode ? THEME.darkCard : THEME.lightCard,
+    text: nightMode ? '#F1F5F9' : '#111827',
+    sub: nightMode ? '#94A3B8' : '#6B7280',
+    pillBg: nightMode ? '#1E2235' : THEME.primaryLight,
+    downloadBtn: nightMode ? '#1E3A5F' : '#EFF6FF',
+    downloadText: nightMode ? '#60A5FA' : THEME.primary,
+    iconBg: BRAND.COLORS.iconbg,
+    secondaryText: nightMode ? '#CBD5E1' : '#6B7280',
+    borderColor: nightMode ? '#334155' : '#E5E7EB',
+    navCard: nightMode ? '#1E293B' : '#FFFFFF',
   };
 
-  const permissionsLoaded   = permissions !== null && permissions !== undefined;
-  const canSeeOutstanding   = permissionsLoaded && hasPermission(permissions, 'OUTSND', 'R');
-  const canSeeBills         = permissionsLoaded && hasPermission(permissions, 'BILL',   'R');
+  const permissionsLoaded = permissions !== null && permissions !== undefined;
+  const canSeeOutstanding = permissionsLoaded && hasPermission(permissions, 'OUTSND', 'R');
+  const canSeeBills = permissionsLoaded && hasPermission(permissions, 'BILL', 'R');
 
-  const [outstanding,     setOutstanding]     = useState([]);
-  const [accounts,        setAccounts]        = useState([]);
-  const [loading,         setLoading]         = useState(false);
-  const [refreshing,      setRefreshing]      = useState(false);
+  // ── State ──────────────────────────────────────────────────────────────────
+  //
+  //  billTypes      → tab list         from GET /getBillType/{societyId}
+  //  outstandingMap → balance per plan from GET /my/outstandingbalances  { [id]: item }
+  //  selectedTabId  → currently active tab id
+  //  statements     → per-tab rows     from GET /getAccountStatement?bill_type=X
+  //
+  const [billTypes, setBillTypes] = useState([]);
+  const [outstandingMap, setOutstandingMap] = useState({});
+  const [selectedTabId, setSelectedTabId] = useState(null);
+  const [statements, setStatements] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [tabLoading, setTabLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [navModalVisible, setNavModalVisible] = useState(false);
 
+  const tabScrollRef = useRef(null);
   const { showAlert, AlertComponent } = useAlert(nightMode);
 
-  // ─── Three-dot button ── passed directly as rightIcon prop ────────────────
+  // ── Three-dot button ───────────────────────────────────────────────────────
   const ThreeDotsButton = (
     <TouchableOpacity
       onPress={() => setNavModalVisible(true)}
@@ -87,17 +128,11 @@ export default function AccountsScreen() {
     </TouchableOpacity>
   );
 
-  // ─── Guards ────────────────────────────────────────────────────────────────
-
+  // ── Guards ─────────────────────────────────────────────────────────────────
   if (!permissionsLoaded) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <AppHeader
-          title="Accounts"
-          nightMode={nightMode}
-          showBack
-          rightIcon={ThreeDotsButton}
-        />
+        <AppHeader title="Accounts" nightMode={nightMode} showBack rightIcon={ThreeDotsButton} />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={THEME.primary} />
           <Text style={{ color: theme.sub, marginTop: 12, fontSize: 14 }}>Loading...</Text>
@@ -109,12 +144,7 @@ export default function AccountsScreen() {
   if (!canSeeOutstanding && !canSeeBills) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <AppHeader
-          title="Accounts"
-          nightMode={nightMode}
-          showBack
-          rightIcon={ThreeDotsButton}
-        />
+        <AppHeader title="Accounts" nightMode={nightMode} showBack rightIcon={ThreeDotsButton} />
         <View style={styles.center}>
           <Ionicons name="lock-closed-outline" size={64} color={theme.sub} />
           <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 16 }]}>
@@ -128,71 +158,111 @@ export default function AccountsScreen() {
     );
   }
 
-  // ─── Data ──────────────────────────────────────────────────────────────────
+  // ── Data fetching ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (canSeeOutstanding || canSeeBills) fetchData();
+    if (canSeeOutstanding || canSeeBills) fetchInitialData();
   }, [permissionsLoaded]);
 
-  const fetchData = async (silent = false) => {
+  /**
+   * Loads both APIs in parallel, then auto-selects the first tab.
+   *
+   *   GET /getBillType/{societyId}   → bill plan list  → tabs
+   *   GET /my/outstandingbalances    → balance per plan → outstanding banner
+   */
+  const fetchInitialData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [outstandingResp, accountsResp] = await Promise.all([
-        canSeeOutstanding ? otherServices.getOutStandings()  : Promise.resolve([]),
-        canSeeBills       ? otherServices.getMyAccounts()    : Promise.resolve([]),
-      ]);
-      const norm = (res) => {
-        if (!res)                     return [];
-        if (Array.isArray(res))       return res;
-        if (Array.isArray(res.data))  return res.data;
-        if (Array.isArray(res.result))return res.result;
-        if (Array.isArray(res.items)) return res.items;
-        return [];
-      };
-      setOutstanding(norm(outstandingResp));
-      setAccounts(norm(accountsResp));
-    } catch {
-      // silently fail
+
+      const outstandingRes = await otherServices.getOutStandings();
+      const outList = outstandingRes?.data ?? [];
+
+      // Build map for quick balance lookup
+      const oMap = {};
+      outList.forEach((item) => { oMap[item.id] = item; });
+      setOutstandingMap(oMap);
+
+      // Tabs = ALL items from outstanding (same as Angular)
+      setBillTypes(outList);
+
+      // Auto-select first tab only on initial load
+      if (outList.length > 0 && selectedTabId === null) {
+        const firstId = outList[0].id;
+        setSelectedTabId(firstId);
+        await fetchStatements(firstId);
+      } else if (selectedTabId !== null) {
+        await fetchStatements(selectedTabId);
+      }
+
+    } catch (e) {
+      console.log('fetchInitialData error:', e);
     } finally {
       if (!silent) setLoading(false);
     }
   };
+  /**
+   * Fetches invoice / payment rows for a specific bill plan.
+   *
+   *   GET /getAccountStatement?bill_type={id}&page_no=1
+   *
+   * Mirrors Angular's bpProvider.getAccountStatement(id, pageNo).
+   * ⚠️  Confirm the exact endpoint path with your backend if needed.
+   */
+  const fetchStatements = async (billTypeId) => {
+    try {
+      setTabLoading(true);
+      const res = await otherServices.getAccountStatement(billTypeId, 1);
+      const data = res?.status === 'success' && Array.isArray(res.data) ? res.data : [];
+      setStatements(data);
+    } catch {
+      setStatements([]);
+    } finally {
+      setTabLoading(false);
+    }
+  };
 
+  /** Tab tap — mirrors Angular onChange(id) */
+  const onTabChange = (id) => {
+    if (id === selectedTabId) return;
+    setSelectedTabId(id);
+    setStatements([]);
+
+    // Only call API if this plan has actual data
+    const plan = outstandingMap[id];
+    if (plan?.show_bal && plan?.data?.balance) {
+      fetchStatements(id);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData(true);
+    await fetchInitialData(true);
     setRefreshing(false);
   };
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
+  // ── Derived values ─────────────────────────────────────────────────────────
 
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount);
-    return `₹${(isNaN(num) ? 0 : num).toLocaleString('en-IN')}`;
-  };
+  const plansWithBalance = Object.values(outstandingMap).filter(
+    (item) => item.show_bal && item?.data?.balance,
+  );
 
-  const formatDate = (date) => {
-    if (!date) return '-';
-    const parsed = new Date(date);
-    if (isNaN(parsed.getTime())) return '-';
-    return parsed.toLocaleDateString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric',
-    });
-  };
+  const totalOutstanding = plansWithBalance.reduce(
+    (sum, item) => sum + parseFloat(item?.data?.balance || 0), 0,
+  );
 
-  const handleDownload = (bill) => {
+  // ── Download handler ───────────────────────────────────────────────────────
+  const handleDownload = (item) => {
     showAlert({
-      title: 'Download Bill',
-      message: `Do you want to download bill ${bill.bill_no || bill.statement_no}?`,
+      title: 'Download',
+      message: `Open ${item.statement_no || item.bill_no}?`,
       buttons: [
         { text: 'Cancel' },
         {
-          text: 'Download',
+          text: 'Open',
           onPress: async () => {
-            if (bill?.url) {
-              const ok = await Linking.canOpenURL(bill.url);
-              if (ok) Linking.openURL(bill.url);
+            if (item?.url) {
+              const ok = await Linking.canOpenURL(item.url);
+              if (ok) Linking.openURL(item.url);
             }
           },
         },
@@ -200,123 +270,157 @@ export default function AccountsScreen() {
     });
   };
 
-  // ─── Sub-components ────────────────────────────────────────────────────────
+  // ── Sub-components ─────────────────────────────────────────────────────────
 
-  /** Flat outstanding row — name left, amount right, no card chrome */
+  /**
+   * Horizontal pill tabs — one per plan from /getBillType.
+   * Plans that have an outstanding balance get a small red dot.
+   * Hidden when only a single tab with id === 0.
+   */
+
+
+  /** Outstanding flat row — name left, balance right */
   const OutstandingRow = ({ item, isLast }) => (
-    <View
-      style={[
-        styles.outRow,
-        !isLast && { borderBottomWidth: 1, borderBottomColor: theme.borderColor },
-      ]}
-    >
+    <View style={[
+      styles.outRow,
+      !isLast && { borderBottomWidth: 1, borderBottomColor: theme.borderColor },
+    ]}>
       <Text style={[styles.outName, { color: theme.text }]} numberOfLines={1}>
-        {item.name || 'Unknown'}
+        {item.name}
       </Text>
       <Text style={[styles.outAmount, { color: THEME.danger }]}>
-        {formatCurrency(item.data?.balance)}
+        {formatCurrency(item?.data?.balance)}
       </Text>
     </View>
   );
 
-  /** Bill card — identical design to standalone BillsPage cards */
-  const BillCard = ({ item }) => {
-    const current = parseFloat(item.amount  ?? item.current ?? 0);
-    const arrear  = parseFloat(item.arears  ?? item.arrear  ?? 0);
-    const tax     = parseFloat(item.tax     ?? 0);
-    const balance = parseFloat(item.bal_amt ?? item.balance ?? 0);
+  /**
+   * Statement card — one per row from /getAccountStatement.
+   * Shows: icon | statement_no + date | download
+   *        amount | balance | type badge
+   *        optional meta fields
+   */
+  const StatementCard = ({ item }) => {
+    const icon = getStatementIcon(item);
+    const current = parseFloat(item.current ?? item.amount ?? 0);
+    const balance = parseFloat(item.balance ?? item.bal_amt ?? 0);
 
     return (
-      <View style={[styles.billCard, { backgroundColor: theme.card }]}>
-        {/* TOP ROW */}
-        <View style={styles.billTopRow}>
-          <View style={styles.billLeft}>
-            <View style={[styles.billIconBox, { backgroundColor: theme.iconBg }]}>
-              <Ionicons name="document-outline" size={20} color={BRAND.COLORS.icon} />
-            </View>
-            <View style={styles.billInfo}>
-              <Text style={[styles.billNo, { color: theme.text }]}>
-                {item.bill_no || item.statement_no || 'Statement'}
-              </Text>
-              <View style={styles.billDateRow}>
-                <Text style={[styles.billDate, { color: theme.secondaryText }]}>
-                  {formatDate(item.bill_date ?? item.date)}
-                </Text>
-                {item.bill_due_date ? (
-                  <View style={[styles.dueBadge, { backgroundColor: THEME.danger + '20' }]}>
-                    <Text style={[styles.dueBadgeText, { color: THEME.danger }]}>
-                      Due: {formatDate(item.bill_due_date)}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
+      <View
+        style={[styles.stmtCard, { backgroundColor: theme.card }]}
+      >
+        {/* TOP: icon | info | download button */}
+        <View style={styles.stmtTopRow}>
+          <View style={[styles.stmtIconBox, { backgroundColor: theme.iconBg }]}>
+            <Ionicons name={icon.name} size={20} color={icon.color} />
           </View>
 
-          {/* Direct download button */}
-          <TouchableOpacity
-            onPress={() => handleDownload(item)}
-            style={[styles.downloadBtn, { backgroundColor: theme.downloadBtn }]}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="download-outline" size={14} color={theme.downloadText} />
-            <Text style={[styles.downloadBtnText, { color: theme.downloadText }]}>Download</Text>
-          </TouchableOpacity>
+          <View style={styles.stmtInfo}>
+            <Text style={[styles.stmtNo, { color: theme.text }]} numberOfLines={1}>
+              {item.statement_no || item.bill_no || 'Statement'}
+            </Text>
+            <Text style={[styles.stmtDate, { color: theme.secondaryText }]}>
+              {formatDate(item.date ?? item.bill_date)}
+            </Text>
+          </View>
+
+          {!!item.url && (
+            <TouchableOpacity
+              onPress={() => handleDownload(item)}
+              style={[styles.downloadBtn, { backgroundColor: theme.downloadBtn }]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="download-outline" size={13} color={theme.downloadText} />
+              <Text style={[styles.downloadBtnText, { color: theme.downloadText }]}>
+                Download
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* PERIOD + BALANCE */}
-        <View style={styles.periodBalanceRow}>
-          <Text style={[styles.periodText, { color: theme.secondaryText }]}>
-            {formatDate(item.bill_start_date ?? item.start_date ?? item.from_date ?? item.date)}
-          </Text>
-          <View style={styles.balanceInlineBox}>
-            <Text style={[styles.balanceLabelInline, { color: theme.secondaryText }]}>Balance:</Text>
-            <Text style={[styles.balanceValueInline, { color: BRAND.COLORS.icon }]}>
+        <View style={[styles.stmtDivider, { backgroundColor: theme.borderColor }]} />
+
+        {/* AMOUNTS ROW */}
+        <View style={styles.stmtAmountsRow}>
+          <View style={styles.stmtAmountItem}>
+            <Text style={[styles.stmtAmountLabel, { color: theme.secondaryText }]}>Amount</Text>
+            <Text style={[styles.stmtAmountValue, { color: theme.text }]}>
+              {formatCurrency(current)}
+            </Text>
+          </View>
+
+          <View style={[styles.stmtAmountItem, { alignItems: 'center' }]}>
+            <Text style={[styles.stmtAmountLabel, { color: theme.secondaryText }]}>Balance</Text>
+            <Text style={[styles.stmtAmountValue, { color: BRAND.COLORS.icon }]}>
               {formatCurrency(balance)}
             </Text>
           </View>
-        </View>
 
-        <View style={[styles.billDivider, { backgroundColor: theme.borderColor }]} />
-
-        {/* AMOUNT GRID */}
-        <View style={styles.amountGrid}>
-          {[
-            { label: 'Current', val: current },
-            { label: 'Tax',     val: tax     },
-            { label: 'Arrear',  val: arrear  },
-          ].map(({ label, val }) => (
-            <View key={label} style={styles.amountItem}>
-              <Text style={[styles.amountLabel, { color: theme.secondaryText }]}>{label}</Text>
-              <Text style={[styles.amountValue, { color: theme.text }]}>{formatCurrency(val)}</Text>
+          <View style={[styles.stmtAmountItem, { alignItems: 'flex-end' }]}>
+            <Text style={[styles.stmtAmountLabel, { color: theme.secondaryText }]}>Type</Text>
+            <View style={[styles.typeBadge, {
+              backgroundColor: item.type === 'bill'
+                ? THEME.primary + '20'
+                : item.type_of_payment === 'DEBIT'
+                  ? THEME.danger + '20'
+                  : THEME.success + '20',
+            }]}>
+              <Text style={[styles.typeBadgeText, {
+                color: item.type === 'bill'
+                  ? THEME.primary
+                  : item.type_of_payment === 'DEBIT'
+                    ? THEME.danger
+                    : THEME.success,
+              }]}>
+                {item.type === 'bill' ? 'INVOICE' : (item.type_of_payment || 'CREDIT')}
+              </Text>
             </View>
-          ))}
+          </View>
         </View>
+
+        {/* OPTIONAL META */}
+        {(item.mode || item.o_date || item.o_bank || item.o_number || item.remarks) && (
+          <View style={[styles.stmtMeta, { borderTopColor: theme.borderColor }]}>
+            {!!item.mode && (
+              <MetaRow label="Transaction Type" value={item.mode} theme={theme} />
+            )}
+            {!!item.o_date && item.o_date !== '0000-00-00 00:00:00' && (
+              <MetaRow label="Payment Date" value={formatDate(item.o_date)} theme={theme} />
+            )}
+            {!!item.o_bank && <MetaRow label="Bank" value={item.o_bank} theme={theme} />}
+            {!!item.o_number && <MetaRow label="Transaction No" value={item.o_number} theme={theme} />}
+            {!!item.remarks && (
+              <Text style={[styles.metaRemarks, { color: theme.sub }]}>{item.remarks}</Text>
+            )}
+          </View>
+        )}
       </View>
     );
   };
 
-  // ─── Loading state ─────────────────────────────────────────────────────────
-
-  const totalOutstanding = outstanding.reduce(
-    (sum, item) => sum + parseFloat(item?.data?.balance || 0), 0,
+  const MetaRow = ({ label, value, theme }) => (
+    <View style={styles.metaRow}>
+      <Text style={[styles.metaLabel, { color: theme.secondaryText }]}>{label}: </Text>
+      <Text style={[styles.metaValue, { color: theme.text }]}>{value}</Text>
+    </View>
   );
 
+  // ── Loading splash ─────────────────────────────────────────────────────────
   if (loading) {
     return (
       <SafeAreaView style={[styles.center, { backgroundColor: theme.bg }]}>
         <ActivityIndicator size="large" color={THEME.primary} />
-        <Text style={{ color: theme.sub, marginTop: 12, fontSize: 14 }}>Loading accounts...</Text>
+        <Text style={{ color: theme.sub, marginTop: 12, fontSize: 14 }}>
+          Loading accounts...
+        </Text>
       </SafeAreaView>
     );
   }
 
-  // ─── Main render ───────────────────────────────────────────────────────────
-
+  // ── Main render ────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
 
-      {/* AppHeader — three-dot passed via rightIcon */}
       <AppHeader
         title="Accounts"
         nightMode={nightMode}
@@ -336,7 +440,7 @@ export default function AccountsScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Total Outstanding Banner ──────────────────────────────── */}
+        {/* ── Total outstanding banner ──────────────────────────────────── */}
         {canSeeOutstanding && (
           <View style={[styles.summaryCard, { backgroundColor: THEME.primary }]}>
             <View style={styles.summaryInner}>
@@ -344,8 +448,7 @@ export default function AccountsScreen() {
                 <Text style={styles.summaryLabel}>Total Outstanding</Text>
                 <Text style={styles.summaryAmount}>{formatCurrency(totalOutstanding)}</Text>
                 <Text style={styles.summaryNote}>
-                  {outstanding.length} pending{' '}
-                  {outstanding.length === 1 ? 'item' : 'items'}
+                  {plansWithBalance.length} plan{plansWithBalance.length !== 1 ? 's' : ''} with balance
                 </Text>
               </View>
               <View style={styles.summaryIcon}>
@@ -355,19 +458,19 @@ export default function AccountsScreen() {
           </View>
         )}
 
-        {/* ── Outstanding — flat rows ───────────────────────────────── */}
+        {/* ── Outstanding per-plan rows ─────────────────────────────────── */}
         {canSeeOutstanding && (
           <>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Outstanding</Text>
               <View style={[styles.badge, { backgroundColor: theme.pillBg }]}>
                 <Text style={[styles.badgeText, { color: THEME.primary }]}>
-                  {outstanding.length}
+                  {plansWithBalance.length}
                 </Text>
               </View>
             </View>
 
-            {outstanding.length === 0 ? (
+            {plansWithBalance.length === 0 ? (
               <View style={styles.emptyRow}>
                 <Ionicons name="checkmark-circle-outline" size={18} color={THEME.success} />
                 <Text style={[styles.emptyText, { color: theme.sub }]}>No outstanding dues</Text>
@@ -375,13 +478,13 @@ export default function AccountsScreen() {
             ) : (
               <View style={[styles.outstandingBlock, {
                 backgroundColor: theme.card,
-                borderColor:     theme.borderColor,
+                borderColor: theme.borderColor,
               }]}>
-                {outstanding.map((item, index) => (
+                {plansWithBalance.map((item, index) => (
                   <OutstandingRow
-                    key={item.id ?? index}
+                    key={item.id}
                     item={item}
-                    isLast={index === outstanding.length - 1}
+                    isLast={index === plansWithBalance.length - 1}
                   />
                 ))}
               </View>
@@ -389,43 +492,89 @@ export default function AccountsScreen() {
           </>
         )}
 
-        {/* ── Bill History ──────────────────────────────────────────── */}
+        {/* ── Account Statement section ─────────────────────────────────── */}
         {canSeeBills && (
-          <>
-            <View style={[styles.sectionHeader, { marginTop: 16 }]}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Bill History</Text>
-              <View style={[styles.badge, { backgroundColor: theme.pillBg }]}>
-                <Text style={[styles.badgeText, { color: THEME.primary }]}>
-                  {accounts.length}
-                </Text>
-              </View>
+          <View style={{ marginTop: 16 }}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Account Statement</Text>
             </View>
 
-            {accounts.length === 0 ? (
+            {/* Horizontal tabs from /getBillType */}
+            {canSeeBills && billTypes.length > 0 && !(billTypes.length === 1 && billTypes[0]?.id === 0) && (
+              <ScrollView
+                ref={tabScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabsContainer}
+                style={{ marginBottom: 12 }}
+              >
+                {billTypes.map((bt) => {
+                  const active = bt.id === selectedTabId;
+                  const hasBalance = outstandingMap[bt.id]?.show_bal;
+                  return (
+                    <TouchableOpacity
+                      key={bt.id}
+                      onPress={() => onTabChange(bt.id)}
+                      activeOpacity={0.75}
+                      style={[
+                        styles.tabPill,
+                        active
+                          ? { backgroundColor: THEME.primary }
+                          : { backgroundColor: theme.card, borderColor: theme.borderColor, borderWidth: 1 },
+                      ]}
+                    >
+                      <Text style={[styles.tabPillText, { color: active ? '#fff' : theme.text }]}>
+                        {bt.name}
+                      </Text>
+                      {hasBalance && (
+                        <View style={[
+                          styles.tabDot,
+                          { backgroundColor: active ? 'rgba(255,255,255,0.8)' : THEME.danger },
+                        ]} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            {/* Statement cards for the active tab */}
+            {tabLoading ? (
+              <View style={styles.tabLoader}>
+                <ActivityIndicator size="small" color={THEME.primary} />
+                <Text style={{ color: theme.sub, marginTop: 8, fontSize: 13 }}>Loading...</Text>
+              </View>
+            ) : statements.length === 0 ? (
               <View style={styles.emptyRow}>
                 <Ionicons name="document-outline" size={18} color={theme.sub} />
-                <Text style={[styles.emptyText, { color: theme.sub }]}>No bill history</Text>
+                <Text style={[styles.emptyText, { color: theme.sub }]}>No data found</Text>
               </View>
             ) : (
-              accounts.map((item, index) => (
-                <BillCard key={item.id ?? item.statement_no ?? index} item={item} />
+              statements.map((item, index) => (
+                <StatementCard
+                  key={item.id ?? item.statement_no ?? index}
+                  item={item}
+                />
               ))
             )}
-          </>
+          </View>
         )}
       </ScrollView>
 
-      {/* ── PAY FAB ──────────────────────────────────────────────────── */}
+      {/* ── Pay FAB ──────────────────────────────────────────────────────── */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: THEME.primary }]}
-        onPress={() => navigation.navigate('BillPaymentScreen')}
+        onPress={() => navigation.navigate('BillPaymentScreen', {
+          billType: selectedTabId,
+          outstanding: Object.values(outstandingMap),
+        })}
         activeOpacity={0.85}
       >
         <Ionicons name="card-outline" size={20} color="#fff" />
         <Text style={styles.fabLabel}>Pay</Text>
       </TouchableOpacity>
 
-      {/* ── Nav dropdown (from three-dot) ────────────────────────────── */}
+      {/* ── Nav dropdown ─────────────────────────────────────────────────── */}
       <Modal
         transparent
         visible={navModalVisible}
@@ -439,7 +588,7 @@ export default function AccountsScreen() {
         >
           <View style={[styles.navDropdown, {
             backgroundColor: theme.navCard,
-            borderColor:     theme.borderColor,
+            borderColor: theme.borderColor,
           }]}>
             {NAV_OPTIONS.map((opt, idx) => (
               <TouchableOpacity
@@ -451,10 +600,7 @@ export default function AccountsScreen() {
                     borderBottomColor: theme.borderColor,
                   },
                 ]}
-                onPress={() => {
-                  setNavModalVisible(false);
-                  navigation.navigate(opt.screen);
-                }}
+                onPress={() => { setNavModalVisible(false); navigation.navigate(opt.screen); }}
                 activeOpacity={0.7}
               >
                 <View style={[styles.navOptionIcon, { backgroundColor: theme.pillBg }]}>
@@ -473,16 +619,18 @@ export default function AccountsScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   /* Summary banner */
-  summaryCard:  { borderRadius: 14, padding: 16, marginBottom: 16, elevation: 2 },
+  summaryCard: { borderRadius: 14, padding: 16, marginBottom: 16, elevation: 2 },
   summaryInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   summaryLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
-  summaryAmount:{ fontSize: 22, fontWeight: '700', color: '#fff', marginTop: 2 },
-  summaryNote:  { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  summaryIcon:  {
+  summaryAmount: { fontSize: 22, fontWeight: '700', color: '#fff', marginTop: 2 },
+  summaryNote: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  summaryIcon: {
     width: 44, height: 44, borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center', alignItems: 'center',
@@ -490,63 +638,86 @@ const styles = StyleSheet.create({
 
   /* Section header */
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  sectionTitle:  { fontSize: 14, fontWeight: '600' },
-  badge:         { borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
-  badgeText:     { fontSize: 11, fontWeight: '600' },
+  sectionTitle: { fontSize: 14, fontWeight: '600' },
+  badge: { borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
+  badgeText: { fontSize: 11, fontWeight: '600' },
 
   /* Empty */
-  emptyRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10 },
+  emptyRow: { flexDirection: 'column', alignItems: 'center', gap: 6, paddingVertical: 10 },
   emptyText: { fontSize: 13, fontWeight: '500' },
 
   /* Outstanding flat rows */
-  outstandingBlock: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  outstandingBlock: { borderRadius: 12, borderWidth: 1, overflow: 'hidden', marginBottom: 4 },
   outRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14,
   },
-  outName:   { fontSize: 13, fontWeight: '500', flex: 1, marginRight: 12 },
+  outName: { fontSize: 13, fontWeight: '500', flex: 1, marginRight: 12 },
   outAmount: { fontSize: 13, fontWeight: '700' },
 
-  /* Bill card (BillsPage style) */
-  billCard: {
+  /* Horizontal tabs */
+  tabsContainer: { paddingRight: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
+  tabPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+  },
+  tabPillText: { fontSize: 13, fontWeight: '600' },
+  tabDot: { width: 6, height: 6, borderRadius: 3 },
+
+  /* Tab loader */
+  tabLoader: { alignItems: 'center', paddingVertical: 40 },
+
+  /* Statement card */
+  stmtCard: {
     marginBottom: 10, borderRadius: 12, padding: 12,
     elevation: 0.5,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08, shadowRadius: 3,
   },
-  billTopRow:    { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8, justifyContent: 'space-between' },
-  billLeft:      { flexDirection: 'row', flex: 1, gap: 8 },
-  billIconBox:   { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-  billInfo:      { flex: 1 },
-  billNo:        { fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  billDateRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  billDate:      { fontSize: 10 },
-  dueBadge:      { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4 },
-  dueBadgeText:  { fontSize: 9, fontWeight: '600' },
-  downloadBtn:   {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
-    marginLeft: 8, alignSelf: 'flex-start',
+  stmtTopRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  stmtIconBox: {
+    width: 40, height: 40, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center', marginRight: 10,
   },
-  downloadBtnText:    { fontSize: 11, fontWeight: '600' },
-  periodBalanceRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  periodText:         { fontSize: 10, flex: 1 },
-  balanceInlineBox:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  balanceLabelInline: { fontSize: 9, fontWeight: '600' },
-  balanceValueInline: { fontSize: 11, fontWeight: '700' },
-  billDivider:        { height: 1, marginVertical: 8 },
-  amountGrid:         { flexDirection: 'row', justifyContent: 'space-around' },
-  amountItem:         { flex: 1, alignItems: 'center' },
-  amountLabel:        { fontSize: 9, fontWeight: '600', marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.2 },
-  amountValue:        { fontSize: 12, fontWeight: '600' },
+  stmtInfo: { flex: 1 },
+  stmtNo: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  stmtDate: { fontSize: 11 },
+  stmtDivider: { height: 1, marginBottom: 10 },
 
-  /* PAY FAB */
+  /* Download button */
+  downloadBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8,
+    marginLeft: 6, alignSelf: 'flex-start',
+  },
+  downloadBtnText: { fontSize: 11, fontWeight: '600' },
+
+  /* Amounts row */
+  stmtAmountsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  stmtAmountItem: { flex: 1 },
+  stmtAmountLabel: {
+    fontSize: 9, fontWeight: '600',
+    textTransform: 'uppercase', letterSpacing: 0.2, marginBottom: 3,
+  },
+  stmtAmountValue: { fontSize: 13, fontWeight: '700' },
+
+  /* Type badge */
+  typeBadge: { alignSelf: 'flex-end', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 5 },
+  typeBadgeText: { fontSize: 9, fontWeight: '700' },
+
+  /* Meta section */
+  stmtMeta: { borderTopWidth: 1, marginTop: 10, paddingTop: 8, gap: 3 },
+  metaRow: { flexDirection: 'row' },
+  metaLabel: { fontSize: 11, fontWeight: '600' },
+  metaValue: { fontSize: 11, flex: 1 },
+  metaRemarks: { fontSize: 11, fontStyle: 'italic', marginTop: 2 },
+
+  /* Pay FAB */
   fab: {
     position: 'absolute', bottom: 24, right: 20,
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 13, paddingHorizontal: 22,
-    borderRadius: 50, gap: 8,
-    elevation: 5,
+    borderRadius: 50, gap: 8, elevation: 5,
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2, shadowRadius: 6,
   },

@@ -30,7 +30,6 @@ import ServiceRequestTabs from './app/ServiceRequestScreen/ServiceHeader';
 import CategorySelectionScreen from './app/ServiceRequestScreen/complaintCatModel';
 import SubCategorySelectionScreen from './app/ServiceRequestScreen/subCateScreen';
 import ComplaintInputScreen from './app/ServiceRequestScreen/complaintInput';
-import NoticesScreen from './app/notices/MyNotices';
 import AccountsScreen from './app/AccountsScreen/AccountsPage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AddVisitor from './app/VisitorsScreen/components/AddVisitor';

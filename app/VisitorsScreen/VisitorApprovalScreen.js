@@ -1,176 +1,154 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Modal,
+  View, Text, StyleSheet, TouchableOpacity,
+  Image, ActivityIndicator, Vibration,
 } from 'react-native';
 import Sound from 'react-native-sound';
-import { visitorServices } from '../../services/visitorServices';
-import { navigate } from "../../NavigationService";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Vibration } from 'react-native';
+import { visitorServices } from '../../services/visitorServices';
+import { CommonActions } from '@react-navigation/native';
 
-
-
-const VisitorApprovalScreen = ({ route }) => {
-  const { visitor, onGoBack } = route.params || {};
+const VisitorApprovalScreen = ({ route, navigation }) => {
+  const { visitor } = route.params || {};
   const [loading, setLoading] = useState(false);
-  const [visible, setVisible] = useState(!!visitor?.id);
-
-
   const soundRef = useRef(null);
 
   /* ======================================================
-     🔊 PLAY SOUND WHEN MODAL VISIBLE
+     SOUND — tied to mount/unmount ONLY
+     Cleanup GUARANTEED when screen leaves stack
   ====================================================== */
   useEffect(() => {
-    if (!visible) return;
+    if (!visitor?.id) return;
 
-    const checkAndPlaySound = async () => {
+    let isMounted = true;
+
+    const startSound = async () => {
       try {
         const stored = await AsyncStorage.getItem("notificationSoundSettings");
-
         let isVisitSoundOn = true;
 
         if (stored) {
-          const data = JSON.parse(stored);
-          const visit = data.find(item => item.name === "VISIT");
+          const parsed = JSON.parse(stored);
+          const visit = parsed.find(item => item.name === "VISIT");
           isVisitSoundOn = visit?.switch === 1;
         }
 
-        // 🔕 If OFF → Vibrate instead
         if (!isVisitSoundOn) {
-          console.log("🔕 Sound OFF → Vibrating");
-          Vibration.vibrate(500);
+          Vibration.vibrate([0, 500, 200, 500]);
           return;
         }
 
-        // 🔊 PLAY SOUND
+        if (!isMounted) return;
+
         Sound.setCategory('Playback');
 
-        const sound = new Sound(
-          'visitor_alert.wav',
-          Sound.MAIN_BUNDLE,
-          (error) => {
-            if (error) {
-              console.log('❌ Sound load error:', error);
-              return;
-            }
-
-            sound.setVolume(1.0);
-            sound.setNumberOfLoops(-1);
-
-            sound.play((success) => {
-              if (!success) {
-                console.log('❌ Sound play failed');
-              }
-            });
+        const sound = new Sound('visitor_alert.wav', Sound.MAIN_BUNDLE, (error) => {
+          if (error || !isMounted) {
+            console.log('❌ Sound load error:', error);
+            return;
           }
-        );
-
-        soundRef.current = sound;
+          soundRef.current = sound;
+          sound.setVolume(1.0);
+          sound.setNumberOfLoops(-1);
+          sound.play((success) => {
+            if (!success) console.log('❌ Sound play failed');
+          });
+        });
 
       } catch (e) {
-        console.log("Sound setting error:", e);
+        console.log("❌ Sound setup error:", e);
       }
     };
 
-    checkAndPlaySound();
+    startSound();
 
+    // Runs when screen is removed from stack — always
     return () => {
-      if (soundRef.current) {
-        const s = soundRef.current;
-        soundRef.current = null;
-
-        s.stop(() => {
-          s.release();
-        });
-      }
+      isMounted = false;
+      stopSound();
     };
-  }, [visible]);
+  }, []);
 
+  /* ======================================================
+     STOP SOUND — safe, idempotent
+  ====================================================== */
   const stopSound = () => {
-    if (soundRef.current) {
-      const sound = soundRef.current; // 👈 store reference
-
-      soundRef.current = null; // 👈 prevent double calls
-
-      sound.stop(() => {
-        sound.release();
-      });
+    const sound = soundRef.current;
+    if (!sound) return;
+    soundRef.current = null;
+    try {
+      sound.stop(() => sound.release());
+    } catch (e) {
+      console.log("❌ stopSound error:", e);
     }
   };
 
   /* ======================================================
-     ✅ ACCEPT VISITOR
+     EXIT — clears AsyncStorage then resets nav stack
+     AsyncStorage is cleared HERE (not in navigateToVisitor)
+     so that if the user backgrounds without acting, re-opening
+     the app via icon still finds the pending visitor and shows
+     this screen again.
+  ====================================================== */
+  const exitToVisitors = async () => {
+    // ✅ Clear only after user has acted (accept / decline / back)
+    await AsyncStorage.removeItem("PENDING_VISITOR");
+
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{
+          name: "MainApp",
+          state: {
+            routes: [{ name: "Visitors" }],
+          },
+        }],
+      })
+    );
+  };
+
+  /* ======================================================
+     ACCEPT
   ====================================================== */
   const handleAccept = async () => {
+    if (loading) return;
     setLoading(true);
     try {
-      console.log('✅ Visitor accepted:', visitor.id);
-
       await visitorServices.acceptVisitor(visitor.id);
-
-      stopSound();
-      setVisible(false);
-      onGoBack?.();
-
-      navigate("MainApp", {
-        screen: "Visitors",
-      });
-
+      console.log("✅ Accepted:", visitor.id);
+      exitToVisitors(); // unmounts → sound stops via cleanup
     } catch (error) {
-      console.error('Error accepting visitor:', error);
-    } finally {
+      console.error('❌ Accept error:', error);
       setLoading(false);
     }
   };
 
   /* ======================================================
-     ❌ DECLINE VISITOR
+     DECLINE
   ====================================================== */
   const handleDecline = async () => {
+    if (loading) return;
     setLoading(true);
     try {
-      console.log('❌ Visitor declined:', visitor.id);
-
       await visitorServices.denyVisitor(visitor.id);
-
-      stopSound();
-      setVisible(false);
-      onGoBack?.();
-
-      navigate("MainApp", {
-        screen: "Visitors",
-      });
-
+      console.log("❌ Declined:", visitor.id);
+      exitToVisitors(); // unmounts → sound stops via cleanup
     } catch (error) {
-      console.error('Error declining visitor:', error);
-    } finally {
+      console.error('❌ Decline error:', error);
       setLoading(false);
     }
   };
 
   /* ======================================================
-     ⚠️ NO VISITOR DATA
+     NO VISITOR DATA
   ====================================================== */
   if (!visitor?.id) {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>No visitor data available</Text>
-
         <TouchableOpacity
-          style={styles.button}
-          onPress={() => {
-            stopSound();
-            setVisible(false);
-            onGoBack?.();
-            navigate("MainApp", { screen: "Visitors" });
-          }}
+          style={[styles.button, styles.declineButton]}
+          onPress={exitToVisitors}
         >
           <Text style={styles.buttonText}>Go Back</Text>
         </TouchableOpacity>
@@ -179,178 +157,91 @@ const VisitorApprovalScreen = ({ route }) => {
   }
 
   /* ======================================================
-     🎨 UI
+     UI
   ====================================================== */
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={() => { }}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.card}>
+    <View style={styles.container}>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerText}>🔔 Visitor Request</Text>
-          </View>
-
-          {/* Visitor Info */}
-          <View style={styles.content}>
-            {visitor.photo && (
-              <Image source={{ uri: visitor.photo }} style={styles.photo} />
-            )}
-
-            <Text style={styles.name}>{visitor.name}</Text>
-
-            {visitor.purpose && (
-              <Text style={styles.purpose}>
-                Purpose: {visitor.purpose}
-              </Text>
-            )}
-
-            {visitor.phoneNumber && (
-              <Text style={styles.detail}>📱 {visitor.phoneNumber}</Text>
-            )}
-
-
-
-
-            <Text style={styles.message}>
-              {visitor.name || "Visitor"} is requesting entry to your premises
-            </Text>
-          </View>
-
-          {/* Actions */}
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.button, styles.declineButton]}
-              onPress={handleDecline}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}> Decline</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.acceptButton]}
-              onPress={handleAccept}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}> Accept</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-        </View>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>🔔 Visitor Request</Text>
       </View>
-    </Modal>
+
+      <View style={styles.content}>
+        {visitor.photo && (
+          <Image source={{ uri: visitor.photo }} style={styles.photo} />
+        )}
+        <Text style={styles.name}>{visitor.name}</Text>
+
+        {visitor.purpose && (
+          <Text style={styles.purpose}>Purpose: {visitor.purpose}</Text>
+        )}
+        {visitor.phoneNumber && (
+          <Text style={styles.detail}>📱 {visitor.phoneNumber}</Text>
+        )}
+        <Text style={styles.message}>
+          {visitor.name || "Visitor"} is requesting entry to your premises
+        </Text>
+      </View>
+
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.button, styles.declineButton]}
+          onPress={handleDecline}
+          disabled={loading}
+        >
+          {loading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.buttonText}>Decline</Text>}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.acceptButton]}
+          onPress={handleAccept}
+          disabled={loading}
+        >
+          {loading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.buttonText}>Accept</Text>}
+        </TouchableOpacity>
+      </View>
+
+    </View>
   );
 };
 
 export default VisitorApprovalScreen;
 
-/* ======================================================
-   🎨 STYLES
-====================================================== */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#fff',
     padding: 20,
+    justifyContent: 'center',
   },
   errorText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgb(255, 255, 255)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  card: {
-    backgroundColor: '#fff',
-    width: '100%',
-    padding: 20,
-    elevation: 0,
+    fontSize: 16, color: '#666',
+    marginBottom: 20, textAlign: 'center',
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    alignItems: 'center', marginBottom: 20,
+    paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#e0e0e0',
   },
-  headerText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  content: {
-    alignItems: 'center',
-    marginBottom: 25,
-  },
+  headerText: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  content: { alignItems: 'center', marginBottom: 25 },
   photo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 15,
-    borderWidth: 3,
-    borderColor: '#4CAF50',
+    width: 120, height: 120, borderRadius: 60,
+    marginBottom: 15, borderWidth: 3, borderColor: '#4CAF50',
   },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  purpose: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 12,
-  },
-  detail: {
-    fontSize: 14,
-    color: '#555',
-    marginVertical: 4,
-  },
-  message: {
-    fontSize: 16,
-    color: '#777',
-    textAlign: 'center',
-    marginTop: 15,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  name: { fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 8 },
+  purpose: { fontSize: 16, color: '#666', marginBottom: 12 },
+  detail: { fontSize: 14, color: '#555', marginVertical: 4 },
+  message: { fontSize: 16, color: '#777', textAlign: 'center', marginTop: 15 },
+  actions: { flexDirection: 'row', justifyContent: 'space-between' },
   button: {
-    flex: 1,
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginHorizontal: 5,
+    flex: 1, paddingVertical: 15, borderRadius: 12,
+    alignItems: 'center', marginHorizontal: 5,
   },
-  acceptButton: {
-    backgroundColor: '#4CAF50',
-  },
-  declineButton: {
-    backgroundColor: '#f44336',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  acceptButton: { backgroundColor: '#4CAF50' },
+  declineButton: { backgroundColor: '#f44336' },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

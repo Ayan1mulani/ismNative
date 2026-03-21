@@ -1,392 +1,307 @@
 // PassPage.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   FlatList,
   ActivityIndicator,
   RefreshControl,
   TextInput,
-  Image
+  Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import BRAND from '../config'
+import BRAND from '../config';
 import EmptyState from '../components/EmptyState';
 
-const BASE_URL = "https://ism-vms.s3.amazonaws.com/company-logo/";
-const DEFAULT_GUEST_IMAGE =
-  "https://app.factech.co.in/user/assets/images/visitor/default-guest.png";
-const LOCAL_IMAGES = {
-  cab: require('../../assets/images/cab.jpg'),
+const BASE_URL          = "https://ism-vms.s3.amazonaws.com/company-logo/";
+const DEFAULT_GUEST_URI = "https://app.factech.co.in/user/assets/images/visitor/default-guest.png";
+const LOCAL_IMAGES      = {
+  cab:      require('../../assets/images/cab.jpg'),
   delivery: require('../../assets/images/delivery.jpg'),
 };
 
-// Theme configuration
 const COLORS = {
   primary: BRAND.COLORS.primaryDark,
   success: '#34C759',
   warning: '#FF9500',
-  error: '#FF3B30',
-
-  // Light theme
+  error:   '#FF3B30',
   light: {
-    background: '#FFFFFF',
-    surface: '#F8F9FA',
-    text: '#212529',
+    background:    '#FFFFFF',
+    surface:       '#F8F9FA',
+    text:          '#212529',
     textSecondary: '#6C757D',
-    border: '#DEE2E6',
+    border:        '#DEE2E6',
   },
-
-  // Dark theme
   dark: {
-    background: '#121212',
-    surface: '#1E1E1E',
-    text: '#FFFFFF',
+    background:    '#121212',
+    surface:       '#1E1E1E',
+    text:          '#FFFFFF',
     textSecondary: '#9E9E9E',
-    border: '#2C2C2C',
+    border:        '#2C2C2C',
   },
 };
 
-// Pass status constants
-const PASS_STATUS = {
-  ACTIVE: '0',
-  INACTIVE: '1',
-};
+const PASS_STATUS = { ACTIVE: '0', INACTIVE: '1' };
 
-// Pass purpose icons mapping
-const PURPOSE_ICONS = {
-  guest: 'people-outline',
-  delivery: 'cube-outline',
-  visitor: 'person-outline',
-  service: 'construct-outline',
-  vendor: 'briefcase-outline',
-  cab: 'car-outline',
-  taxi: 'car-outline',
-  default: 'card-outline',
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// getPassImage — pure function, returns STABLE references
+//
+// BUG (old): returned `{ uri: "..." }` (new object) on every call.
+// PassAvatar's useEffect watched `source` by reference → fired every render
+// → setState → re-render → new object → fired again = infinite loop.
+//
+// FIX: for local assets return the stable require() constant.
+//      for remote URIs return the URI *string* so PassAvatar can compare
+//      with a simple string equality check instead of object identity.
+// ─────────────────────────────────────────────────────────────────────────────
+const getPassImageSource = (pass) => {
+  const purpose = (pass.purpose || '').toLowerCase();
+  const name    = (pass.company_name || pass.name || '').toLowerCase();
 
-// --- NEW: Sub-component to handle broken S3 links automatically ---
-const PassAvatar = ({ source, purpose, style }) => {
-  const [imgSource, setImgSource] = useState(source);
+  if (purpose === 'guest') {
+    return DEFAULT_GUEST_URI;                         // stable string
+  }
 
-  // Update image if the source prop changes
-  useEffect(() => {
-    setImgSource(source);
-  }, [source]);
-
-  const handleError = () => {
-    // If the AWS URL image doesn't exist, fallback to local images based on purpose
-    const purposeLower = purpose?.toLowerCase();
-    if (purposeLower === 'cab') {
-      setImgSource(LOCAL_IMAGES.cab);
-    } else if (purposeLower === 'delivery') {
-      setImgSource(LOCAL_IMAGES.delivery);
-    } else {
-      setImgSource({ uri: DEFAULT_GUEST_IMAGE });
+  if (purpose === 'cab' || purpose === 'delivery') {
+    if (!name) {
+      return LOCAL_IMAGES[purpose];                   // stable require() ref
     }
-  };
+    return `${BASE_URL}${name.replace(/\s+/g, '-')}.png`; // stable string
+  }
+
+  return DEFAULT_GUEST_URI;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PassAvatar — now receives a URI string OR a local require() number.
+// Compares by string/number value so useEffect only fires when the
+// actual image truly changes, not on every parent render.
+// ─────────────────────────────────────────────────────────────────────────────
+const PassAvatar = memo(({ source, purpose, style }) => {
+  // `source` is either a string (remote URI) or a number (require())
+  const isRemote       = typeof source === 'string';
+  const [imgSrc, setImgSrc] = useState(
+    isRemote ? { uri: source } : source
+  );
+
+  // Only update when the *value* of source changes (string/number comparison)
+  const prevSource = useRef(source);
+  useEffect(() => {
+    if (prevSource.current === source) return;  // same value → skip
+    prevSource.current = source;
+    setImgSrc(isRemote ? { uri: source } : source);
+  }, [source]);                                 // safe: source is primitive
+
+  const handleError = useCallback(() => {
+    const p = (purpose || '').toLowerCase();
+    if (p === 'cab')      setImgSrc(LOCAL_IMAGES.cab);
+    else if (p === 'delivery') setImgSrc(LOCAL_IMAGES.delivery);
+    else                  setImgSrc({ uri: DEFAULT_GUEST_URI });
+  }, [purpose]);
 
   return (
     <Image
-      source={imgSource}
+      source={imgSrc}
       style={style}
       resizeMode="cover"
       onError={handleError}
-      alt="pass-image"
     />
   );
-};
+});
 
-const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, onRefresh }) => {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const navigation = useNavigation();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
-  const [showFilters, setShowFilters] = useState(false);
+// ─────────────────────────────────────────────────────────────────────────────
+// PassCard — isolated memo component so only changed cards re-render
+// ─────────────────────────────────────────────────────────────────────────────
+const PassCard = memo(({ pass, theme, parkingBooking, onPress }) => {
+  const statusStr = String(pass.status);
+  const status = statusStr === PASS_STATUS.ACTIVE
+    ? { label: 'ACTIVE',   color: COLORS.success }
+    : statusStr === PASS_STATUS.INACTIVE
+    ? { label: 'INACTIVE', color: COLORS.error }
+    : { label: 'PENDING',  color: COLORS.warning };
 
-  const theme = nightMode ? COLORS.dark : COLORS.light;
-
-  const getPassImage = (pass) => {
-    const purpose = pass.purpose?.toLowerCase();
-    const name = pass.company_name?.toLowerCase() || pass.name?.toLowerCase();
-
-    // Guest
-    if (purpose === "guest") {
-      return { uri: DEFAULT_GUEST_IMAGE };
-    }
-
-    // Cab
-    if (purpose === "cab") {
-      if (!name) {
-        return LOCAL_IMAGES.cab;
-      }
-      return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
-    }
-
-    // Delivery
-    if (purpose === "delivery") {
-      if (!name) {
-        return LOCAL_IMAGES.delivery;
-      }
-      return { uri: `${BASE_URL}${name.replace(/\s+/g, "-")}.png` };
-    }
-
-    return { uri: DEFAULT_GUEST_IMAGE };
-  };
-
-  const getPassStatus = (status) => {
-    const statusStr = String(status);
-
-    if (statusStr === PASS_STATUS.ACTIVE) {
-      return {
-        label: 'ACTIVE',
-        color: COLORS.success,
-      };
-    } else if (statusStr === PASS_STATUS.INACTIVE) {
-      return {
-        label: 'INACTIVE',
-        color: COLORS.error,
-      };
-    } else {
-      return {
-        label: 'PENDING',
-        color: COLORS.warning,
-      };
-    }
-  };
-
-  const formatDate = (dateString) => {
+  const formatDate = (ds) => {
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
+      return new Date(ds).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric',
       });
-    } catch (error) {
-      return dateString;
-    }
+    } catch { return ds; }
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    if (onRefresh) {
-      await onRefresh();
-    }
-    setIsRefreshing(false);
-  };
+  const smartDate = useMemo(() => {
+    if (!pass.date_time) return null;
+    const today     = new Date(); today.setHours(0,0,0,0);
+    const visitDate = new Date(pass.date_time); visitDate.setHours(0,0,0,0);
+    const diff      = (visitDate - today) / 86_400_000;
+    const label     = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : formatDate(pass.date_time);
+    return { label, color: theme.textSecondary };
+  }, [pass.date_time, theme.textSecondary]);
 
-  const getSmartDateLabel = (dateString) => {
-    if (!dateString) return null;
-
-    const today = new Date();
-    const visitDate = new Date(dateString);
-
-    today.setHours(0, 0, 0, 0);
-    visitDate.setHours(0, 0, 0, 0);
-
-    const diffTime = visitDate.getTime() - today.getTime();
-    const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-    let label = formatDate(dateString);
-
-    if (diffDays === 0) {
-      label = "Today";
-    } else if (diffDays === 1) {
-      label = "Tomorrow";
-    }
-
-    return {
-      label,
-      color: theme.textSecondary, // 👈 SAME COLOR FOR ALL
-    };
-  };
-
-  // 👇 PLACE THIS ABOVE renderPassCard
-  const getParkingBooking = (pass) => {
-    if (!parkingBookings || parkingBookings.length === 0) return null;
-
-    return parkingBookings.find(
-      booking =>
-        booking.reference_id &&
-        String(booking.reference_id) === String(pass.id)
-    );
-  };
-
-  const renderPassCard = ({ item: pass }) => {
-    const parkingBooking = getParkingBooking(pass);
-    const status = getPassStatus(pass.status);
-
-    return (
-      <TouchableOpacity
-        style={[styles.card, {
-          backgroundColor: '#ffff',
-        }]}
-        onPress={() =>
-          navigation.navigate('PassDetails', {
-            pass,
-            onGoBack: handleRefresh, // ✅ ADD THIS
-          })
-        }
-        activeOpacity={0.7}
-      >
-        {/* Card Header */}
-        <View style={styles.cardHeader}>
-          <View style={styles.leftSection}>
-            <View style={[styles.iconContainer]}>
-              {/* Replaced standard Image with our PassAvatar component */}
-              <PassAvatar 
-                source={getPassImage(pass)} 
-                purpose={pass.purpose} 
-                style={styles.passImage} 
-              />
-            </View>
-            <View style={styles.passInfo}>
-              <Text style={[styles.passTitle, { color: theme.text }]} numberOfLines={1}>
-                {pass.purpose.charAt(0).toUpperCase() + pass.purpose.slice(1)} Pass
-              </Text>
-              {pass.purpose?.toLowerCase() !== "cab" &&
-                pass.purpose?.toLowerCase() !== "delivery" && (
-                  <Text
-                    style={[styles.passName, { color: theme.textSecondary }]}
-                    numberOfLines={1}
-                  >
-                    {pass.name}
-                  </Text>
-                )}
-
-              {pass.purpose?.toLowerCase() !== "cab" &&
-                pass.purpose?.toLowerCase() !== "delivery" && (
-                  <Text style={[styles.passPhone, { color: theme.textSecondary }]}>
-                    {pass.mobile}
-                  </Text>
-                )}
-              {(pass.purpose?.toLowerCase() === "cab" ||
-                pass.purpose?.toLowerCase() === "delivery") && (
-                  <Text
-                    style={[styles.companyName, { color: COLORS.primary }]}
-                    numberOfLines={1}
-                  >
-                    {pass.company_name || pass.name}
-                  </Text>
-                )}
-            </View>
-          </View>
-
-          <View style={styles.rightSection}>
-            <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
-              <Text style={styles.statusLabel}>{status.label}</Text>
-            </View>
-            {pass.pass_no && pass.purpose !== "delivery" && (
-              <Text style={[styles.passNumber, { color: COLORS.primary }]}>
-                #{pass.pass_no}
-              </Text>
-            )}
-
-            {/* Parking Indicator */}
-            {parkingBooking && (
-              <View style={styles.parkingIndicator}>
-                < Ionicons name="car" size={18} color={COLORS.primary} />
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Card Footer */}
-        <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
-          <View style={styles.validitySection}>
-            < Ionicons
-              name="time-outline"
-              size={16}
-              color={theme.textSecondary}
-            />
-
-            <Text style={{ fontSize: 13 }}>
-              <Text style={{ color: theme.textSecondary }}>
-                {" "}
-              </Text>
-
-              <Text
-                style={{
-                  color: getSmartDateLabel(pass.date_time)?.color,
-                  fontWeight: "600",
-                }}
-              >
-                {getSmartDateLabel(pass.date_time)?.label}
-              </Text>
-            </Text>
-          </View>
-
-          <Text style={[styles.createdDate, { color: theme.textSecondary }]}>
-            Created: {formatDate(pass.created_at)}
-          </Text>
-        </View>
-
-        {/* Remarks Section */}
-        {pass.remarks && (
-          <View style={[styles.remarksSection, { borderTopColor: theme.border }]}>
-            < Ionicons name="chatbubble-outline" size={14} color={theme.textSecondary} />
-            <Text style={[styles.remarksText, { color: theme.textSecondary }]} numberOfLines={2}>
-              {pass.remarks}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const renderLoadingState = () => (
-    <View style={[styles.loadingState, { backgroundColor: theme.background }]}>
-      <ActivityIndicator size="large" color={COLORS.primary} />
-      <Text style={[styles.loadingText, { color: theme.text }]}>
-        Loading passes...
-      </Text>
-    </View>
-  );
-
-  const styles = createStyles(theme, nightMode);
-
-  if (loading) {
-    return renderLoadingState();
-  }
-
-  const filteredData = (passData || [])
-    .filter(pass => {
-      const query = searchQuery.toLowerCase();
-
-      const searchableText = [
-        pass.name,
-        pass.mobile,
-        pass.purpose,
-        pass.company_name,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch = searchableText.includes(query);
-
-      const matchesType =
-        selectedStatus === 'ALL' ||
-        pass.purpose?.toLowerCase() === selectedStatus.toLowerCase();
-
-      return matchesSearch && matchesType;
-    })
-    .sort((a, b) => {
-      return new Date(b.created_at) - new Date(a.created_at);
-    });
+  const purposeLower = (pass.purpose || '').toLowerCase();
+  const isCabOrDelivery = purposeLower === 'cab' || purposeLower === 'delivery';
+  const imgSource = useMemo(() => getPassImageSource(pass), [pass.purpose, pass.company_name, pass.name]);
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: theme.background }}
-      edges={["top", "left", "right"]}
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: '#fff' }]}
+      onPress={onPress}
+      activeOpacity={0.7}
     >
+      {/* Header */}
+      <View style={styles.cardHeader}>
+        <View style={styles.leftSection}>
+          <View style={styles.iconContainer}>
+            <PassAvatar source={imgSource} purpose={pass.purpose} style={styles.passImage} />
+          </View>
+          <View style={styles.passInfo}>
+            <Text style={[styles.passTitle, { color: theme.text }]} numberOfLines={1}>
+              {pass.purpose.charAt(0).toUpperCase() + pass.purpose.slice(1)} Pass
+            </Text>
+            {!isCabOrDelivery && (
+              <>
+                <Text style={[styles.passName,  { color: theme.textSecondary }]} numberOfLines={1}>
+                  {pass.name}
+                </Text>
+                <Text style={[styles.passPhone, { color: theme.textSecondary }]}>
+                  {pass.mobile}
+                </Text>
+              </>
+            )}
+            {isCabOrDelivery && (
+              <Text style={[styles.companyName, { color: COLORS.primary }]} numberOfLines={1}>
+                {pass.company_name || pass.name}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.rightSection}>
+          <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
+            <Text style={styles.statusLabel}>{status.label}</Text>
+          </View>
+          {pass.pass_no && purposeLower !== 'delivery' && (
+            <Text style={[styles.passNumber, { color: COLORS.primary }]}>
+              #{pass.pass_no}
+            </Text>
+          )}
+          {parkingBooking && (
+            <View style={styles.parkingIndicator}>
+              <Ionicons name="car" size={18} color={COLORS.primary} />
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Footer */}
+      <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
+        <View style={styles.validitySection}>
+          <Ionicons name="time-outline" size={16} color={theme.textSecondary} />
+          {smartDate && (
+            <Text style={{ fontSize: 13, color: smartDate.color, fontWeight: '600' }}>
+              {smartDate.label}
+            </Text>
+          )}
+        </View>
+        <Text style={[styles.createdDate, { color: theme.textSecondary }]}>
+          Created: {formatDate(pass.created_at)}
+        </Text>
+      </View>
+
+      {/* Remarks */}
+      {!!pass.remarks && (
+        <View style={[styles.remarksSection, { borderTopColor: theme.border }]}>
+          <Ionicons name="chatbubble-outline" size={14} color={theme.textSecondary} />
+          <Text style={[styles.remarksText, { color: theme.textSecondary }]} numberOfLines={2}>
+            {pass.remarks}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────────────────────────────────────
+const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, onRefresh }) => {
+  const [isRefreshing, setIsRefreshing]     = useState(false);
+  const [searchQuery, setSearchQuery]       = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [showFilters, setShowFilters]       = useState(false);
+
+  const navigation = useNavigation();
+  const theme      = nightMode ? COLORS.dark : COLORS.light;
+
+  // ── Build a lookup Map so getParkingBooking is O(1) not O(n) ─────────────
+  // BUG (old): .find() loop inside renderItem = O(n×m) on every render
+  const parkingMap = useMemo(() => {
+    const map = new Map();
+    (parkingBookings || []).forEach(b => {
+      if (b.reference_id != null) map.set(String(b.reference_id), b);
+    });
+    return map;
+  }, [parkingBookings]);
+
+  // ── Memoized filtered + sorted list ──────────────────────────────────────
+  // BUG (old): recalculated on every render even without data change
+  const filteredData = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return (passData || [])
+      .filter(pass => {
+        const text = [pass.name, pass.mobile, pass.purpose, pass.company_name]
+          .filter(Boolean).join(' ').toLowerCase();
+        const matchSearch = !q || text.includes(q);
+        const matchType   =
+          selectedStatus === 'ALL' ||
+          (pass.purpose || '').toLowerCase() === selectedStatus.toLowerCase();
+        return matchSearch && matchType;
+      })
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }, [passData, searchQuery, selectedStatus]);
+
+  // ── Stable callbacks ──────────────────────────────────────────────────────
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await onRefresh?.();
+    setIsRefreshing(false);
+  }, [onRefresh]);
+
+  const handleClearSearch   = useCallback(() => setSearchQuery(''),     []);
+  const handleToggleFilters = useCallback(() => setShowFilters(v => !v), []);
+
+  // ── Stable renderItem — won't cause full FlatList re-render ──────────────
+  // BUG (old): defined inline → new function ref every render → all rows re-render
+  const renderItem = useCallback(({ item: pass }) => (
+    <PassCard
+      pass={pass}
+      theme={theme}
+      parkingBooking={parkingMap.get(String(pass.id))}
+      onPress={() =>
+        navigation.navigate('PassDetails', { pass, onGoBack: handleRefresh })
+      }
+    />
+  ), [theme, parkingMap, handleRefresh, navigation]);
+
+  const keyExtractor = useCallback((item) => item.id.toString(), []);
+
+  if (loading) {
+    return (
+      <View style={[styles.loadingState, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={[styles.loadingText, { color: theme.text }]}>Loading passes...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* Search bar */}
       <View style={styles.searchContainer}>
         <View style={[styles.searchBar, { backgroundColor: theme.surface }]}>
-          < Ionicons name="search-outline" size={20} color={theme.textSecondary} />
+          <Ionicons name="search-outline" size={20} color={theme.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
             placeholder="Search name, purpose or phone"
@@ -395,26 +310,23 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
             onChangeText={setSearchQuery}
           />
           {searchQuery !== '' && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              < Ionicons name="close-circle" size={20} color={theme.textSecondary} />
+            <TouchableOpacity onPress={handleClearSearch}>
+              <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
-
         <TouchableOpacity
           style={[
             styles.filterButton,
-            { backgroundColor: showFilters ? COLORS.primary : theme.surface }
+            { backgroundColor: showFilters ? COLORS.primary : theme.surface },
           ]}
-          onPress={() => setShowFilters(!showFilters)}
+          onPress={handleToggleFilters}
         >
-          < Ionicons
-            name="filter"
-            size={20}
-            color={showFilters ? '#fff' : theme.textSecondary}
-          />
+          <Ionicons name="filter" size={20} color={showFilters ? '#fff' : theme.textSecondary} />
         </TouchableOpacity>
       </View>
+
+      {/* Filter chips */}
       {showFilters && (
         <View style={styles.filterContainer}>
           {['ALL', 'guest', 'delivery', 'cab'].map(type => (
@@ -422,46 +334,38 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
               key={type}
               style={[
                 styles.filterChip,
-                {
-                  backgroundColor:
-                    selectedStatus === type
-                      ? COLORS.primary
-                      : theme.surface
-                }
+                { backgroundColor: selectedStatus === type ? COLORS.primary : theme.surface },
               ]}
               onPress={() => setSelectedStatus(type)}
             >
-              <Text
-                style={{
-                  color:
-                    selectedStatus === type ? '#fff' : theme.text,
-                  fontWeight: '600',
-                }}
-              >
-                {type === 'ALL'
-                  ? 'All'
-                  : type.charAt(0).toUpperCase() + type.slice(1)}
+              <Text style={{ color: selectedStatus === type ? '#fff' : theme.text, fontWeight: '600' }}>
+                {type === 'ALL' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
+      {/* List */}
       <View style={styles.container}>
         <FlatList
           data={filteredData}
-          renderItem={renderPassCard}
-          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
           showsVerticalScrollIndicator={false}
+          // ── Perf tweaks ────────────────────────────────────────────────
+          removeClippedSubviews
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={30}
+          windowSize={7}
+          initialNumToRender={10}
+          // ──────────────────────────────────────────────────────────────
           contentContainerStyle={
             filteredData.length === 0
-              ? {
-                flexGrow: 1,
-                paddingTop: 120,   // 👈 pushes EmptyState downward
-                paddingHorizontal: 16,
-              }
+              ? { flexGrow: 1, paddingTop: 120, paddingHorizontal: 16 }
               : styles.listContent
-          } refreshControl={
+          }
+          refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
@@ -469,193 +373,92 @@ const SingleEntryPassPage = ({ nightMode, passData, loading, parkingBookings, on
               tintColor={COLORS.primary}
             />
           }
-          ListEmptyComponent={() => (
+          ListEmptyComponent={
             <EmptyState
               icon="card-outline"
               title="No Passes Found"
               subtitle="Create a new pass to get started"
               theme={theme}
             />
-          )}
+          }
         />
       </View>
     </View>
   );
 };
 
-const createStyles = (theme, nightMode) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-    loadingState: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    loadingText: {
-      marginTop: 16,
-      fontSize: 16,
-      fontWeight: '500',
-    },
-    listContent: {
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      paddingBottom: 200, // more space than FAB bottom
-    },
-    card: {
-      padding: 15,
-      borderRadius: 14,
-      marginBottom: 5,
-      borderWidth: 1,
-      borderColor: 'rgba(3, 65, 109, 0.04)',
-      overflow: 'hidden', // 👈 important
-    },
-    cardHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 12,
-    },
-    leftSection: {
-      flexDirection: 'row',
-      flex: 1,
-    },
-    iconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-    },
-    passInfo: {
-      flex: 1,
-    },
-    passImage: {
-      width: 40,
-      height: 40,
-      borderRadius: 20, // Added to keep it circular if it isn't already inside iconContainer
-    },
-    passTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      marginBottom: 2,
-    },
-    passName: {
-      fontSize: 14,
-      marginBottom: 2,
-    },
-    passPhone: {
-      fontSize: 13,
-      marginBottom: 2,
-    },
-    companyName: {
-      fontSize: 13,
-      fontWeight: '500',
-      marginTop: 2,
-    },
-    rightSection: {
-      alignItems: 'flex-end',
-      gap: 4,
-    },
-    statusBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-    },
-    statusLabel: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: '#FFFFFF',
-      letterSpacing: 0.5,
-    },
-    passNumber: {
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    parkingIndicator: {
-      marginTop: 4,
-      padding: 4,
-      backgroundColor: `${COLORS.primary}15`,
-      borderRadius: 6,
-    },
-    cardFooter: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    validitySection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-      gap: 6,
-    },
-    validityText: {
-      fontSize: 13,
-      fontWeight: '500',
-    },
-    createdDate: {
-      fontSize: 11,
-    },
-    remarksSection: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      paddingTop: 8,
-      marginTop: 8,
-      gap: 6,
-    },
-    fab: {
-      position: 'absolute',
-      bottom: 110,
-      right: 30,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 8,
-    },
-    searchContainer: {
-      flexDirection: 'row',
-      paddingHorizontal: 16,
-      paddingTop: 10,
-      gap: 10,
-    },
-    searchBar: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      height: 45,
-    },
-    searchInput: {
-      flex: 1,
-      marginLeft: 8,
-      fontSize: 14,
-    },
-    filterButton: {
-      width: 45,
-      height: 45,
-      borderRadius: 10,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    filterContainer: {
-      flexDirection: 'row',
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      gap: 10,
-    },
-    filterChip: {
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 20,
-    },
-  });
-
 export default SingleEntryPassPage;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles — defined once at module level, not inside render
+// BUG (old): createStyles(theme, nightMode) was called inside the component
+// body → new StyleSheet object created on every single render
+// ─────────────────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  container:       { flex: 1 },
+  loadingState:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText:     { marginTop: 16, fontSize: 16, fontWeight: '500' },
+  listContent:     { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 200 },
+  card: {
+    padding:       15,
+    borderRadius:  14,
+    marginBottom:  5,
+    borderWidth:   1,
+    borderColor:   'rgba(3, 65, 109, 0.04)',
+    overflow:      'hidden',
+  },
+  cardHeader: {
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    alignItems:     'flex-start',
+    marginBottom:   12,
+  },
+  leftSection:     { flexDirection: 'row', flex: 1 },
+  iconContainer: {
+    width:          48,
+    height:         48,
+    borderRadius:   24,
+    justifyContent: 'center',
+    alignItems:     'center',
+    marginRight:    12,
+  },
+  passInfo:        { flex: 1 },
+  passImage:       { width: 40, height: 40, borderRadius: 20 },
+  passTitle:       { fontSize: 16, fontWeight: '600', marginBottom: 2 },
+  passName:        { fontSize: 14, marginBottom: 2 },
+  passPhone:       { fontSize: 13, marginBottom: 2 },
+  companyName:     { fontSize: 13, fontWeight: '500', marginTop: 2 },
+  rightSection:    { alignItems: 'flex-end', gap: 4 },
+  statusBadge:     { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  statusLabel:     { fontSize: 10, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.5 },
+  passNumber:      { fontSize: 12, fontWeight: '600' },
+  parkingIndicator:{ marginTop: 4, padding: 4, borderRadius: 6 },
+  cardFooter: {
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    alignItems:     'center',
+  },
+  validitySection: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 },
+  createdDate:     { fontSize: 11 },
+  remarksSection: {
+    flexDirection: 'row',
+    alignItems:    'flex-start',
+    paddingTop:    8,
+    marginTop:     8,
+    gap:           6,
+  },
+  remarksText:     { flex: 1, fontSize: 13, lineHeight: 18 },
+  searchContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, gap: 10 },
+  searchBar: {
+    flex:            1,
+    flexDirection:   'row',
+    alignItems:      'center',
+    borderRadius:    10,
+    paddingHorizontal: 12,
+    height:          45,
+  },
+  searchInput:     { flex: 1, marginLeft: 8, fontSize: 14 },
+  filterButton:    { width: 45, height: 45, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  filterContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
+  filterChip:      { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+});

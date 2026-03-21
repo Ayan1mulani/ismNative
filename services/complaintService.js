@@ -17,51 +17,64 @@ const formatDate = () => {
 const complaintService = {
 
 
+  getMyComplaints: async ({
+    status = null,
+    page = 1,
+    perPage = 10,
+  } = {}) => {
+    try {
+      const user = await Common.getLoggedInUser();
 
-  getMyComplaints: async (status) => {
-    const user = await Common.getLoggedInUser()
-    const params = {
-      "api-token": user.api_token,
-      "user-id": user.id,
-      "status": status,
-      "per_page": 10,
-      "page_no": 1
-    };
-    const url = complaintService.appendParamsInUrl(`${API_URL2}/my/complaints`, params);
-    const headers = await Util.getCommonAuth()
-    const response = await ApiCommon.getReq(url, headers);
-    console.log("complaint response", headers, response)
-    return response
+      const params = {
+        "api-token": user.api_token,
+        "user-id": user.id,
+        "status": status,
+        "per_page": perPage,
+        "page_no": page,
+      };
+
+      const url = complaintService.appendParamsInUrl(
+        `${API_URL2}/my/complaints`,
+        params
+      );
+
+      const headers = await Util.getCommonAuth();
+      const response = await ApiCommon.getReq(url, headers);
+
+      return response;
+    } catch (error) {
+      console.log("❌ getMyComplaints Error:", error);
+      return { status: "error", data: [], metadata: {} }; // ✅ SAFE fallback
+    }
   },
-
   getSocietyConfigNew: async () => {
-  try {
-    const user = await Common.getLoggedInUser();
+    try {
+      const user = await Common.getLoggedInUser();
 
-    const userObj = {
-      user_id: user.id,
-      group_id: user.role_id,
-      flat_no: user.flat_no,
-      unit_id: user.unit_id,
-      society_id: user.societyId,
-    };
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId,
+      };
 
-    const encodedUser = encodeURIComponent(JSON.stringify(userObj));
+      const encodedUser = encodeURIComponent(JSON.stringify(userObj));
 
-    const url = `${API_URL2}/my/societyconfig?api-token=${user.api_token}&user-id=${encodedUser}`;
+      const url = `${API_URL2}/my/societyconfig?api-token=${user.api_token}&user-id=${encodedUser}`;
 
-    const headers = await Util.getCommonAuth();
+      const headers = await Util.getCommonAuth();
 
-    const response = await ApiCommon.getReq(url, headers);
+      const response = await ApiCommon.getReq(url, headers);
 
-    console.log("✅ New Society Config:", response);
+      console.log("✅ New Society Config:", response);
 
-    return response; // ⚠️ returns DIRECT object
-  } catch (error) {
-    console.log("❌ New Config API Error:", error);
-    throw error;
-  }
-},
+      return response; // ⚠️ returns DIRECT object
+    } catch (error) {
+      console.log("❌ New Config API Error:", error);
+      throw error;
+    }
+  },
   updateComplaintStatus: async (complaint) => {
     try {
       const user = await Common.getLoggedInUser();
@@ -129,39 +142,39 @@ const complaintService = {
   },
 
 
-getSocietyConfiguration: async () => {
-  try {
-    const user = await Common.getLoggedInUser();
+  getSocietyConfiguration: async () => {
+    try {
+      const user = await Common.getLoggedInUser();
 
-    const userObj = {
-      user_id: user.id,
-      group_id: user.role_id,
-      flat_no: user.flat_no,
-      unit_id: user.unit_id,
-      society_id: user.societyId,
-    };
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId,
+      };
 
-    const encodedUser = encodeURIComponent(JSON.stringify(userObj));
+      const encodedUser = encodeURIComponent(JSON.stringify(userObj));
 
-    const url = `${API_URL2}/getSocietyConfigurationToResident/${user.societyId}?api-token=${user.api_token}&user-id=${encodedUser}`;
+      const url = `${API_URL2}/getSocietyConfigurationToResident/${user.societyId}?api-token=${user.api_token}&user-id=${encodedUser}`;
 
-    const headers = await Util.getCommonAuth();
+      const headers = await Util.getCommonAuth();
 
-    const response = await ApiCommon.getReq(url, headers);
+      const response = await ApiCommon.getReq(url, headers);
 
-    console.log("🏢 Society Config:", response);
+      console.log("🏢 Society Config:", response);
 
-    if (response?.status === "success") {
-      return response; // or response.data (your choice)
+      if (response?.status === "success") {
+        return response; // or response.data (your choice)
+      }
+
+      return null;
+
+    } catch (error) {
+      console.log("❌ Config API Error:", error);
+      throw error;
     }
-
-    return null;
-
-  } catch (error) {
-    console.log("❌ Config API Error:", error);
-    throw error;
-  }
-},
+  },
 
 
   addComment: async (complaintId, message) => {

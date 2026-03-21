@@ -7,18 +7,27 @@ import { visitorServices } from "./visitorServices";
 
 const otherServices = {
 
-  getOutStandings: async () => {
-    const user = await Common.getLoggedInUser()
-    const params = {
-      "api-token": user.api_token,
-      "user-id": user.id,
-    };
+ getOutStandings: async () => {
+  const user = await Common.getLoggedInUser();
 
-    const url = otherServices.appendParamsInUrl(`${API_URL2}/my/outstandingbalances`, params);
-    const headers = await Util.getCommonAuth()
-    const response = await ApiCommon.getReq(url, headers);
-    return response
-  },
+  const userObj = {
+    user_id:    user.id,
+    group_id:   user.role_id,
+    flat_no:    user.flat_no,
+    unit_id:    user.unit_id,
+    society_id: user.societyId,
+  };
+
+  const params = {
+    "api-token": user.api_token,
+    "user-id":   JSON.stringify(userObj), // ← was just user.id
+    cache:       1,                        // ← was missing
+  };
+
+  const url = otherServices.appendParamsInUrl(`${API_URL2}/my/outstandingbalances`, params);
+  const headers = await Util.getCommonAuth();
+  return ApiCommon.getReq(url, headers);
+},
   getNotificationSound: async () => {
     try {
       const user = await Common.getLoggedInUser();
@@ -324,18 +333,20 @@ const otherServices = {
     const headers = await Util.getCommonAuth();
     return ApiCommon.putReq(url, payload, headers);
   },
-  getMyAccounts: async () => {
-    const user = await Common.getLoggedInUser()
-    const params = {
-      "api-token": user.api_token,
-      "user-id": user.id,
-    };
+getMyAccounts: async () => {
+  const user = await Common.getLoggedInUser();
+  const params = {
+    "api-token": user.api_token,
+    "user-id":   user.id,
+  };
 
-    const url = otherServices.appendParamsInUrl(`${API_URL2}/billing/houseStatement/439139/1/100`, params);
-    const headers = await Util.getCommonAuth()
-    const response = await ApiCommon.getReq(url, headers);
-    return response
-  },
+  const url = otherServices.appendParamsInUrl(
+    `${API_URL2}/billing/houseStatement/${user.unit_id}/1/100`, 
+    params
+  );
+  const headers = await Util.getCommonAuth();
+  return ApiCommon.getReq(url, headers);
+},
 
   getBillsByFlat: async () => {
     try {
@@ -497,7 +508,9 @@ const otherServices = {
       throw error;
     }
   },
-  getMyAmenityBookings: async () => {
+
+
+  getMyAmenityBookings: async (page = 1) => { // Added page parameter with default 1
     try {
       const user = await Common.getLoggedInUser();
 
@@ -509,10 +522,10 @@ const otherServices = {
         society_id: user.societyId,
       };
 
-      const url = `${API_URL2}/my/bookings?api-token=${user.api_token
-        }&user-id=${encodeURIComponent(
-          JSON.stringify(userObj)
-        )}&location=1&page=1`;
+      // Replaced fixed &page=1 with &page=${page}
+      const url = `${API_URL2}/my/bookings?api-token=${user.api_token}&user-id=${encodeURIComponent(
+        JSON.stringify(userObj)
+      )}&location=1&page=${page}`;
 
       const headers = await Util.getCommonAuth();
 
@@ -522,7 +535,61 @@ const otherServices = {
       throw error;
     }
   },
+  
+  getBillTypes: async () => {
+    try {
+      const user = await Common.getLoggedInUser();
 
+      const userObj = {
+        user_id: user.id,
+        group_id: user.role_id,
+        flat_no: user.flat_no,
+        unit_id: user.unit_id,
+        society_id: user.societyId,
+      };
+
+      const params = {
+        "api-token": user.api_token,
+        "user-id": JSON.stringify(userObj),
+      };
+
+      const url = otherServices.appendParamsInUrl(
+        `${API_URL2}/getBillType/${user.societyId}`,
+        params
+      );
+
+      const headers = await Util.getCommonAuth();
+      return ApiCommon.getReq(url, headers);
+
+    } catch (error) {
+      console.log("getBillTypes error:", error);
+      return null;
+    }
+  },
+
+  getAccountStatement: async (billTypeId, pageNo = 1) => {
+    try {
+      const user = await Common.getLoggedInUser();
+
+      const params = {
+        "api-token": user.api_token,
+        "user-id": user.id,
+        bill_type: billTypeId,
+      };
+
+      const url = otherServices.appendParamsInUrl(
+        `${API_URL2}/billing/houseStatement/${user.unit_id}/${pageNo}/100`,
+        params
+      );
+
+      const headers = await Util.getCommonAuth();
+      return ApiCommon.getReq(url, headers);
+
+    } catch (error) {
+      console.log("getAccountStatement error:", error);
+      return null;
+    }
+  },
   checkSlotAvailability: async (locationId, from, to) => {
     try {
       const user = await Common.getLoggedInUser();
@@ -1118,82 +1185,82 @@ const otherServices = {
   },
 
 
-sendTestNotificationSound: async () => {
-  try {
-    console.log("🚀 Sending Test Notification...");
+  sendTestNotificationSound: async () => {
+    try {
+      console.log("🚀 Sending Test Notification...");
 
-    /* -------------------------------
-       GET USER
-    -------------------------------- */
-    const user = await Common.getLoggedInUser();
+      /* -------------------------------
+         GET USER
+      -------------------------------- */
+      const user = await Common.getLoggedInUser();
 
-    console.log("👤 USER:", user);
+      console.log("👤 USER:", user);
 
-    // ✅ FIX: ALWAYS USE DIRECT ID
-    const userId = user?.id;
+      // ✅ FIX: ALWAYS USE DIRECT ID
+      const userId = user?.id;
 
-    if (!userId) {
-      console.log("❌ User ID missing");
-      throw new Error("User ID not found");
+      if (!userId) {
+        console.log("❌ User ID missing");
+        throw new Error("User ID not found");
+      }
+
+      /* -------------------------------
+         GET ONESIGNAL DEVICE ID
+      -------------------------------- */
+      let osid = await OneSignal.User.pushSubscription.getIdAsync();
+
+      if (!osid) {
+        console.log("⚠️ Waiting for OneSignal ID...");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        osid = await OneSignal.User.pushSubscription.getIdAsync();
+      }
+
+      if (!osid) {
+        console.log("❌ Device ID not found");
+        throw new Error("Device not registered");
+      }
+
+      console.log("📱 Device ID:", osid);
+
+      /* -------------------------------
+         BUILD URL (CORRECT)
+      -------------------------------- */
+      const params = {
+        "api-token": user.api_token,
+        "user-id": userId,   // ✅ FIXED
+        deviceid: osid,
+      };
+
+      const url = otherServices.appendParamsInUrl(
+        `${API_URL4}/v1/society/${user.societyId}/resident/${userId}/testnotifyring`,
+        params
+      );
+
+      console.log("🌐 FINAL URL:", url);
+
+      /* -------------------------------
+         HEADERS
+      -------------------------------- */
+      const headers = await Util.getCommonAuth();
+
+      /* -------------------------------
+         API CALL
+      -------------------------------- */
+      const response = await ApiCommon.postReq(
+        url,
+        { test: true },
+        headers
+      );
+
+      console.log("✅ RESPONSE:", response);
+
+      return response;
+
+    } catch (error) {
+      console.log("❌ Test Notification Error:", error);
+      throw error;
     }
-
-    /* -------------------------------
-       GET ONESIGNAL DEVICE ID
-    -------------------------------- */
-    let osid = await OneSignal.User.pushSubscription.getIdAsync();
-
-    if (!osid) {
-      console.log("⚠️ Waiting for OneSignal ID...");
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      osid = await OneSignal.User.pushSubscription.getIdAsync();
-    }
-
-    if (!osid) {
-      console.log("❌ Device ID not found");
-      throw new Error("Device not registered");
-    }
-
-    console.log("📱 Device ID:", osid);
-
-    /* -------------------------------
-       BUILD URL (CORRECT)
-    -------------------------------- */
-    const params = {
-      "api-token": user.api_token,
-      "user-id": userId,   // ✅ FIXED
-      deviceid: osid,
-    };
-
-    const url = otherServices.appendParamsInUrl(
-      `${API_URL4}/v1/society/${user.societyId}/resident/${userId}/testnotifyring`,
-      params
-    );
-
-    console.log("🌐 FINAL URL:", url);
-
-    /* -------------------------------
-       HEADERS
-    -------------------------------- */
-    const headers = await Util.getCommonAuth();
-
-    /* -------------------------------
-       API CALL
-    -------------------------------- */
-    const response = await ApiCommon.postReq(
-      url,
-      { test: true },
-      headers
-    );
-
-    console.log("✅ RESPONSE:", response);
-
-    return response;
-
-  } catch (error) {
-    console.log("❌ Test Notification Error:", error);
-    throw error;
-  }
-},
+  },
 
   addOrUpdateRating: async (staffId, rating, review) => {
     try {

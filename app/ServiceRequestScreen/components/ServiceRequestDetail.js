@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-
+  Image
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import useAlert from "../../components/UseAlert";
@@ -24,35 +24,71 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const BRAND_BLUE = "#1996D3";
 const KAV_OFFSET = Platform.OS === "ios" ? 90 : 30;
 
+const CLOSED_STATUSES = ["closed", "resolved", "completed"];
+const REOPEN_STATUSES = ["reopen", "reopened"];
+const OPEN_STATUSES = ["open", "wip", "in progress", "pending"];
 
 const STATUS_CONFIG = {
-  Open: { label: "Open", color: BRAND_BLUE, bg: "#CCE7FF", icon: "radio-button-on" },
-  WIP: { label: "In Progress", color: "#E67E00", bg: "#FFF3CD", icon: "sync" },
-  "In Progress": { label: "In Progress", color: "#E67E00", bg: "#FFF3CD", icon: "sync" },
-  Pending: { label: "Pending", color: "#F59E0B", bg: "#FEF3C7", icon: "time-outline" },
-  Closed: { label: "Closed", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
-  Resolved: { label: "Resolved", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
-  Completed: { label: "Completed", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
-  Reopen: { label: "Reopened", color: "#9333EA", bg: "#F3E8FF", icon: "refresh-circle" },
-  Reopened: { label: "Reopened", color: "#9333EA", bg: "#F3E8FF", icon: "refresh-circle" },
+  open: { label: "Open", color: BRAND_BLUE, bg: "#CCE7FF", icon: "radio-button-on" },
+  wip: { label: "In Progress", color: "#E67E00", bg: "#FFF3CD", icon: "sync" },
+  "in progress": { label: "In Progress", color: "#E67E00", bg: "#FFF3CD", icon: "sync" },
+  pending: { label: "Pending", color: "#F59E0B", bg: "#FEF3C7", icon: "time-outline" },
+  closed: { label: "Closed", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
+  resolved: { label: "Resolved", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
+  completed: { label: "Completed", color: "#28A745", bg: "#D4EDDA", icon: "checkmark-circle" },
+  reopen: { label: "Reopened", color: "#9333EA", bg: "#F3E8FF", icon: "refresh-circle" },
+  reopened: { label: "Reopened", color: "#9333EA", bg: "#F3E8FF", icon: "refresh-circle" },
 };
 
-const getStatusConfig = (status) =>
-  STATUS_CONFIG[status] || {
+const getStatusConfig = (status) => {
+  const key = (status || "").toLowerCase().trim();
+  return STATUS_CONFIG[key] || {
     label: status || "Unknown",
     color: "#6B7280",
     bg: "#E9ECEF",
     icon: "help-circle-outline",
   };
+};
 
-const formatDate = () => {
-  const d = new Date();
-  return d.getFullYear() + "-" +
-    String(d.getMonth() + 1).padStart(2, "0") + "-" +
-    String(d.getDate()).padStart(2, "0") + " " +
-    String(d.getHours()).padStart(2, "0") + ":" +
-    String(d.getMinutes()).padStart(2, "0") + ":" +
-    String(d.getSeconds()).padStart(2, "0");
+const formatDate = (ts) => {
+  if (!ts) return "";
+  const d = new Date(ts.replace(" ", "T") + "Z");
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+// Formats YYYY-MM-DD to a nice readable date
+const formatJustDate = (dateString) => {
+  if (!dateString) return null;
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return dateString;
+  }
+};
+
+// Formats HH:MM:SS to HH:MM AM/PM
+const formatJustTime = (timeString) => {
+  if (!timeString) return null;
+  try {
+    const parts = timeString.split(':');
+    if (parts.length >= 2) {
+      const h = parseInt(parts[0], 10);
+      const m = parts[1];
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${String(h12).padStart(2, '0')}:${m} ${ampm}`;
+    }
+    return timeString;
+  } catch {
+    return timeString;
+  }
 };
 
 const InfoRow = ({ label, value, theme }) => {
@@ -73,104 +109,65 @@ const ServiceRequestDetailScreen = () => {
   const { nightMode } = usePermissions();
   const complaint = route.params?.complaint || {};
   const { showAlert, AlertComponent } = useAlert(nightMode);
+
   const [societySettings, setSocietySettings] = useState(null);
-
-  const scrollRef = useRef(null);
-
-  // ✅ Track if any activity was performed
-  const hasChanges = useRef(false);
-
   const [comments, setComments] = useState([]);
   const [message, setMessage] = useState("");
   const [ratingModal, setRatingModal] = useState(false);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
-
-  // ✅ Modal State for UI Box
   const [modalState, setModalState] = useState({
-    visible: false,
-    type: 'loading',
-    title: '',
-    subtitle: '',
+    visible: false, type: "loading", title: "", subtitle: "",
   });
+
+  const scrollRef = useRef(null);
+  const hasChanges = useRef(false);
 
   const theme = nightMode
     ? { bg: "#0F0F14", card: "#18181F", text: "#fff", sub: "#9CA3AF", border: "#2C2C2C", inputBg: "#252525" }
     : { bg: "#F4F6FA", card: "#fff", text: "#111", sub: "#6B7280", border: "#E5E7EB", inputBg: "#F3F4F6" };
 
-  const isClosed = ["Closed", "Resolved", "Completed"].includes(complaint.status);
-  const status = complaint.status?.trim().toLowerCase();
+  const normalizedStatus = (complaint.status || "").toLowerCase().trim();
 
-  const canReopen =
-    ["closed", "resolved", "completed"].includes(status) &&
-    societySettings?.data?.reopen_complaint === "1"
+  const isClosed = CLOSED_STATUSES.includes(normalizedStatus);
+  const isReopen = REOPEN_STATUSES.includes(normalizedStatus);
+  const isOpen = OPEN_STATUSES.includes(normalizedStatus);
 
-  console.log(canReopen, "reopenstatus")
+  const canReopen = isClosed && societySettings?.data?.reopen_complaint === "1";
 
-  const hasRating = complaint.rating !== null &&
+  const hasRating =
+    complaint.rating !== null &&
     complaint.rating !== undefined &&
     parseFloat(complaint.rating) > 0;
 
-  const statusConfig = getStatusConfig(complaint.status);
+  const statusConfig = getStatusConfig(normalizedStatus);
 
-  const statusHistory = (() => {
-    try {
-      return JSON.parse(complaint.data || "{}")?.status_history || [];
-    } catch {
-      return [];
-    }
-  })();
   const parsedData = (() => {
-    try {
-      return JSON.parse(complaint.data || "{}");
-    } catch {
-      return {};
-    }
+    try { return JSON.parse(complaint.data || "{}"); } catch { return {}; }
   })();
 
+  const statusHistory = parsedData?.status_history || [];
   const otp = parsedData?.otp;
 
-  useEffect(() => {
-    loadConfig();
-  }, []);
+  useEffect(() => { loadConfig(); }, []);
   useEffect(() => { loadComments(); }, []);
-
 
   const loadConfig = async () => {
     try {
       const data = await AsyncStorage.getItem("SOCIETY_CONFIG");
-
-      if (data) {
-        const parsed = JSON.parse(data);
-
-        setSocietySettings(parsed);
-
-        console.log("✅ Loaded from storage:", parsed);
-        console.log("🔥 reopen_complaint:", parsed?.reopen_complaint);
-      } else {
-        console.log("⚠️ No config found in storage");
-      }
-
+      if (data) setSocietySettings(JSON.parse(data));
     } catch (e) {
-      console.log("❌ Async load error:", e);
+      console.log("Config load error:", e);
     }
   };
-  console.log("FULL SETTINGS:", societySettings);
 
   const loadComments = async () => {
     try {
       const res = await complaintService.getComplaintComments(complaint.id);
-
-      if (res?.data && Array.isArray(res.data)) {
-        setComments(res.data);
-      } else if (Array.isArray(res)) {
-        setComments(res);
-      } else {
-        setComments([]);
-      }
-
+      if (Array.isArray(res?.data)) setComments(res.data);
+      else if (Array.isArray(res)) setComments(res);
+      else setComments([]);
     } catch (e) {
-      console.log(e);
       setComments([]);
     }
   };
@@ -181,12 +178,11 @@ const ServiceRequestDetailScreen = () => {
       await complaintService.addComment(complaint.id, message);
       setMessage("");
       loadComments();
-      hasChanges.current = true; // ✅ Mark that changes were made
+      hasChanges.current = true;
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (e) { console.log(e); }
   };
 
-  // ✅ Updated submitRating with StatusModal
   const submitRating = async () => {
     if (!rating) {
       showAlert({
@@ -198,55 +194,44 @@ const ServiceRequestDetailScreen = () => {
     }
 
     setRatingModal(false);
-
-    setModalState({
-      visible: true,
-      type: 'loading',
-      title: 'Updating...',
-      subtitle: 'Saving your feedback and closing the request.',
-    });
+    setModalState({ visible: true, type: "loading", title: "Updating...", subtitle: "Saving your feedback." });
 
     try {
-      const res = await
-        complaintService.updateComplaintStatus({
-          id: complaint.id,
-          status: "Closed",
+      const res = await complaintService.updateComplaintStatus({
+        id: complaint.id,
+        status: "Closed",
+        description: complaint.description,
+        complaint_type: complaint.complaint_type,
+        sub_category: complaint.sub_category,
+        sub_category_id: complaint.sub_category_id,
+        severity: complaint.severity,
+        rating,
+        resident_remarks: feedback,
+      });
 
-          // 🔥 REQUIRED to prevent NULL
-          description: complaint.description,
-          complaint_type: complaint.complaint_type,
-          sub_category: complaint.sub_category,
-          sub_category_id: complaint.sub_category_id,
-          severity: complaint.severity,
-
-          // optional
-          rating: rating,
-          resident_remarks: feedback,
+      if (res?.status === "error") {
+        setModalState({
+          visible: true,
+          type: "error",
+          title: "Cannot Close",
+          subtitle: res?.message || "Something went wrong.",
         });
-
-      console.log(res, "complint status")
+        return;
+      }
 
       hasChanges.current = true;
-
       setModalState({
         visible: true,
-        type: 'success',
-        title: res?.message || 'Success',
-        subtitle: res?.message || 'Complaint updated successfully',
+        type: "success",
+        title: res?.message || "Success",
+        subtitle: "Complaint closed successfully.",
       });
-
     } catch (e) {
-      console.log(e);
-      setModalState({
-        visible: true,
-        type: 'error',
-        title: 'Failed',
-        subtitle: 'Something went wrong. Please try again later.',
-      });
+      setModalState({ visible: true, type: "error", title: "Failed", subtitle: "Something went wrong." });
     }
   };
-  // ✅ NEW: Reopen Request Handler
-  const handleReopenRequest = async () => {
+
+  const handleReopenRequest = () => {
     showAlert({
       title: "Reopen Request",
       message: "Are you sure you want to reopen this service request?",
@@ -255,20 +240,12 @@ const ServiceRequestDetailScreen = () => {
         {
           text: "Reopen",
           onPress: async () => {
-
-            setModalState({
-              visible: true,
-              type: 'loading',
-              title: 'Reopening...',
-              subtitle: 'Processing your request.',
-            });
+            setModalState({ visible: true, type: "loading", title: "Reopening...", subtitle: "Processing your request." });
 
             try {
               const res = await complaintService.updateComplaintStatus({
                 id: complaint.id,
-                status: "Reopen", // ✅ IMPORTANT CHANGE
-
-                // 🔥 REQUIRED FIELDS (same as close)
+                status: "Reopen",
                 description: complaint.description,
                 complaint_type: complaint.complaint_type,
                 sub_category: complaint.sub_category,
@@ -276,30 +253,29 @@ const ServiceRequestDetailScreen = () => {
                 severity: complaint.severity,
               });
 
-              console.log("✅ Reopen response:", res);
+              if (res?.status === "error") {
+                setModalState({
+                  visible: true,
+                  type: "error",
+                  title: "Cannot Reopen",
+                  subtitle: res?.message || "Something went wrong.",
+                });
+                return;
+              }
 
               hasChanges.current = true;
-
               setModalState({
                 visible: true,
-                type: 'success',
-                title: res?.message || 'Reopened',
-                subtitle: res?.message || 'Request reopened successfully',
+                type: "success",
+                title: res?.message || "Reopened",
+                subtitle: "Request reopened successfully.",
               });
-
             } catch (e) {
-              console.log('❌ Reopen error:', e);
-
-              setModalState({
-                visible: true,
-                type: 'error',
-                title: 'Failed to Reopen',
-                subtitle: 'Something went wrong. Please try again later.',
-              });
+              setModalState({ visible: true, type: "error", title: "Failed to Reopen", subtitle: "Something went wrong." });
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     });
   };
 
@@ -309,7 +285,7 @@ const ServiceRequestDetailScreen = () => {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        behavior="padding"
         keyboardVerticalOffset={KAV_OFFSET}
       >
         <ScrollView
@@ -318,7 +294,7 @@ const ServiceRequestDetailScreen = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Card 1: Main Details */}
+          {/* ── Main Details Card ── */}
           <View style={[styles.card, { backgroundColor: theme.card }]}>
             <View style={styles.cardHeader}>
               <Text style={[styles.requestNo, { color: BRAND_BLUE }]}>
@@ -345,14 +321,29 @@ const ServiceRequestDetailScreen = () => {
             <InfoRow label="Severity" value={complaint.severity} theme={theme} />
             <InfoRow label="Assigned Staff" value={complaint.staff_name} theme={theme} />
 
-            <View style={styles.otpRow}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {/* ✅ Added Schedule & Probable Dates/Times Here */}
+            <InfoRow
+              label="Schedule Date"
+              value={formatJustDate(complaint.schedule_date || parsedData?.schedule_date)}
+              theme={theme}
+            />
+            <InfoRow
+              label="Probable Date"
+              value={formatJustDate(complaint.probable_date || parsedData?.probable_date)}
+              theme={theme}
+            />
+            <InfoRow
+              label="Probable Time"
+              value={formatJustTime(complaint.probable_time || parsedData?.probable_time)}
+              theme={theme}
+            />
+
+            {!!otp && (
+              <View style={styles.otpRow}>
                 <Text style={[styles.infoLabel, { color: theme.sub }]}>Service OTP</Text>
+                <Text style={styles.otpValue}>{otp}</Text>
               </View>
-
-              <Text style={styles.otpValue}>{otp}</Text>
-            </View>
-
+            )}
 
             {!!complaint.remarks && (
               <>
@@ -363,7 +354,7 @@ const ServiceRequestDetailScreen = () => {
             )}
           </View>
 
-          {/* Card 2: Rating display (closed + has rating) */}
+          {/* ── Rating Display (closed + already rated) ── */}
           {isClosed && hasRating && (
             <View style={[styles.card, { backgroundColor: theme.card }]}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Rating</Text>
@@ -384,8 +375,8 @@ const ServiceRequestDetailScreen = () => {
             </View>
           )}
 
-          {/* Action Buttons */}
-          {!isClosed && (
+          {/* ── Action Buttons ── */}
+          {(isOpen || isReopen) && (
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: "#22C55E" }]}
               onPress={() => setRatingModal(true)}
@@ -397,8 +388,6 @@ const ServiceRequestDetailScreen = () => {
 
           {isClosed && (
             <View style={{ gap: 10 }}>
-
-              {/* ✅ Reopen only if allowed */}
               {canReopen && (
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: "#9333EA" }]}
@@ -409,7 +398,6 @@ const ServiceRequestDetailScreen = () => {
                 </TouchableOpacity>
               )}
 
-              {/* ✅ Rating */}
               {!hasRating && (
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: "#F59E0B" }]}
@@ -422,7 +410,7 @@ const ServiceRequestDetailScreen = () => {
             </View>
           )}
 
-          {/* Card 3: Status History */}
+          {/* ── Status History ── */}
           {statusHistory.length > 0 && (
             <View style={[styles.card, { backgroundColor: theme.card }]}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>Status History</Text>
@@ -431,7 +419,7 @@ const ServiceRequestDetailScreen = () => {
                 return (
                   <View key={index} style={styles.historyRow}>
                     <View style={[styles.historyDot, { backgroundColor: sc.color }]} />
-                    <Text style={[styles.historyStatus, { color: sc.color }]}>{item.status}</Text>
+                    <Text style={[styles.historyStatus, { color: sc.color }]}>{sc.label}</Text>
                     <Text style={[styles.historyTime, { color: theme.sub }]}>{formatDate(item.timestamp)}</Text>
                   </View>
                 );
@@ -439,8 +427,7 @@ const ServiceRequestDetailScreen = () => {
             </View>
           )}
 
-
-          {/* Card 4: Activities */}
+          {/* ── Activities / Comments ── */}
           <View style={[styles.card, { backgroundColor: theme.card }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               Activities {comments.length > 0 ? `(${comments.length})` : ""}
@@ -451,10 +438,19 @@ const ServiceRequestDetailScreen = () => {
             ) : (
               comments.map((item) => (
                 <View key={item.id} style={styles.commentRow}>
-                  <View style={styles.avatar}><Ionicons name="person" size={16} color="#fff" /></View>
+                  <View style={styles.avatar}>
+                    <Ionicons name="person" size={16} color="#fff" />
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.commentName, { color: theme.text }]}>{item.name}</Text>
                     <Text style={[styles.commentText, { color: theme.sub }]}>{item.remarks}</Text>
+                    {!!item.img_src && (
+                      <Image
+                        source={{ uri: item.img_src }}
+                        style={styles.commentImage}
+                        resizeMode="cover"
+                      />
+                    )}
                     <Text style={styles.timeText}>{formatDate(item.created_at)}</Text>
                   </View>
                 </View>
@@ -463,7 +459,7 @@ const ServiceRequestDetailScreen = () => {
           </View>
         </ScrollView>
 
-        {/* Comment Input */}
+        {/* ── Comment Input ── */}
         <View style={[styles.commentBox, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
           <TextInput
             placeholder="Add a comment..."
@@ -484,12 +480,13 @@ const ServiceRequestDetailScreen = () => {
         </View>
       </KeyboardAvoidingView>
 
-      {/* ── Rating Modal (Input) ── */}
+      {/* ── Rating Modal ── */}
       <Modal visible={ratingModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{isClosed ? "Rate the Service" : "Close & Rate"}</Text>
             <Text style={styles.modalSubtitle}>Please provide your feedback.</Text>
+
             <View style={{ flexDirection: "row", justifyContent: "center", marginVertical: 16 }}>
               {[1, 2, 3, 4, 5].map((s) => (
                 <TouchableOpacity key={s} onPress={() => setRating(s)} style={{ padding: 4 }}>
@@ -497,15 +494,17 @@ const ServiceRequestDetailScreen = () => {
                 </TouchableOpacity>
               ))}
             </View>
+
             <TextInput
               placeholder="Write your feedback..."
               value={feedback}
               onChangeText={setFeedback}
-              placeholderTextColor={"#afbdda"}
+              placeholderTextColor="#afbdda"
               style={[styles.feedbackInput, { borderColor: "#E5E7EB" }]}
               multiline
               numberOfLines={3}
             />
+
             <View style={styles.modalBtns}>
               <TouchableOpacity style={[styles.modalBtn, { backgroundColor: "#E5E7EB" }]} onPress={() => setRatingModal(false)}>
                 <Text style={{ color: "#374151" }}>Cancel</Text>
@@ -518,24 +517,22 @@ const ServiceRequestDetailScreen = () => {
         </View>
       </Modal>
 
-      {/* ✅ The UI Box Status Modal */}
       <AlertComponent />
+
       <StatusModal
         visible={modalState.visible}
         type={modalState.type}
         title={modalState.title}
         subtitle={modalState.subtitle}
         onClose={() => {
-          setModalState(prev => ({ ...prev, visible: false }));
-          if (modalState.type === 'success') {
-            if (hasChanges.current && onGoBack) {
-              onGoBack(); // ✅ refresh list
-            }
-            navigation.goBack(); // ✅ go back
+          setModalState((prev) => ({ ...prev, visible: false }));
+          if (modalState.type === "success") {
+            if (hasChanges.current && onGoBack) onGoBack();
+            navigation.goBack();
           }
         }}
       />
-    </SafeAreaView >
+    </SafeAreaView>
   );
 };
 
@@ -578,16 +575,6 @@ const styles = StyleSheet.create({
   feedbackInput: { borderWidth: 1, borderRadius: 8, padding: 10, height: 50, fontSize: 14, marginTop: 10 },
   modalBtns: { flexDirection: "row", gap: 10, marginTop: 16 },
   modalBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: "center" },
-  otpRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 6
-  },
-  otpValue: {
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: 4,
-    color: "#16A34A"
-  },
+  otpRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6 },
+  otpValue: { fontSize: 18, fontWeight: "800", letterSpacing: 4, color: "#16A34A" },
 });
